@@ -35,27 +35,37 @@ def _read_csv_gen(path, **kwargs):
 
 class Mapper:
 
-    def __init__(self, setup_path):
+    CONVERSION_INFO = {'field_name_part_conversion', 'field_name_full_conversion'}
 
+    def __init__(self, setup_path):
+        clean_later = ['field_name_full_conversion']
         self.settings = load_yaml(setup_path)
         dirname = os.path.dirname(setup_path)
-        for item in ('field_name_part_conversion', 'field_name_full_conversion'):
-            path = os.path.join(dirname, self.settings[item])
-            value = load_yaml(path)
-            value = value if value else []
-            setattr(self, item, value)
+        for item, value in self.settings.items():
+            if isinstance(value, str) and value[-4:] in {'.yml', 'yaml'}:
+                path = os.path.join(dirname, value)
+                result = load_yaml(path)
+                result = result if result else []
+                setattr(self, item, result)
+        for item in clean_later:
+            result = [[self._clean_it(i), self._clean_it(j)] for i, j in getattr(self, item)]
+            setattr(self, item, result)
+
+    def _clean_it(self, name):
+        item = name.lower().strip()
+        for source, to_replace in self.field_name_part_conversion:
+            item = item.replace(source, to_replace)
+        return item.strip('_')
 
     def _get_clean_field_name(self, name):
-        item = name.lower().strip()
+        item = self._clean_it(name)
 
         for source, to_replace in self.field_name_full_conversion:
             if item == source:
                 item = to_replace
                 break
 
-        for source, to_replace in self.field_name_part_conversion:
-            item = item.replace(source, to_replace)
-        return item.strip('_')
+        return item
 
     def _get_all_clean_field_names_mapping(self, names):
         name_mapping = {}
