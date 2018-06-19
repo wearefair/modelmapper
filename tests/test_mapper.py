@@ -2,9 +2,11 @@ import os
 import pytest
 
 from modelmapper import Mapper
+from fixtures.training_fixture1_all_values import all_fixture1_values
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.yml')
+training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 
 
 @pytest.fixture
@@ -30,10 +32,14 @@ class TestMapper:
         assert expected == result
 
     @pytest.mark.parametrize("names_mapping", [
-        {'Name 1': 'name_1', 'HELLO': 'he;;p', 'NAME  1_': 'name_1'},
+        {'Name 1': 'name_1', 'HELLO': 'hello', 'NAME  1_': 'name_1'},
         {'Name 1': 'name_1', 'NAME 1?': 'name_1'}
     ])
     def test_verify_no_duplicate_clean_names(self, names_mapping, mapper):
         with pytest.raises(ValueError) as exc_info:
             mapper._verify_no_duplicate_clean_names(names_mapping)
         assert str(exc_info.value).endswith("field has a collision with 'Name 1'")
+
+    def test_get_all_values_per_clean_name(self, all_fixture1_values, mapper):
+        result = mapper._get_all_values_per_clean_name(training_fixture1_path)
+        assert all_fixture1_values == result
