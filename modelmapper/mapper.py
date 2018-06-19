@@ -46,7 +46,7 @@ class Mapper:
             setattr(self, item, value)
 
     def _get_clean_field_name(self, name):
-        item = name.lower()
+        item = name.lower().strip()
 
         for source, to_replace in self.field_name_full_conversion:
             if item == source:

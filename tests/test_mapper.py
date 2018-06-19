@@ -17,7 +17,7 @@ def mapper():
 class TestMapper:
 
     def test_mapper_setup(self, mapper):
-        assert mapper.field_name_full_conversion == []
+        assert [['carrot', 'lemon'], ['dumpling', 'salt']] == mapper.field_name_full_conversion
         assert isinstance(mapper.field_name_part_conversion, list)
         assert ['#', 'num'] == mapper.field_name_part_conversion[0]
 
@@ -26,6 +26,8 @@ class TestMapper:
          {"Burrito's CAN Fly!": 'burritos_can_fly', 'Really?': 'really', 'keep it <= 99': 'keep_it_less_or_equal_99'}),
         (('The other  lines__stuff', ),
          {'The other  lines__stuff': 'the_other_lines_stuff'}),
+        (('Carrot ', ),
+         {'Carrot ': 'lemon'})
     ])
     def test_get_all_clean_field_names(self, data, expected, mapper):
         result = mapper._get_all_clean_field_names_mapping(data)
