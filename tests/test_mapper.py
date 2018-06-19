@@ -22,9 +22,18 @@ class TestMapper:
     @pytest.mark.parametrize("data, expected", [
         (("Burrito's CAN Fly!", "Really?", "keep it <= 99"),
          {"Burrito's CAN Fly!": 'burritos_can_fly', 'Really?': 'really', 'keep it <= 99': 'keep_it_less_or_equal_99'}),
-        (('The other lines__stuff', ),
-         {'The other lines__stuff': 'the_other_lines_stuff'}),
+        (('The other  lines__stuff', ),
+         {'The other  lines__stuff': 'the_other_lines_stuff'}),
     ])
     def test_get_all_clean_field_names(self, data, expected, mapper):
-        result = mapper._get_all_clean_field_names(data)
+        result = mapper._get_all_clean_field_names_mapping(data)
         assert expected == result
+
+    @pytest.mark.parametrize("names_mapping", [
+        {'Name 1': 'name_1', 'HELLO': 'he;;p', 'NAME  1_': 'name_1'},
+        {'Name 1': 'name_1', 'NAME 1?': 'name_1'}
+    ])
+    def test_verify_no_duplicate_clean_names(self, names_mapping, mapper):
+        with pytest.raises(ValueError) as exc_info:
+            mapper._verify_no_duplicate_clean_names(names_mapping)
+        assert str(exc_info.value).endswith("field has a collision with 'Name 1'")
