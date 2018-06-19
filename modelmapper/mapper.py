@@ -2,7 +2,7 @@ import csv
 import os
 import sys
 import yaml
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 pyversion = float(sys.version[:3])
 if pyversion < 3.6:
@@ -59,12 +59,10 @@ class Mapper:
 
     def _get_clean_field_name(self, name):
         item = self._clean_it(name)
-
         for source, to_replace in self.field_name_full_conversion:
             if item == source:
                 item = to_replace
                 break
-
         return item
 
     def _get_all_clean_field_names_mapping(self, names):
@@ -83,13 +81,14 @@ class Mapper:
                 clean_names_mapping[clean_name] = name
 
     def _get_all_values_per_clean_name(self, path):
-        result = defaultdict(set)
+        result = defaultdict(list)
         reader = _read_csv_gen(path)
         names = next(reader)
         name_mapping = self._get_all_clean_field_names_mapping(names)
         self._verify_no_duplicate_clean_names(name_mapping)
         clean_names = list(name_mapping.values())
+        # transposing csv and turning into dictionary
         for line in reader:
             for i, v in enumerate(line):
-                result[clean_names[i]].add(v)
+                result[clean_names[i]].append(v)
         return result

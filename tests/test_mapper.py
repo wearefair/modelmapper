@@ -17,7 +17,7 @@ def mapper():
 class TestMapper:
 
     def test_mapper_setup(self, mapper):
-        assert [['carrot', 'cheese'], ['bread', 'salted_butter']] == mapper.field_name_full_conversion
+        assert [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']] == mapper.field_name_full_conversion
         assert isinstance(mapper.field_name_part_conversion, list)
         assert ['#', 'num'] == mapper.field_name_part_conversion[0]
 
