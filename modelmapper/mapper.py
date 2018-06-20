@@ -5,14 +5,22 @@ import yaml
 import decimal
 from collections import defaultdict, Counter
 from decimal import Decimal
-from collections import namedtuple
 
 pyversion = float(sys.version[:3])
 if pyversion < 3.6:
     sys.exit('ModelMapper requires Python 3.6 or later.')
 
+# We are using both the new style and old style of named tuple
+from typing import Any, NamedTuple  # NOQA
+from collections import namedtuple  # NOQA
 
-FieldStats = namedtuple('FieldStats', 'counter max_int max_decimal_precision max_decimal_scale')
+
+class FieldStats(NamedTuple):
+    counter: Any
+    max_int: 'FieldStats' = 0
+    max_decimal_precision: 'FieldStats' = 0
+    max_decimal_scale: 'FieldStats' = 0
+    max_string_len: 'FieldStats' = 0
 
 
 class FileNotFound(ValueError):
@@ -142,6 +150,7 @@ class Mapper:
         max_int = 0
         max_decimal_precision = 0
         max_decimal_scale = 0
+        max_string_len = 0
         result = []
         for item in items:
             item = item.lower().strip()
@@ -171,6 +180,10 @@ class Mapper:
                 max_decimal_scale = max(max_decimal_scale, decimal_scale)
                 continue
             result.append(HasString)
+            if max_string_len < 255:
+                max_string_len = max(max_string_len, len(item) + self.settings.add_to_string_legth)
+                max_string_len = min(max_string_len, 255)
         return FieldStats(counter=Counter(result), max_int=max_int,
                           max_decimal_precision=max_decimal_precision,
-                          max_decimal_scale=max_decimal_scale)
+                          max_decimal_scale=max_decimal_scale,
+                          max_string_len=max_string_len)

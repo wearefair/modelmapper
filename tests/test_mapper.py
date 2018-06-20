@@ -57,24 +57,25 @@ class TestMapper:
     @pytest.mark.parametrize("values, expected", [
         (['1', '3', '4', ''],
          FieldStats(counter=Counter(HasNull=1, HasInt=3, HasBoolean=1),
-                    max_int=4, max_decimal_precision=0, max_decimal_scale=0)
+                    max_int=4)
          ),
         (['y', 'y', 'y', 'n', '', 'y'],
-         FieldStats(counter=Counter(HasNull=1, HasBoolean=5),
-                    max_int=0, max_decimal_precision=0, max_decimal_scale=0)
+         FieldStats(counter=Counter(HasNull=1, HasBoolean=5))
          ),
         (['1', '1', '0', 'null', '0', ''],
          FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4),
-                    max_int=1, max_decimal_precision=0, max_decimal_scale=0)
+                    max_int=1)
          ),
         (['$1.92', '$33.6', '$0', 'null', '$130.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
-                    max_int=0, max_decimal_precision=9, max_decimal_scale=4)
+                    max_decimal_precision=9, max_decimal_scale=4)
          ),
-
+        (['apple', 'orange', 'what is going on here?', 'aha!'],
+         FieldStats(counter=Counter(HasString=4),
+                    max_string_len=54)
+         ),
     ])
     def test_analyze_field_values(self, values, expected, mapper):
         result = mapper._analyze_field_values(values)
         diff = DeepDiff(expected, result)
         assert not diff
-
