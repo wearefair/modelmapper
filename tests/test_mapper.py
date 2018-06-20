@@ -1,8 +1,11 @@
 import os
 import pytest
+from deepdiff import DeepDiff
 
 from modelmapper import Mapper
+from modelmapper.mapper import FieldStats, HasNull, HasDecimal, HasInt, HasDollar, HasPercent, HasString, HasDateTime, HasBoolean
 from fixtures.training_fixture1_all_values import all_fixture1_values
+from collections import Counter
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.yml')
@@ -50,3 +53,28 @@ class TestMapper:
     def test_get_all_values_per_clean_name(self, all_fixture1_values, mapper):
         result = mapper._get_all_values_per_clean_name(training_fixture1_path)
         assert all_fixture1_values == result
+
+    @pytest.mark.parametrize("values, expected", [
+        (['1', '3', '4', ''],
+         FieldStats(counter=Counter(HasNull=1, HasInt=3, HasBoolean=1),
+                    max_int=4, max_decimal_precision=0, max_decimal_scale=0)
+         ),
+        (['y', 'y', 'y', 'n', '', 'y'],
+         FieldStats(counter=Counter(HasNull=1, HasBoolean=5),
+                    max_int=0, max_decimal_precision=0, max_decimal_scale=0)
+         ),
+        (['1', '1', '0', 'null', '0', ''],
+         FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4),
+                    max_int=1, max_decimal_precision=0, max_decimal_scale=0)
+         ),
+        (['$1.92', '$33.6', '$0', 'null', '$130.22'],
+         FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
+                    max_int=0, max_decimal_precision=9, max_decimal_scale=4)
+         ),
+
+    ])
+    def test_analyze_field_values(self, values, expected, mapper):
+        result = mapper._analyze_field_values(values)
+        diff = DeepDiff(expected, result)
+        assert not diff
+
