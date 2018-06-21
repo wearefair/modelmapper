@@ -3,14 +3,31 @@ import os
 import termios
 import fcntl
 
+MAX_TRY = 10
+
+
+class TooManyFailures(Exception):
+    pass
+
+
+def _get_input():
+    """
+    So we can test it
+    """
+    return input()
+
 
 def get_user_input(message, validate_func, **kwargs):
     user_input = None
     sys.stdout.write(message)
+    i = 0
     while user_input is None or not validate_func(user_input=user_input, **kwargs):
+        i += 1
+        if i > MAX_TRY:
+            raise TooManyFailures('Too many failures. Giving up.')
         if user_input is not None:
-            sys.stdout.write(f"{user_input} is not valid for {', '.join(kwargs.values())}")
-        user_input = input()
+            sys.stdout.write(f"{user_input} is not valid for {', '.join(map(str, kwargs.values()))}")
+        user_input = _get_input()
     sys.stdout.write(f"{user_input} works!")
     return user_input
 

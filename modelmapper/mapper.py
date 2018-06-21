@@ -29,6 +29,7 @@ class FieldStats(NamedTuple):
     max_decimal_precision: 'FieldStats' = 0
     max_decimal_scale: 'FieldStats' = 0
     max_string_len: 'FieldStats' = 0
+    datetime_formats: 'FieldStats' = None
 
 
 class FileNotFound(ValueError):
@@ -233,6 +234,7 @@ class Mapper:
                     msg = f'Please enter the datetime format for {item}'
                     new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
                     datetime_formats.add(new_format)
+                    result.append(HasDateTime)
                     if new_format in self.settings.datetime_formats:
                         raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
                     else:
@@ -243,7 +245,9 @@ class Mapper:
             if max_string_len < 255:
                 max_string_len = max(max_string_len, len(item) + self.settings.add_to_string_legth)
                 max_string_len = min(max_string_len, 255)
+
         return FieldStats(counter=Counter(result), max_int=max_int,
                           max_decimal_precision=max_decimal_precision,
                           max_decimal_scale=max_decimal_scale,
-                          max_string_len=max_string_len)
+                          max_string_len=max_string_len,
+                          datetime_formats=datetime_formats if datetime_detected_in_this_field else None)
