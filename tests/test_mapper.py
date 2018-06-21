@@ -8,7 +8,7 @@ from fixtures.training_fixture1_all_values import all_fixture1_values
 from collections import Counter
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.yml')
+template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 
 
@@ -20,9 +20,9 @@ def mapper():
 class TestMapper:
 
     def test_mapper_setup(self, mapper):
-        assert [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']] == mapper.field_name_full_conversion
-        assert isinstance(mapper.field_name_part_conversion, list)
-        assert ['#', 'num'] == mapper.field_name_part_conversion[0]
+        assert [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']] == mapper.settings.field_name_full_conversion
+        assert isinstance(mapper.settings.field_name_part_conversion, list)
+        assert ['#', 'num'] == mapper.settings.field_name_part_conversion[0]
 
     @pytest.mark.parametrize("data, expected", [
         (("Burrito's CAN Fly!", "Really?", "keep it <= 99"),
@@ -75,7 +75,7 @@ class TestMapper:
                     max_string_len=54)
          ),
     ])
-    def test_analyze_field_values(self, values, expected, mapper):
-        result = mapper._analyze_field_values(values)
+    def test_get_stats(self, values, expected, mapper):
+        result = mapper._get_stats(values, field_name='blah')
         diff = DeepDiff(expected, result)
         assert not diff

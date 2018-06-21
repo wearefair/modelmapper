@@ -1,18 +1,26 @@
 import csv
 import os
 import sys
-import yaml
+import pytoml
 import decimal
+import datetime
 from collections import defaultdict, Counter
 from decimal import Decimal
-
-pyversion = float(sys.version[:3])
-if pyversion < 3.6:
-    sys.exit('ModelMapper requires Python 3.6 or later.')
-
 # We are using both the new style and old style of named tuple
-from typing import Any, NamedTuple  # NOQA
-from collections import namedtuple  # NOQA
+from typing import Any, NamedTuple
+from collections import namedtuple
+
+from modelmapper.ui import get_user_choice, get_user_input
+
+
+INVALID_DATETIME_USER_OPTIONS = {
+    'y': {'help': 'to define the date format', 'func': lambda x: True},
+    'n': {'help': 'to abort', 'func': lambda x: sys.exit}
+}
+
+
+class InconsistentData(ValueError):
+    pass
 
 
 class FieldStats(NamedTuple):
@@ -60,11 +68,11 @@ def _check_file_exists(path):
         raise FileNotFound(f'{path} does not exist')
 
 
-def load_yaml(path):
+def load_toml(path):
     _check_file_exists(path)
     with open(path, 'r') as the_file:
         contents = the_file.read()
-    return yaml.load(contents)
+    return pytoml.loads(contents)
 
 
 def _read_csv_gen(path, **kwargs):
@@ -75,37 +83,48 @@ def _read_csv_gen(path, **kwargs):
             yield i
 
 
+def _is_valid_dateformat(user_input, item):
+    try:
+        datetime.datetime.strptime(item, user_input)
+    except ValueError:
+        result = False
+    else:
+        result = True
+    return result
+
+
 class Mapper:
 
     def __init__(self, setup_path):
         clean_later = ['field_name_full_conversion']
-        convert_to_set = ['null_values', 'boolean_true', 'boolean_false']
-        _settings = load_yaml(setup_path)
-        dirname = os.path.dirname(setup_path)
-        for item, value in _settings.items():
-            if isinstance(value, str) and value[-4:] in {'.yml', 'yaml'}:
-                path = os.path.join(dirname, value)
-                result = load_yaml(path)
-                result = result if result else []
-                setattr(self, item, result)
+        convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
+        _settings = load_toml(setup_path)['settings']
+        # dirname = os.path.dirname(setup_path)
+        # for item, value in _settings.items():
+        #     if isinstance(value, str) and value[-4:] in {'.yml', 'yaml'}:
+        #         path = os.path.join(dirname, value)
+        #         result = load_toml(path)
+        #         result = result if result else []
+        #         setattr(self, item, result)
         for item in clean_later:
-            result = [[self._clean_it(i), self._clean_it(j)] for i, j in getattr(self, item)]
-            setattr(self, item, result)
+            _settings[item] = [[self._clean_it(i, _settings), self._clean_it(j, _settings)] for i, j in _settings[item]]
         for item in convert_to_set:
             _settings[item] = set(_settings.get(item, []))
         _settings['booleans'] = _settings['boolean_true'] | _settings['boolean_false']
+        _settings['datetime_allowed_characters'] = set(_settings['datetime_allowed_characters'])
         Settings = namedtuple('Settings', ' '.join(_settings.keys()))
         self.settings = Settings(**_settings)
 
-    def _clean_it(self, name):
+    def _clean_it(self, name, settings=None):
+        conv = settings['field_name_part_conversion'] if settings else self.settings.field_name_part_conversion
         item = name.lower().strip()
-        for source, to_replace in self.field_name_part_conversion:
+        for source, to_replace in conv:
             item = item.replace(source, to_replace)
         return item.strip('_')
 
     def _get_clean_field_name(self, name):
         item = self._clean_it(name)
-        for source, to_replace in self.field_name_full_conversion:
+        for source, to_replace in self.settings.field_name_full_conversion:
             if item == source:
                 item = to_replace
                 break
@@ -146,11 +165,35 @@ class Mapper:
         else:
             return 0, 0
 
-    def _analyze_field_values(self, items):
+    def _get_datetime_formats(self, field_name, item, datetime_formats, failed_datetime_formats):
+        current_successful_formats = set()
+        current_failed_formats = set()
+        for _format in datetime_formats:
+            try:
+                datetime.datetime.strptime(item, _format)
+            except ValueError:
+                failed_datetime_formats.add(_format)
+            else:
+                current_successful_formats.add(_format)
+        if not current_successful_formats:
+            for _format in failed_datetime_formats:
+                try:
+                    datetime.datetime.strptime(item, _format)
+                except ValueError:
+                    pass
+                else:
+                    raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. Possible formats: {_format} and {datetime_formats}')
+        failed_datetime_formats |= current_failed_formats
+        return current_successful_formats, failed_datetime_formats
+
+    def _get_stats(self, items, field_name):
         max_int = 0
         max_decimal_precision = 0
         max_decimal_scale = 0
         max_string_len = 0
+        datetime_formats = self.settings.datetime_formats.copy()
+        failed_datetime_formats = set()
+        datetime_detected_in_this_field = False
         result = []
         for item in items:
             item = item.lower().strip()
@@ -179,6 +222,23 @@ class Mapper:
                 max_decimal_precision = max(max_decimal_precision, decimal_precision)
                 max_decimal_scale = max(max_decimal_scale, decimal_scale)
                 continue
+            if set(item) <= self.settings.datetime_allowed_characters:
+                datetime_formats, failed_datetime_formats = self._get_datetime_formats(field_name, item, datetime_formats, failed_datetime_formats)
+                if datetime_formats:
+                    result.append(HasDateTime)
+                    datetime_detected_in_this_field = True
+                elif datetime_detected_in_this_field:
+                    msg = f'field {field_name} has inconsistent datetime data: {item}.'
+                    get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
+                    msg = f'Please enter the datetime format for {item}'
+                    new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
+                    datetime_formats.add(new_format)
+                    if new_format in self.settings.datetime_formats:
+                        raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
+                    else:
+                        sys.stdout.write(f'Adding {new_format} to your settings.')
+                        self.settings.datetime_formats.add(new_format)
+
             result.append(HasString)
             if max_string_len < 255:
                 max_string_len = max(max_string_len, len(item) + self.settings.add_to_string_legth)
