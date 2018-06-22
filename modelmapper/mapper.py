@@ -77,6 +77,11 @@ def load_toml(path):
     return pytoml.loads(contents)
 
 
+def write_toml(path, contents):
+    with open(path, 'w') as the_file:
+        the_file.write(pytoml.dumps(contents))
+
+
 def _read_csv_gen(path, **kwargs):
     _check_file_exists(path)
     encoding = kwargs.pop('encoding', 'utf-8-sig')
@@ -98,6 +103,7 @@ def _is_valid_dateformat(user_input, item):
 class Mapper:
 
     def __init__(self, setup_path):
+        self.setup_path = setup_path
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
         self._original_settings = load_toml(setup_path)['settings']
@@ -178,7 +184,7 @@ class Mapper:
                 except ValueError:
                     pass
                 else:
-                    raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. Possible formats: {_format} and {datetime_formats}')
+                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: {item} had {_format} but previous dates in this field had {', '.join(datetime_formats)}")
         failed_datetime_formats |= current_failed_formats
         return current_successful_formats, failed_datetime_formats
 
@@ -223,6 +229,7 @@ class Mapper:
                 if datetime_formats:
                     result.append(HasDateTime)
                     datetime_detected_in_this_field = True
+                    continue
                 elif datetime_detected_in_this_field:
                     msg = f'field {field_name} has inconsistent datetime data: {item}.'
                     get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
@@ -235,7 +242,9 @@ class Mapper:
                     else:
                         sys.stdout.write(f'Adding {new_format} to your settings.')
                         self.settings.datetime_formats.add(new_format)
-
+                        self._original_settings['datetime_formats'].append(new_format)
+                        write_toml(self.setup_path, self._original_settings)
+                        continue
             result.append(HasString)
             if max_string_len < 255:
                 max_string_len = max(max_string_len, len(item) + self.settings.add_to_string_legth)

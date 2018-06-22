@@ -1,9 +1,10 @@
 import os
 import pytest
+from unittest import mock
 from deepdiff import DeepDiff
 
 from modelmapper import Mapper
-from modelmapper.mapper import FieldStats, HasNull, HasDecimal, HasInt, HasDollar, HasPercent, HasString, HasDateTime, HasBoolean
+from modelmapper.mapper import FieldStats, HasNull, HasDecimal, HasInt, HasDollar, HasPercent, HasString, HasDateTime, HasBoolean, InconsistentData
 from fixtures.training_fixture1_all_values import all_fixture1_values
 from collections import Counter
 
@@ -74,8 +75,25 @@ class TestMapper:
          FieldStats(counter=Counter(HasString=4),
                     max_string_len=54)
          ),
+        (['8/8/18', '12/8/18', '12/22/18', ''],
+         FieldStats(counter=Counter(HasDateTime=3, HasNull=1), datetime_formats={'%m/%d/%y'})
+         ),
     ])
-    def test_get_stats(self, values, expected, mapper):
+    @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
+    @mock.patch('modelmapper.mapper.get_user_choice')
+    def test_get_stats(self, mock_get_user_choice, mock_get_user_input, values, expected, mapper):
         result = mapper._get_stats(values, field_name='blah')
         diff = DeepDiff(expected, result)
         assert not diff
+
+    @pytest.mark.parametrize("values, expected", [
+        (['8/8/18', '12/8/18', '12/11/2018'],
+         FieldStats(counter=Counter(HasDateTime=3), datetime_formats={'%m/%d/%y'})
+         ),
+    ])
+    @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
+    @mock.patch('modelmapper.mapper.get_user_choice')
+    def test_get_stats_raises_exception_with_inconsistent_data(self, mock_get_user_choice, mock_get_user_input, values, expected, mapper):
+        with pytest.raises(InconsistentData) as excinfo:
+            mapper._get_stats(values, field_name='blah')
+        assert str(excinfo.value) == 'field blah has inconsistent datetime data: 12/11/2018 had %m/%d/%Y but previous dates in this field had %m/%d/%y'
