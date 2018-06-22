@@ -48,7 +48,11 @@ def get_user_choice(message, choices, **kwargs):
         allowed_keys.add(key)
     sys.stdout.write(' '.join(msgs))
 
+    i = 0
     while pressed not in allowed_keys:
+        i += 1
+        if i > MAX_TRY:
+            raise TooManyFailures('Too many failures. Giving up.')
         if pressed is not None:
             sys.stdout.write(f'{pressed} is not a valid option.')
         pressed = read_single_keypress()

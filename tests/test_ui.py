@@ -19,7 +19,6 @@ class TestUI:
     @pytest.mark.parametrize("user_input, expected", [
         (['11'], '11'),
         (['b', '10'], '10'),
-        # (['0'], False)
     ])
     @mock.patch('modelmapper.ui._get_input')
     def test_user_input(self, mock_get_input, user_input, expected):

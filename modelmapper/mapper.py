@@ -4,6 +4,7 @@ import sys
 import pytoml
 import decimal
 import datetime
+from copy import deepcopy
 from collections import defaultdict, Counter
 from decimal import Decimal
 # We are using both the new style and old style of named tuple
@@ -99,25 +100,19 @@ class Mapper:
     def __init__(self, setup_path):
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
-        _settings = load_toml(setup_path)['settings']
-        # dirname = os.path.dirname(setup_path)
-        # for item, value in _settings.items():
-        #     if isinstance(value, str) and value[-4:] in {'.yml', 'yaml'}:
-        #         path = os.path.join(dirname, value)
-        #         result = load_toml(path)
-        #         result = result if result else []
-        #         setattr(self, item, result)
+        self._original_settings = load_toml(setup_path)['settings']
+        self.settings = deepcopy(self._original_settings)
         for item in clean_later:
-            _settings[item] = [[self._clean_it(i, _settings), self._clean_it(j, _settings)] for i, j in _settings[item]]
+            self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
-            _settings[item] = set(_settings.get(item, []))
-        _settings['booleans'] = _settings['boolean_true'] | _settings['boolean_false']
-        _settings['datetime_allowed_characters'] = set(_settings['datetime_allowed_characters'])
-        Settings = namedtuple('Settings', ' '.join(_settings.keys()))
-        self.settings = Settings(**_settings)
+            self.settings[item] = set(self.settings.get(item, []))
+        self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
+        self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
+        Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
+        self.settings = Settings(**self.settings)
 
-    def _clean_it(self, name, settings=None):
-        conv = settings['field_name_part_conversion'] if settings else self.settings.field_name_part_conversion
+    def _clean_it(self, name):
+        conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
         item = name.lower().strip()
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
