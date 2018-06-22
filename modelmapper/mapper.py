@@ -199,13 +199,12 @@ class Mapper:
         result = []
         for item in items:
             item = item.lower().strip()
-            if item in self.settings.null_values:
+            if item.lower() in self.settings.null_values:
                 result.append(HasNull)
                 continue
-            if item in self.settings.booleans:
+            if item.lower() in self.settings.booleans:
                 result.append(HasBoolean)
-                if item not in {'0', '1'}:
-                    continue
+                continue
             if '$' in item:
                 item = item.replace('$', '')
                 result.append(HasDollar)
