@@ -163,7 +163,7 @@ class Mapper:
     def _get_decimal_places(self, item):
         if '.' in item:
             i, v = list(map(len, item.split('.')))
-            return i + v + 2 * self.settings.add_digits_to_decimal_field, v + self.settings.add_digits_to_decimal_field
+            return i + v, v
         else:
             return 0, 0
 
@@ -204,7 +204,6 @@ class Mapper:
                 continue
             if item.lower() in self.settings.booleans:
                 result.append(HasBoolean)
-                continue
             if '$' in item:
                 item = item.replace('$', '')
                 result.append(HasDollar)
@@ -245,9 +244,7 @@ class Mapper:
                         write_toml(self.setup_path, self._original_settings)
                         continue
             result.append(HasString)
-            if max_string_len < 255:
-                max_string_len = max(max_string_len, len(item) + self.settings.add_to_string_legth)
-                max_string_len = min(max_string_len, 255)
+            max_string_len = max(max_string_len, len(item))
 
         return FieldStats(counter=Counter(result), max_int=max_int,
                           max_decimal_precision=max_decimal_precision,

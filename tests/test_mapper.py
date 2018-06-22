@@ -58,35 +58,35 @@ class TestMapper:
 
     @pytest.mark.parametrize("values, expected", [
         (['1', '3', '4', ''],
-         FieldStats(counter=Counter(HasNull=1, HasInt=2, HasBoolean=1),
+         FieldStats(counter=Counter(HasNull=1, HasInt=3, HasBoolean=1),
                     max_int=4)
          ),
         (['y', 'y', 'y', 'n', '', 'y'],
-         FieldStats(counter=Counter(HasNull=1, HasBoolean=5))
+         FieldStats(counter=Counter(HasNull=1, HasBoolean=5, HasString=5), max_string_len=1)
          ),
         (['1', '1', '0', 'null', '0', ''],
-         FieldStats(counter=Counter(HasNull=2, HasBoolean=4))
+         FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4), max_int=1)
          ),
         (['1', '1', '0', '0', '20'],
-         FieldStats(counter=Counter(HasBoolean=4, HasInt=1),
+         FieldStats(counter=Counter(HasBoolean=4, HasInt=5),
                     max_int=20)
          ),
         (['$1.92', '$33.6', '$0', 'null', '$130.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
-                    max_decimal_precision=9, max_decimal_scale=4)
+                    max_decimal_precision=5, max_decimal_scale=2)
          ),
         (['apple', 'orange', 'what is going on here?', 'aha!'],
          FieldStats(counter=Counter(HasString=4),
-                    max_string_len=54)
+                    max_string_len=22)
          ),
         (['1', '0', 'F', 'True', 'na'],
-         FieldStats(counter=Counter(HasBoolean=4, HasNull=1))
+         FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=2, HasInt=2), max_int=1, max_string_len=4)
          ),
         (['8/8/18', '12/8/18', '12/22/18', ''],
          FieldStats(counter=Counter(HasDateTime=3, HasNull=1), datetime_formats={'%m/%d/%y'})
          ),
         (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
-         FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2), datetime_formats={'%m/%d/%y'}, max_string_len=45)
+         FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2), datetime_formats={'%m/%d/%y'}, max_string_len=13)
          ),
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
