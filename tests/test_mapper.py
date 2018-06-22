@@ -4,8 +4,8 @@ from unittest import mock
 from deepdiff import DeepDiff
 
 from modelmapper import Mapper
-from modelmapper.mapper import FieldStats, HasNull, HasDecimal, HasInt, HasDollar, HasPercent, HasString, HasDateTime, HasBoolean, InconsistentData
-from fixtures.training_fixture1_all_values import all_fixture1_values
+from modelmapper.mapper import FieldStats, InconsistentData
+from fixtures.training_fixture1_all_values import all_fixture1_values  # NOQA
 from collections import Counter
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +21,8 @@ def mapper():
 class TestMapper:
 
     def test_mapper_setup(self, mapper):
-        assert [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']] == mapper.settings.field_name_full_conversion
+        expected = [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']]
+        assert expected == mapper.settings.field_name_full_conversion
         assert isinstance(mapper.settings.field_name_part_conversion, list)
         assert ['#', 'num'] == mapper.settings.field_name_part_conversion[0]
 
@@ -88,12 +89,13 @@ class TestMapper:
 
     @pytest.mark.parametrize("values, expected", [
         (['8/8/18', '12/8/18', '12/11/2018'],
-         FieldStats(counter=Counter(HasDateTime=3), datetime_formats={'%m/%d/%y'})
+         'field blah has inconsistent datetime data: 12/11/2018 had %m/%d/%Y but previous dates in this field had %m/%d/%y'
          ),
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
-    def test_get_stats_raises_exception_with_inconsistent_data(self, mock_get_user_choice, mock_get_user_input, values, expected, mapper):
+    def test_get_stats_raises_exception_with_inconsistent_data(self, mock_get_user_choice,
+                                                               mock_get_user_input, values, expected, mapper):
         with pytest.raises(InconsistentData) as excinfo:
             mapper._get_stats(values, field_name='blah')
-        assert str(excinfo.value) == 'field blah has inconsistent datetime data: 12/11/2018 had %m/%d/%Y but previous dates in this field had %m/%d/%y'
+        assert str(excinfo.value) == expected
