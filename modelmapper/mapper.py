@@ -1,9 +1,11 @@
+import enum
 import csv
 import os
 import sys
 import pytoml
 import decimal
 import datetime
+import logging
 from copy import deepcopy
 from collections import defaultdict, Counter
 from decimal import Decimal
@@ -13,9 +15,17 @@ from collections import namedtuple
 
 from modelmapper.ui import get_user_choice, get_user_input
 
+logger = logging.getLogger(__name__)
+
 
 INVALID_DATETIME_USER_OPTIONS = {
     'y': {'help': 'to define the date format', 'func': lambda x: True},
+    'n': {'help': 'to abort', 'func': lambda x: sys.exit}
+}
+
+
+UNABLE_TO_INFER_TYPE_OPTIONS = {
+    'y': {'help': 'to continue', 'func': lambda x: True},
     'n': {'help': 'to abort', 'func': lambda x: sys.exit}
 }
 
@@ -31,6 +41,16 @@ class FieldStats(NamedTuple):
     max_decimal_scale: 'FieldStats' = 0
     max_string_len: 'FieldStats' = 0
     datetime_formats: 'FieldStats' = None
+    len: 'FieldStats' = 0
+
+
+class FieldResult(NamedTuple):
+    db_field_sqlalchemy_type: 'FieldResult' = None
+    db_field_str: 'FieldResult' = None
+    is_nullable: 'FieldResult' = None
+    is_percent: 'FieldResult' = None
+    is_dollar: 'FieldResult' = None
+    datetime_formats: 'FieldResult' = None
 
 
 class FileNotFound(ValueError):
@@ -45,6 +65,15 @@ HasPercent = 'HasPercent'
 HasString = 'HasString'
 HasDateTime = 'HasDateTime'
 HasBoolean = 'HasBoolean'
+
+
+class SqlalchemyFieldType(enum.Enum):
+    String = 'String({})'
+    SmallInteger = 'SmallInteger'
+    Integer = 'Integer'
+    Decimal = 'DECIMAL({}, {})'
+    DateTime = 'DateTime'
+    Boolean = 'Boolean'
 
 
 def get_positive_int(item):
@@ -100,6 +129,13 @@ def _is_valid_dateformat(user_input, item):
     return result
 
 
+# def _is_valid_db_field(user_input):
+#     for i in {i.name.lower() for i in SqlalchemyFieldType}:
+#         if i.startswith(user_input.lower()):
+#             return i
+#     return False
+
+
 class Mapper:
 
     def __init__(self, setup_path):
@@ -114,8 +150,11 @@ class Mapper:
             self.settings[item] = set(self.settings.get(item, []))
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
+        _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
+        self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
         self.settings = Settings(**self.settings)
+        self.questionable_fields = defaultdict(set)
 
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
@@ -156,8 +195,10 @@ class Mapper:
         clean_names = list(name_mapping.values())
         # transposing csv and turning into dictionary
         for line in reader:
-            for i, v in enumerate(line):
-                result[clean_names[i]].append(v)
+            # do not parse empty lines
+            if filter(lambda x: bool(x.strip()), line):
+                for i, v in enumerate(line):
+                    result[clean_names[i]].append(v)
         return result
 
     def _get_decimal_places(self, item):
@@ -223,7 +264,8 @@ class Mapper:
                 max_decimal_scale = max(max_decimal_scale, decimal_scale)
                 continue
             if set(item) <= self.settings.datetime_allowed_characters:
-                datetime_formats, failed_datetime_formats = self._get_datetime_formats(field_name, item, datetime_formats, failed_datetime_formats)
+                datetime_formats, failed_datetime_formats = self._get_datetime_formats(
+                    field_name, item, datetime_formats, failed_datetime_formats)
                 if datetime_formats:
                     result.append(HasDateTime)
                     datetime_detected_in_this_field = True
@@ -250,4 +292,123 @@ class Mapper:
                           max_decimal_precision=max_decimal_precision,
                           max_decimal_scale=max_decimal_scale,
                           max_string_len=max_string_len,
-                          datetime_formats=datetime_formats if datetime_detected_in_this_field else None)
+                          datetime_formats=datetime_formats if datetime_detected_in_this_field else None,
+                          len=len(items))
+
+    def _get_integer_field(self, max_int):
+        previous_key = 0
+        for key, field_db_type in self.settings.max_int.items():
+            if key < previous_key:
+                raise ValueError('max_int keys are not properly sorted.')
+            previous_key = key
+            if max_int < key:
+                return getattr(SqlalchemyFieldType, field_db_type)
+        raise ValueError(f'{max_int} is bigger than the largest integer the database takes: {key}')
+
+    def _get_field_type_from_stats(self, stats, field_name):
+        counter = stats.counter.copy()
+
+# FieldResult(NamedTuple):
+#     db_field_sqlalchemy_type: 'FieldResult' = None
+#     db_field_str: 'FieldResult' = None
+#     is_nullable: 'FieldResult' = None
+#     is_percent: 'FieldResult' = None
+#     is_dollar: 'FieldResult' = None
+    # datetime_formats: 'FieldResult' = None
+
+        _type = _type_str = None
+        null_count = counter.pop(HasNull, 0)
+        non_string_nullable = self.settings.non_string_fields_are_all_nullable or null_count
+        max_bool_word_size = max(map(len, self.settings.booleans))
+
+        str_length = min(stats.max_string_len + self.settings.add_to_string_legth, 255)
+        field_result_string = FieldResult(
+            db_field_sqlalchemy_type=SqlalchemyFieldType.String,
+            db_field_str=SqlalchemyFieldType.String.value.format(str_length),
+            is_nullable=bool(null_count) and self.settings.string_fields_can_be_nullable)
+
+        field_result_boolean = FieldResult(
+            db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean,
+            is_nullable=non_string_nullable)
+
+        field_result_datetime = FieldResult(
+            db_field_sqlalchemy_type=SqlalchemyFieldType.DateTime,
+            is_nullable=non_string_nullable,
+            datetime_formats=stats.datetime_formats)
+
+        if stats.max_string_len > max_bool_word_size:
+            return field_result_string
+
+        most_common = dict(counter.most_common(3))
+        most_common_keys = set(most_common.keys())
+        most_common_count = counter.most_common(1)[0][1]
+
+        for _has, _field_result in (('HasBoolean', field_result_boolean), ('HasDateTime', field_result_datetime), ('HasString', field_result_string)):
+            if counter[_has] == most_common_count:
+                if counter[_has] + counter['HasNull'] != stats.len:
+                    _field_type = _field_result.db_field_sqlalchemy_type.value
+                    self.questionable_fields[field_name].add(f'Field is probably {_field_type}. There are values that are not {_field_type} and not Null though.')
+                return _field_result
+
+        is_percent = is_dollar = None
+        if HasDecimal in counter:
+            _type = SqlalchemyFieldType.Decimal
+            max_decimal_precision = stats.max_decimal_precision
+            max_decimal_scale = stats.max_decimal_scale
+            if counter['HasInt']:
+                max_int_precision = len(str(stats.max_int)) + max_decimal_scale
+                max_decimal_precision = max(max_decimal_precision, max_int_precision)
+            if counter['HasDollar'] and self.settings.dollar_to_cent:
+                max_int = int('9' * max_decimal_precision)
+                _type = self._get_integer_field(max_int)
+                is_dollar = True
+        elif HasInt in most_common_keys:
+            if counter['HasPercent'] and self.settings.percent_to_decimal:
+                max_decimal_scale = 2
+                max_decimal_precision = len(str(stats.max_int))
+                _type = SqlalchemyFieldType.Decimal
+                is_percent = True
+            else:
+                _type = self._get_integer_field(stats.max_int)
+        if _type is SqlalchemyFieldType.Decimal:
+            max_decimal_precision += 2 * self.settings.add_digits_to_decimal_field
+            max_decimal_scale += self.settings.add_digits_to_decimal_field
+            _type_str = SqlalchemyFieldType.Decimal.value.format(max_decimal_precision, max_decimal_scale)
+
+        if _type:
+            return FieldResult(
+                db_field_sqlalchemy_type=_type,
+                db_field_str=_type_str,
+                is_nullable=non_string_nullable,
+                is_percent=is_percent,
+                is_dollar=is_dollar)
+
+        logger.error(f'Unable to understand the field type from the data in {field_name}')
+        logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
+
+        return FieldResult(None)
+
+        # info_['field_csv_name'] = field_csv_name
+        # field_db_name = info_.pop('field_db_name')
+        # field_db_type = info_['field_db_type']
+        # example_value = info_['example_value']
+        # nullable = not field_db_type.startswith('String')
+        # info_['nullable'] = nullable
+        # info_['boolean'] = field_db_type == 'Boolean'
+        # info_['datetime'] = field_db_type in {'Date', 'DateTime'}
+        # info_['is_percent'] = nullable and '%' in example_value
+
+        # if field_db_type == 'Integer' and '%' not in example_value:
+        #     field_db_name, is_cent = make_dollar_field_to_cents(field_db_name)
+        #     if is_cent:
+        #         info_['to_cent'] = True
+
+        # default = "" if nullable else ", default=''"
+        # nullable = str(nullable)
+        # index = ", index=True" if field_db_name in {'make', 'model', 'vin', 'cut_off_date'} else ""
+        # db_model.append(f"    {field_db_name} = Column({field_db_type}, nullable={nullable}{default}{index})\n")
+        # fields_info[field_db_name] = info_
+        # field_csv_name_to_db_name[field_csv_name] = field_db_name
+
+        # return fields_info, field_csv_name_to_db_name, db_model
+

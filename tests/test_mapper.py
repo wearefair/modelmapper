@@ -4,7 +4,7 @@ from unittest import mock
 from deepdiff import DeepDiff
 
 from modelmapper import Mapper
-from modelmapper.mapper import FieldStats, InconsistentData
+from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType
 from fixtures.training_fixture1_all_values import all_fixture1_values  # NOQA
 from collections import Counter
 
@@ -56,44 +56,71 @@ class TestMapper:
         result = mapper._get_all_values_per_clean_name(training_fixture1_path)
         assert all_fixture1_values == result
 
-    @pytest.mark.parametrize("values, expected", [
+    @pytest.mark.parametrize("values, expected_stats, expected_field_result", [
         (['1', '3', '4', ''],
          FieldStats(counter=Counter(HasNull=1, HasInt=3, HasBoolean=1),
-                    max_int=4)
+                    max_int=4, len=4),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True)
          ),
         (['y', 'y', 'y', 'n', '', 'y'],
-         FieldStats(counter=Counter(HasNull=1, HasBoolean=5, HasString=5), max_string_len=1)
+         FieldStats(counter=Counter(HasNull=1, HasBoolean=5, HasString=5),
+                    max_string_len=1, len=6),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
          ),
         (['1', '1', '0', 'null', '0', ''],
-         FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4), max_int=1)
+         FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4),
+                    max_int=1, len=6),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         ),
+        (['1', '0', 'F', 'True', 'na'],
+         FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=2, HasInt=2),
+                    max_int=1, max_string_len=4, len=5),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         ),
+        (['1', '0', 'F', 'True', 'na', 'no!'],
+         FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=3, HasInt=2),
+                    max_int=1, max_string_len=4, len=6),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
          ),
         (['1', '1', '0', '0', '20'],
          FieldStats(counter=Counter(HasBoolean=4, HasInt=5),
-                    max_int=20)
+                    max_int=20, len=5),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True)
          ),
-        (['$1.92', '$33.6', '$0', 'null', '$130.22'],
+        (['$1.92', '$33.6', '$0', 'null', '$13000.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
-                    max_decimal_precision=5, max_decimal_scale=2)
+                    max_decimal_precision=7, max_decimal_scale=2, len=5),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.Integer, is_nullable=True, is_dollar=True)
          ),
         (['apple', 'orange', 'what is going on here?', 'aha!'],
          FieldStats(counter=Counter(HasString=4),
-                    max_string_len=22)
+                    max_string_len=22, len=4),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.String, db_field_str='String(54)', is_nullable=False)
          ),
-        (['1', '0', 'F', 'True', 'na'],
-         FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=2, HasInt=2), max_int=1, max_string_len=4)
+        (['ca', 'wa', 'pe', '', 'be'],
+         FieldStats(counter=Counter(HasString=4, HasNull=1),
+                    max_string_len=2, len=5),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.String, db_field_str='String(34)', is_nullable=False)
          ),
-        (['8/8/18', '12/8/18', '12/22/18', ''],
-         FieldStats(counter=Counter(HasDateTime=3, HasNull=1), datetime_formats={'%m/%d/%y'})
-         ),
-        (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
-         FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2), datetime_formats={'%m/%d/%y'}, max_string_len=13)
-         ),
+        # (['8/8/18', '12/8/18', '12/22/18', ''],
+        #  FieldStats(counter=Counter(HasDateTime=3, HasNull=1),
+        #             datetime_formats={'%m/%d/%y'}, len=4)
+        #  ),
+        # (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
+        #  FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),
+        #             datetime_formats={'%m/%d/%y'}, max_string_len=13, len=6)
+        #  ),
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
-    def test_get_stats(self, mock_get_user_choice, mock_get_user_input, values, expected, mapper):
+    def test_get_stats_and_get_field_type_from_stats(self, mock_get_user_choice, mock_get_user_input,
+                                                     values, expected_stats, expected_field_result, mapper):
         result = mapper._get_stats(values, field_name='blah')
-        diff = DeepDiff(expected, result)
+        diff = DeepDiff(expected_stats, result)
+        assert not diff
+
+        field_result = mapper._get_field_type_from_stats(expected_stats, field_name='blah')
+        diff = DeepDiff(expected_field_result, field_result)
         assert not diff
 
     @pytest.mark.parametrize("values, expected", [
