@@ -145,3 +145,6 @@ class TestMapper:
     def test_get_field_orm_string(self, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1, mapper):
         for field_name, field_result in all_field_results_fixture1.items():
             assert all_field_sqlalchemy_str_fixture1[field_name] == mapper._get_field_orm_string(field_name=field_name, field_result=field_result)
+
+    def test_analyze(self):
+        mapper.analyze()
