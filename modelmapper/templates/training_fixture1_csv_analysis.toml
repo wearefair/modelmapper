@@ -1,0 +1,35 @@
+[casualty]
+field_db_sqlalchemy_type = "Boolean"
+is_nullable = true
+
+[value_current]
+field_db_sqlalchemy_type = "String({})"
+field_db_str = "String(38)"
+is_nullable = false
+
+[last_payment_date]
+field_db_sqlalchemy_type = "DateTime"
+is_nullable = true
+datetime_formats = ["%m/%d/%y"]
+
+[year]
+field_db_sqlalchemy_type = "SmallInteger"
+is_nullable = true
+
+[score]
+field_db_sqlalchemy_type = "SmallInteger"
+is_nullable = true
+
+[slope]
+field_db_sqlalchemy_type = "DECIMAL({}, {})"
+field_db_str = "DECIMAL(8, 4)"
+is_nullable = true
+
+[available]
+field_db_sqlalchemy_type = "Boolean"
+is_nullable = true
+
+[make]
+field_db_sqlalchemy_type = "String({})"
+field_db_str = "String(40)"
+is_nullable = false

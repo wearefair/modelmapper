@@ -5,6 +5,7 @@ from deepdiff import DeepDiff
 
 from modelmapper import Mapper
 from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType
+from modelmapper.misc import load_toml
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
 from collections import Counter
 
@@ -146,5 +147,6 @@ class TestMapper:
         for field_name, field_result in all_field_results_fixture1.items():
             assert all_field_sqlalchemy_str_fixture1[field_name] == mapper._get_field_orm_string(field_name=field_name, field_result=field_result)
 
-    def test_analyze(self):
-        mapper.analyze()
+    @mock.patch('modelmapper.mapper.write_toml')
+    def test_analyze(self, mock_write_toml, mapper):
+        results = mapper.analyze()

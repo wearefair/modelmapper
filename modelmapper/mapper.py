@@ -1,8 +1,6 @@
 import enum
-import csv
 import os
 import sys
-import pytoml
 import decimal
 import datetime
 import logging
@@ -14,6 +12,7 @@ from typing import Any, NamedTuple
 from collections import namedtuple
 
 from modelmapper.ui import get_user_choice, get_user_input
+from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +54,6 @@ class FieldResult(NamedTuple):
     to_index: 'FieldResult' = None
 
 
-class FileNotFound(ValueError):
-    pass
-
-
 HasNull = 'HasNull'
 HasDecimal = 'HasDecimal'
 HasInt = 'HasInt'
@@ -96,31 +91,6 @@ def get_positive_decimal(item):
     return result
 
 
-def _check_file_exists(path):
-    if not os.path.exists(path):
-        raise FileNotFound(f'{path} does not exist')
-
-
-def load_toml(path):
-    _check_file_exists(path)
-    with open(path, 'r') as the_file:
-        contents = the_file.read()
-    return pytoml.loads(contents)
-
-
-def write_toml(path, contents):
-    with open(path, 'w') as the_file:
-        the_file.write(pytoml.dumps(contents))
-
-
-def _read_csv_gen(path, **kwargs):
-    _check_file_exists(path)
-    encoding = kwargs.pop('encoding', 'utf-8-sig')
-    with open(path, 'r', encoding=encoding) as csvfile:
-        for i in csv.reader(csvfile, **kwargs):
-            yield i
-
-
 def _is_valid_dateformat(user_input, item):
     try:
         datetime.datetime.strptime(item, user_input)
@@ -129,13 +99,6 @@ def _is_valid_dateformat(user_input, item):
     else:
         result = True
     return result
-
-
-# def _is_valid_db_field(user_input):
-#     for i in {i.name.lower() for i in SqlalchemyFieldType}:
-#         if i.startswith(user_input.lower()):
-#             return i
-#     return False
 
 
 class Mapper:
@@ -191,7 +154,7 @@ class Mapper:
 
     def _get_all_values_per_clean_name(self, path):
         result = defaultdict(list)
-        reader = _read_csv_gen(path)
+        reader = read_csv_gen(path)
         names = next(reader)
         name_mapping = self._get_all_clean_field_names_mapping(names)
         self._verify_no_duplicate_clean_names(name_mapping)
@@ -401,21 +364,18 @@ class Mapper:
             yield field_name, self._get_field_result_from_stats(field_name=field_name, stats=stats)
 
     def analyze(self):
-        setup_dir = os.path.basedir(self.setup_path)
+        setup_dir = os.path.dirname(self.setup_path)
+        results = []
         for csv_path in self.settings.training_csvs:
             csv_name = os.path.basename(csv_path)
             if not csv_path.startswith('/'):
                 csv_path = os.path.join(setup_dir, csv_path)
-            result = dict(self._get_field_results_from_csv(csv_path))
+            result = {}
+            for field_name, field_result in self._get_field_results_from_csv(csv_path):
+                result[field_name] = named_tuple_to_compact_dict(field_result)
             analyzed_name = f'{self._clean_it(csv_name)}_analysis'
-            content = [
-                "# flake8: noqa",
-                f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE {csv_name}. DO NOT MODIFY THE FILE.\n",
-                f"{analyzed_name} = {pprint.pformat(result, indent=4)}\n",
-            ]
-
-            file_path = os.path.join(setup_dir, f'{analyzed_name}.py')
-            with open(file_path, 'w') as the_file:
-                the_file.write("\n".join(content))
-
+            file_path = os.path.join(setup_dir, f'{analyzed_name}.toml')
+            write_toml(file_path, result)
+            results.append(result)
             print(f'{file_path} updated.')
+        return results
