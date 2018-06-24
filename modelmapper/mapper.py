@@ -159,12 +159,6 @@ class Mapper:
         self.questionable_fields = {}
         self.failed_to_infer_fields = []
 
-    def _get_field_results_from_csv(self, path):
-        all_items = self._get_all_values_per_clean_name(path)
-        for field_name, field_values in all_items.items():
-            stats = self._get_stats(field_name=field_name, items=field_values)
-            yield field_name, self._get_field_type_from_stats(field_name=field_name, stats=stats)
-
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
         item = name.lower().strip()
@@ -314,7 +308,7 @@ class Mapper:
                 return getattr(SqlalchemyFieldType, field_db_type)
         raise ValueError(f'{max_int} is bigger than the largest integer the database takes: {key}')
 
-    def _get_field_type_from_stats(self, field_name, stats):
+    def _get_field_result_from_stats(self, field_name, stats):
         counter = stats.counter.copy()
 
         _type = _type_str = None
@@ -399,3 +393,29 @@ class Mapper:
         else:
             raise NotImplementedError(f'_get_field_orm_string is not implemented for {orm} orm yet.')
         return result
+
+    def _get_field_results_from_csv(self, path):
+        all_items = self._get_all_values_per_clean_name(path)
+        for field_name, field_values in all_items.items():
+            stats = self._get_stats(field_name=field_name, items=field_values)
+            yield field_name, self._get_field_result_from_stats(field_name=field_name, stats=stats)
+
+    def analyze(self):
+        setup_dir = os.path.basedir(self.setup_path)
+        for csv_path in self.settings.training_csvs:
+            csv_name = os.path.basename(csv_path)
+            if not csv_path.startswith('/'):
+                csv_path = os.path.join(setup_dir, csv_path)
+            result = dict(self._get_field_results_from_csv(csv_path))
+            analyzed_name = f'{self._clean_it(csv_name)}_analysis'
+            content = [
+                "# flake8: noqa",
+                f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE {csv_name}. DO NOT MODIFY THE FILE.\n",
+                f"{analyzed_name} = {pprint.pformat(result, indent=4)}\n",
+            ]
+
+            file_path = os.path.join(setup_dir, f'{analyzed_name}.py')
+            with open(file_path, 'w') as the_file:
+                the_file.write("\n".join(content))
+
+            print(f'{file_path} updated.')

@@ -115,13 +115,13 @@ class TestMapper:
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
-    def test_get_stats_and_get_field_type_from_stats(self, mock_get_user_choice, mock_get_user_input,
-                                                     values, expected_stats, expected_field_result, mapper):
+    def test_get_stats_and_get_field_result_from_stats(self, mock_get_user_choice, mock_get_user_input,
+                                                       values, expected_stats, expected_field_result, mapper):
         result = mapper._get_stats(field_name='blah', items=values)
         diff = DeepDiff(expected_stats, result)
         assert not diff
 
-        field_result = mapper._get_field_type_from_stats(field_name='blah', stats=expected_stats)
+        field_result = mapper._get_field_result_from_stats(field_name='blah', stats=expected_stats)
         diff = DeepDiff(expected_field_result, field_result)
         assert not diff
 
