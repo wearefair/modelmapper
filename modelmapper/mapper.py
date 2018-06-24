@@ -154,7 +154,8 @@ class Mapper:
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
         self.settings = Settings(**self.settings)
-        self.questionable_fields = defaultdict(set)
+        self.questionable_fields = {}
+        self.failed_to_infer_fields = []
 
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
@@ -308,14 +309,6 @@ class Mapper:
     def _get_field_type_from_stats(self, stats, field_name):
         counter = stats.counter.copy()
 
-# FieldResult(NamedTuple):
-#     db_field_sqlalchemy_type: 'FieldResult' = None
-#     db_field_str: 'FieldResult' = None
-#     is_nullable: 'FieldResult' = None
-#     is_percent: 'FieldResult' = None
-#     is_dollar: 'FieldResult' = None
-    # datetime_formats: 'FieldResult' = None
-
         _type = _type_str = None
         null_count = counter.pop(HasNull, 0)
         non_string_nullable = self.settings.non_string_fields_are_all_nullable or null_count
@@ -347,7 +340,7 @@ class Mapper:
             if counter[_has] == most_common_count:
                 if counter[_has] + counter['HasNull'] != stats.len:
                     _field_type = _field_result.db_field_sqlalchemy_type.value
-                    self.questionable_fields[field_name].add(f'Field is probably {_field_type}. There are values that are not {_field_type} and not Null though.')
+                    self.questionable_fields[field_name] = f'Field is probably {_field_type}. There are values that are not {_field_type} and not Null though.'
                 return _field_result
 
         is_percent = is_dollar = None
@@ -385,7 +378,7 @@ class Mapper:
 
         logger.error(f'Unable to understand the field type from the data in {field_name}')
         logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
-
+        self.failed_to_infer_fields.append(field_name)
         return FieldResult(None)
 
         # info_['field_csv_name'] = field_csv_name

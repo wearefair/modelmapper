@@ -102,14 +102,16 @@ class TestMapper:
                     max_string_len=2, len=5),
          FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.String, db_field_str='String(34)', is_nullable=False)
          ),
-        # (['8/8/18', '12/8/18', '12/22/18', ''],
-        #  FieldStats(counter=Counter(HasDateTime=3, HasNull=1),
-        #             datetime_formats={'%m/%d/%y'}, len=4)
-        #  ),
-        # (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
-        #  FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),
-        #             datetime_formats={'%m/%d/%y'}, max_string_len=13, len=6)
-        #  ),
+        (['8/8/18', '12/8/18', '12/22/18', ''],
+         FieldStats(counter=Counter(HasDateTime=3, HasNull=1),
+                    datetime_formats={'%m/%d/%y'}, len=4),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.DateTime, is_nullable=True, datetime_formats={'%m/%d/%y'})
+         ),
+        (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
+         FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),
+                    datetime_formats={'%m/%d/%y'}, max_string_len=13, len=6),
+         FieldResult(db_field_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=False, db_field_str='String(45)')
+         ),
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
