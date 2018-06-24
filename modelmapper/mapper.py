@@ -17,6 +17,7 @@ from modelmapper.ui import get_user_choice, get_user_input
 
 logger = logging.getLogger(__name__)
 
+SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
 
 INVALID_DATETIME_USER_OPTIONS = {
     'y': {'help': 'to define the date format', 'func': lambda x: True},
@@ -45,12 +46,13 @@ class FieldStats(NamedTuple):
 
 
 class FieldResult(NamedTuple):
-    db_field_sqlalchemy_type: 'FieldResult' = None
-    db_field_str: 'FieldResult' = None
+    field_db_sqlalchemy_type: 'FieldResult' = None
+    field_db_str: 'FieldResult' = None
     is_nullable: 'FieldResult' = None
     is_percent: 'FieldResult' = None
     is_dollar: 'FieldResult' = None
     datetime_formats: 'FieldResult' = None
+    to_index: 'FieldResult' = None
 
 
 class FileNotFound(ValueError):
@@ -157,6 +159,12 @@ class Mapper:
         self.questionable_fields = {}
         self.failed_to_infer_fields = []
 
+    def _get_field_results_from_csv(self, path):
+        all_items = self._get_all_values_per_clean_name(path)
+        for field_name, field_values in all_items.items():
+            stats = self._get_stats(field_name=field_name, items=field_values)
+            yield field_name, self._get_field_type_from_stats(field_name=field_name, stats=stats)
+
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
         item = name.lower().strip()
@@ -230,7 +238,7 @@ class Mapper:
         failed_datetime_formats |= current_failed_formats
         return current_successful_formats, failed_datetime_formats
 
-    def _get_stats(self, items, field_name):
+    def _get_stats(self, field_name, items):
         max_int = 0
         max_decimal_precision = 0
         max_decimal_scale = 0
@@ -306,7 +314,7 @@ class Mapper:
                 return getattr(SqlalchemyFieldType, field_db_type)
         raise ValueError(f'{max_int} is bigger than the largest integer the database takes: {key}')
 
-    def _get_field_type_from_stats(self, stats, field_name):
+    def _get_field_type_from_stats(self, field_name, stats):
         counter = stats.counter.copy()
 
         _type = _type_str = None
@@ -316,16 +324,16 @@ class Mapper:
 
         str_length = min(stats.max_string_len + self.settings.add_to_string_legth, 255)
         field_result_string = FieldResult(
-            db_field_sqlalchemy_type=SqlalchemyFieldType.String,
-            db_field_str=SqlalchemyFieldType.String.value.format(str_length),
+            field_db_sqlalchemy_type=SqlalchemyFieldType.String,
+            field_db_str=SqlalchemyFieldType.String.value.format(str_length),
             is_nullable=bool(null_count) and self.settings.string_fields_can_be_nullable)
 
         field_result_boolean = FieldResult(
-            db_field_sqlalchemy_type=SqlalchemyFieldType.Boolean,
+            field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean,
             is_nullable=non_string_nullable)
 
         field_result_datetime = FieldResult(
-            db_field_sqlalchemy_type=SqlalchemyFieldType.DateTime,
+            field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime,
             is_nullable=non_string_nullable,
             datetime_formats=stats.datetime_formats)
 
@@ -339,7 +347,7 @@ class Mapper:
         for _has, _field_result in (('HasBoolean', field_result_boolean), ('HasDateTime', field_result_datetime), ('HasString', field_result_string)):
             if counter[_has] == most_common_count:
                 if counter[_has] + counter['HasNull'] != stats.len:
-                    _field_type = _field_result.db_field_sqlalchemy_type.value
+                    _field_type = _field_result.field_db_sqlalchemy_type.value
                     self.questionable_fields[field_name] = f'Field is probably {_field_type}. There are values that are not {_field_type} and not Null though.'
                 return _field_result
 
@@ -370,8 +378,8 @@ class Mapper:
 
         if _type:
             return FieldResult(
-                db_field_sqlalchemy_type=_type,
-                db_field_str=_type_str,
+                field_db_sqlalchemy_type=_type,
+                field_db_str=_type_str,
                 is_nullable=non_string_nullable,
                 is_percent=is_percent,
                 is_dollar=is_dollar)
@@ -381,27 +389,13 @@ class Mapper:
         self.failed_to_infer_fields.append(field_name)
         return FieldResult(None)
 
-        # info_['field_csv_name'] = field_csv_name
-        # field_db_name = info_.pop('field_db_name')
-        # field_db_type = info_['field_db_type']
-        # example_value = info_['example_value']
-        # nullable = not field_db_type.startswith('String')
-        # info_['nullable'] = nullable
-        # info_['boolean'] = field_db_type == 'Boolean'
-        # info_['datetime'] = field_db_type in {'Date', 'DateTime'}
-        # info_['is_percent'] = nullable and '%' in example_value
-
-        # if field_db_type == 'Integer' and '%' not in example_value:
-        #     field_db_name, is_cent = make_dollar_field_to_cents(field_db_name)
-        #     if is_cent:
-        #         info_['to_cent'] = True
-
-        # default = "" if nullable else ", default=''"
-        # nullable = str(nullable)
-        # index = ", index=True" if field_db_name in {'make', 'model', 'vin', 'cut_off_date'} else ""
-        # db_model.append(f"    {field_db_name} = Column({field_db_type}, nullable={nullable}{default}{index})\n")
-        # fields_info[field_db_name] = info_
-        # field_csv_name_to_db_name[field_csv_name] = field_db_name
-
-        # return fields_info, field_csv_name_to_db_name, db_model
-
+    def _get_field_orm_string(self, field_name, field_result, orm=SQLALCHEMY_ORM):
+        field_db_type = field_result.field_db_str if field_result.field_db_str else field_result.field_db_sqlalchemy_type.value
+        default = "" if field_result.is_nullable else ", default=''"
+        nullable = str(field_result.is_nullable)
+        index = ", index=True" if field_result.to_index else ""
+        if orm == SQLALCHEMY_ORM:
+            result = f"    {field_name} = Column({field_db_type}, nullable={nullable}{default}{index})\n"
+        else:
+            raise NotImplementedError(f'_get_field_orm_string is not implemented for {orm} orm yet.')
+        return result
