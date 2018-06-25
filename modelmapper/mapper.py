@@ -115,7 +115,7 @@ class Mapper:
             self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
-        self.settings['identifier'] = os.path.basename(setup_path).rstrip('_setup.toml')
+        self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
@@ -290,10 +290,12 @@ class Mapper:
 
         field_result_boolean = FieldResult(
             field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean,
+            field_db_str=SqlalchemyFieldType.Boolean.value,
             is_nullable=non_string_nullable)
 
         field_result_datetime = FieldResult(
             field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime,
+            field_db_str=SqlalchemyFieldType.DateTime.value,
             is_nullable=non_string_nullable,
             datetime_formats=stats.datetime_formats)
 
@@ -339,7 +341,7 @@ class Mapper:
         if _type:
             return FieldResult(
                 field_db_sqlalchemy_type=_type,
-                field_db_str=_type_str,
+                field_db_str=_type_str if _type_str else _type.value,
                 is_nullable=non_string_nullable,
                 is_percent=is_percent,
                 is_dollar=is_dollar)

@@ -60,37 +60,37 @@ class TestMapper:
         (['1', '3', '4', ''],
          FieldStats(counter=Counter(HasNull=1, HasInt=3, HasBoolean=1),
                     max_int=4, len=4),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)
          ),
         (['y', 'y', 'y', 'n', '', 'y'],
          FieldStats(counter=Counter(HasNull=1, HasBoolean=5, HasString=5),
                     max_string_len=1, len=6),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True)
          ),
         (['1', '1', '0', 'null', '0', ''],
          FieldStats(counter=Counter(HasNull=2, HasBoolean=4, HasInt=4),
                     max_int=1, len=6),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True)
          ),
         (['1', '0', 'F', 'True', 'na'],
          FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=2, HasInt=2),
                     max_int=1, max_string_len=4, len=5),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True)
          ),
         (['1', '0', 'F', 'True', 'na', 'no!'],
          FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=3, HasInt=2),
                     max_int=1, max_string_len=4, len=6),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True)
          ),
         (['1', '1', '0', '0', '20'],
          FieldStats(counter=Counter(HasBoolean=4, HasInt=5),
                     max_int=20, len=5),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)
          ),
         (['$1.92', '$33.6', '$0', 'null', '$13000.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
                     max_decimal_precision=7, max_decimal_scale=2, len=5),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, is_nullable=True, is_dollar=True)
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
          ),
         (['apple', 'orange', 'what is going on here?', 'aha!'],
          FieldStats(counter=Counter(HasString=4),
@@ -105,7 +105,7 @@ class TestMapper:
         (['8/8/18', '12/8/18', '12/22/18', ''],
          FieldStats(counter=Counter(HasDateTime=3, HasNull=1),
                     datetime_formats={'%m/%d/%y'}, len=4),
-         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, is_nullable=True, datetime_formats={'%m/%d/%y'})
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, field_db_str='DateTime', is_nullable=True, datetime_formats={'%m/%d/%y'})
          ),
         (['random string', '8/8/18', '12/8/18', 'NONE', '12/22/18', ''],
          FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),

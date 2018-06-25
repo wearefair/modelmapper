@@ -17,14 +17,14 @@ def all_fixture1_values():
 
 @pytest.fixture
 def all_field_results_fixture1():
-    return {'available': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True),
-            'casualty': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True),
-            'last_payment_date': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, is_nullable=True, datetime_formats={'%m/%d/%y'}),
+    return {'available': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True),
+            'casualty': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, field_db_str='Boolean', is_nullable=True),
+            'last_payment_date': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, field_db_str='DateTime', is_nullable=True, datetime_formats={'%m/%d/%y'}),
             'make': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, field_db_str='String(40)', is_nullable=False),
-            'score': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True),
+            'score': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True),
             'slope': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(8, 4)', is_nullable=True),
             'value_current': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, field_db_str='String(38)', is_nullable=False),
-            'year': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, is_nullable=True)}
+            'year': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)}
 
 
 @pytest.fixture

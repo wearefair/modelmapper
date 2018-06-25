@@ -1,37 +1,34 @@
 # NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF training_fixture1.csv.
 # DO NOT MODIFY THIS FILE DIRECTLY.
 [casualty]
-field_db_sqlalchemy_type = "Boolean"
+field_db_str = "Boolean"
 is_nullable = true
 
 [value_current]
-field_db_sqlalchemy_type = "String({})"
 field_db_str = "String(38)"
 is_nullable = false
 
 [last_payment_date]
-field_db_sqlalchemy_type = "DateTime"
+field_db_str = "DateTime"
 is_nullable = true
 datetime_formats = ["%m/%d/%y"]
 
 [year]
-field_db_sqlalchemy_type = "SmallInteger"
+field_db_str = "SmallInteger"
 is_nullable = true
 
 [score]
-field_db_sqlalchemy_type = "SmallInteger"
+field_db_str = "SmallInteger"
 is_nullable = true
 
 [slope]
-field_db_sqlalchemy_type = "DECIMAL({}, {})"
 field_db_str = "DECIMAL(8, 4)"
 is_nullable = true
 
 [available]
-field_db_sqlalchemy_type = "Boolean"
+field_db_str = "Boolean"
 is_nullable = true
 
 [make]
-field_db_sqlalchemy_type = "String({})"
 field_db_str = "String(40)"
 is_nullable = false

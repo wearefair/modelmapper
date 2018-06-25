@@ -21,6 +21,7 @@ def load_toml(path):
 
 
 def write_toml(path, contents, auto_generated_from=None):
+    import ipdb; ipdb.set_trace()
     dump = pytoml.dumps(contents)
     if auto_generated_from:
         dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"
@@ -43,7 +44,7 @@ def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):
     _dict = named_tuple_obj._asdict()
     result = {}
     for k, v in _dict.items():
-        if v != named_tuple_obj._field_defaults[k]:
+        if v != named_tuple_obj._field_defaults[k] and not isinstance(v, enum.Enum):
             result[k] = v
         if include_enums and isinstance(v, enum.Enum):
             result[k] = v.value
