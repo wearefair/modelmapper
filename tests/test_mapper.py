@@ -7,6 +7,7 @@ from deepdiff import DeepDiff
 from modelmapper import Mapper
 from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType, get_field_result_from_dict
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
+from fixtures.analysis_fixtures import analysis_fixture_a, analysis_fixture_b, analysis_fixture_c, analysis_fixture_a_only_combined
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/some_model_setup.toml')
@@ -160,5 +161,13 @@ class TestMapper:
     ])
     def test_get_field_result_from_dict(self, item, expected):
         result = get_field_result_from_dict(item)
+        diff = DeepDiff(expected, result)
+        assert not diff
+
+    @pytest.mark.parametrize("values, expected", [
+        ([analysis_fixture_a()], analysis_fixture_a_only_combined()),
+    ])
+    def test_get_combined_field_results_from_analyzed_csvs(self, values, expected, mapper):
+        result = mapper.get_combined_field_results_from_analyzed_csvs(values)
         diff = DeepDiff(expected, result)
         assert not diff

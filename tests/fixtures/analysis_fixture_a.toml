@@ -1,0 +1,14 @@
+[casualty]
+field_db_str = "Boolean"
+
+[value_current]
+field_db_str = "String(38)"
+is_nullable = false
+
+[last_payment_date]
+field_db_str = "DateTime"
+is_nullable = true
+datetime_formats = ["%m/%d/%y"]
+
+[slope]
+field_db_str = "Integer"
