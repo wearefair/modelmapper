@@ -149,4 +149,7 @@ class TestMapper:
 
     @mock.patch('modelmapper.mapper.write_toml')
     def test_analyze(self, mock_write_toml, mapper):
+        expected_results = mapper._read_analyzed_csv_results()
         results = mapper.analyze()
+        diff = DeepDiff(expected_results, results)
+        assert not diff

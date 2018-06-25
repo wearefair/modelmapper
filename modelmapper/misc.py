@@ -47,3 +47,23 @@ def named_tuple_to_compact_dict(named_tuple_obj):
         elif isinstance(v, set):
             result[k] = list(v)
     return result
+
+
+_ESCAPE_ACCEPTABLED = set('1234567890qwertyuiopasdfghjklzxcvbnm')
+
+
+def escape_word(word):
+    """
+    Use this to create consistent escaped words
+    """
+    result = []
+    last_i = None
+    for i in word.lower().strip():
+        if i in _ESCAPE_ACCEPTABLED:
+            result.append(i)
+        else:
+            i = '_'
+            if i != last_i:
+                result.append(i)
+        last_i = i
+    return ''.join(result).strip('_')

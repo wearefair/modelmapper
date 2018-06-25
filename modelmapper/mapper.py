@@ -12,7 +12,7 @@ from typing import Any, NamedTuple
 from collections import namedtuple
 
 from modelmapper.ui import get_user_choice, get_user_input
-from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict
+from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict, escape_word
 
 logger = logging.getLogger(__name__)
 
@@ -363,18 +363,34 @@ class Mapper:
             stats = self._get_stats(field_name=field_name, items=field_values)
             yield field_name, self._get_field_result_from_stats(field_name=field_name, stats=stats)
 
-    def analyze(self):
+    def _get_analyzed_file_path_from_csv_path(self, path):
         setup_dir = os.path.dirname(self.setup_path)
+        csv_name = os.path.basename(path)
+        analyzed_file_name = f'{escape_word(csv_name)}_analysis.toml'
+        return os.path.join(setup_dir, analyzed_file_name)
+
+    def _get_csv_full_path(self, path):
+        setup_dir = os.path.dirname(self.setup_path)
+        if not path.startswith('/'):
+            csv_path = os.path.join(setup_dir, path)
+        return os.path.join(setup_dir, csv_path)
+
+    def _read_analyzed_csv_results(self):
         results = []
         for csv_path in self.settings.training_csvs:
-            csv_name = os.path.basename(csv_path)
-            if not csv_path.startswith('/'):
-                csv_path = os.path.join(setup_dir, csv_path)
+            file_path = self._get_analyzed_file_path_from_csv_path(csv_path)
+            result = load_toml(file_path)
+            results.append(result)
+        return results
+
+    def analyze(self):
+        results = []
+        for csv_path in self.settings.training_csvs:
+            csv_path = self._get_csv_full_path(csv_path)
+            file_path = self._get_analyzed_file_path_from_csv_path(csv_path)
             result = {}
             for field_name, field_result in self._get_field_results_from_csv(csv_path):
                 result[field_name] = named_tuple_to_compact_dict(field_result)
-            analyzed_name = f'{self._clean_it(csv_name)}_analysis'
-            file_path = os.path.join(setup_dir, f'{analyzed_name}.toml')
             write_toml(file_path, result)
             results.append(result)
             print(f'{file_path} updated.')
