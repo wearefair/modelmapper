@@ -93,6 +93,14 @@ class SqlalchemyFieldType(enum.Enum):
     Boolean = 'Boolean'
 
 
+FIELD_RESULT_COMPARISON_NUMBERS = {
+    SqlalchemyFieldType.Decimal: 10,
+    SqlalchemyFieldType.BigInteger: 8,
+    SqlalchemyFieldType.Integer: 6,
+    SqlalchemyFieldType.SmallInteger: 4,
+}
+
+
 def get_positive_int(item):
     item = item.replace('-', '')
     try:
@@ -423,8 +431,37 @@ class Mapper:
 
         return results
 
-    def get_final_results(self):
-        results = self._read_analyzed_csv_results()
+    def get_combined_field_results_from_analyzed_csvs(self, analyzed_results_all):
+        results = {}
+        for analyzed_results in analyzed_results_all:
+            for field_name, field_result_dict in analyzed_results.items():
+                field_result = get_field_result_from_dict(field_result_dict)
+                if field_name not in results:
+                    results[field_name] = field_result
+                else:
+                    old_field_result = results[field_name]
+                    old_type = old_field_result.field_db_sqlalchemy_type
+                    new_type = field_result.field_db_sqlalchemy_type
+                    if old_type != new_type:
+                        if {old_type, new_type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
+                            bigger_field_result = max(field_result, old_field_result, key=lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x.field_db_sqlalchemy_type])
+                        else:
+                            raise ValueError(f'Field types that are inferred have conflicts: {old_type.name} vs {new_type.name} for field name {field_name}')
+                    else:
+                        if new_type == SqlalchemyFieldType.String:
+                            bigger_field_result = max(old_field_result, field_result, key=lambda x: x.args[0])
+                        elif new_type == SqlalchemyFieldType.Decimal:
+                            bigger_pre_decimal = max(old_field_result.args[0] - old_field_result.args[1], field_result.args[0] - field_result.args[1])
+                            bigger_decimal_scale = max(old_field_result.args[1], field_result.args[1])
+                            bigger_decimal_precision = bigger_pre_decimal + bigger_decimal_scale
+                            field_result_dict = named_tuple_to_compact_dict(field_result)
+                            field_result_dict['args'] = [bigger_decimal_precision, bigger_decimal_scale]
+                            field_result_dict['field_db_sqlalchemy_type'] = new_type
+                            bigger_field_result = FieldResult(**field_result_dict)
+                        else:
+                            continue
+                    results[field_name] = bigger_field_result
+        return results
 
     def run(self):
         self.analyze()
@@ -440,3 +477,7 @@ class Mapper:
             print(tabulate(self.questionable_fields.items(), headers=headers))
             msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
             get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+
+        analyzed_results_all = self._read_analyzed_csv_results()
+        combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all)
+        print(combined_results)
