@@ -36,7 +36,7 @@ def read_csv_gen(path, **kwargs):
             yield i
 
 
-def named_tuple_to_compact_dict(named_tuple_obj):
+def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):
     """
     Convert new style of Named Tuple with defaults into dictionary
     """
@@ -45,7 +45,7 @@ def named_tuple_to_compact_dict(named_tuple_obj):
     for k, v in _dict.items():
         if v != named_tuple_obj._field_defaults[k]:
             result[k] = v
-        if isinstance(v, enum.Enum):
+        if include_enums and isinstance(v, enum.Enum):
             result[k] = v.value
         elif isinstance(v, set):
             result[k] = list(v)

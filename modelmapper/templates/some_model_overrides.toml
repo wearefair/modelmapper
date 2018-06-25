@@ -1,0 +1,4 @@
+# ADD FIELD OVERRIDES HERE
+[year]
+field_db_str = "String(4)"
+is_nullable = false

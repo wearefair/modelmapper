@@ -1,13 +1,12 @@
 import os
 import pytest
 from unittest import mock
+from collections import Counter
 from deepdiff import DeepDiff
 
 from modelmapper import Mapper
 from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType
-from modelmapper.misc import load_toml
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
-from collections import Counter
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
