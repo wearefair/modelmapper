@@ -50,7 +50,7 @@ class TestMapper:
     def test_verify_no_duplicate_clean_names(self, names_mapping, mapper):
         with pytest.raises(ValueError) as exc_info:
             mapper._verify_no_duplicate_clean_names(names_mapping)
-        assert str(exc_info.value).endswith("field has a collision with 'Name 1'")
+        assert str(exc_info.value).endswith("field has a collision with 'Name 1'. They both produce 'name_1'")
 
     def test_get_all_values_per_clean_name(self, all_fixture1_values, mapper):
         result = mapper._get_all_values_per_clean_name(training_fixture1_path)

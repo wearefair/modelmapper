@@ -10,6 +10,7 @@ from decimal import Decimal
 # We are using both the new style and old style of named tuple
 from typing import Any, NamedTuple
 from collections import namedtuple
+from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input
 from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict, escape_word
@@ -24,8 +25,8 @@ INVALID_DATETIME_USER_OPTIONS = {
 }
 
 
-UNABLE_TO_INFER_TYPE_OPTIONS = {
-    'y': {'help': 'to continue', 'func': lambda x: True},
+CONTINUE_OR_ABORT_OPTIONS = {
+    'y': {'help': 'to continue when done', 'func': lambda x: True},
     'n': {'help': 'to abort', 'func': lambda x: sys.exit}
 }
 
@@ -116,6 +117,7 @@ class Mapper:
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
         self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
+        self.settings['overrides_file_name'] = f"{self.settings['identifier']}_overrides.toml"
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
@@ -151,7 +153,7 @@ class Mapper:
         clean_names_mapping = {}
         for name, clean_name in names_mapping.items():
             if clean_name in clean_names_mapping:
-                raise ValueError(f"'{name}' field has a collision with '{clean_names_mapping[clean_name]}'")
+                raise ValueError(f"'{name}' field has a collision with '{clean_names_mapping[clean_name]}'. They both produce '{clean_name}'")
             else:
                 clean_names_mapping[clean_name] = name
 
@@ -399,4 +401,20 @@ class Mapper:
             write_toml(file_path, result, auto_generated_from=os.path.basename(csv_path))
             results.append(result)
             print(f'{file_path} updated.')
+
         return results
+
+    def run(self):
+        self.analyze()
+        if self.failed_to_infer_fields:
+            print("Failed to process results for:")
+            print('\n'.join(self.failed_to_infer_fields))
+            msg = f'Please provide the overrides for these fields in {self.settings.overrides_file_name}'
+            get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+
+        if self.questionable_fields:
+            print("The following fields had results that might need to be verified:")
+            headers = ['field name', 'reason']
+            print(tabulate(self.questionable_fields.items(), headers=headers))
+            msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
+            get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
