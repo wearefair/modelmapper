@@ -21,7 +21,6 @@ def load_toml(path):
 
 
 def write_toml(path, contents, auto_generated_from=None):
-    import ipdb; ipdb.set_trace()
     dump = pytoml.dumps(contents)
     if auto_generated_from:
         dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"
