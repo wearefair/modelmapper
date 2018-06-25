@@ -9,7 +9,7 @@ from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, Sqlalc
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
+template_setup_path = os.path.join(current_dir, '../modelmapper/templates/some_model_setup.toml')
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 
 

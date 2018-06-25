@@ -104,6 +104,8 @@ def _is_valid_dateformat(user_input, item):
 class Mapper:
 
     def __init__(self, setup_path):
+        if not setup_path.endswith('_setup.toml'):
+            raise ValueError('The path needs to end with _setup.toml')
         self.setup_path = setup_path
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
@@ -113,7 +115,7 @@ class Mapper:
             self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
-        self.settings['identifier'] = escape_word(self.settings['identifier'])
+        self.settings['identifier'] = os.path.basename(setup_path).rstrip('_setup.toml')
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
