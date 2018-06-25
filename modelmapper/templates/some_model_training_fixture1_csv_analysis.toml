@@ -1,3 +1,5 @@
+# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF training_fixture1.csv.
+# DO NOT MODIFY THIS FILE DIRECTLY.
 [casualty]
 field_db_sqlalchemy_type = "Boolean"
 is_nullable = true

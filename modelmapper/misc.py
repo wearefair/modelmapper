@@ -20,9 +20,12 @@ def load_toml(path):
     return pytoml.loads(contents)
 
 
-def write_toml(path, contents):
+def write_toml(path, contents, auto_generated_from=None):
+    dump = pytoml.dumps(contents)
+    if auto_generated_from:
+        dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"
     with open(path, 'w') as the_file:
-        the_file.write(pytoml.dumps(contents))
+        the_file.write(dump)
 
 
 def read_csv_gen(path, **kwargs):

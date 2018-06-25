@@ -1,5 +1,5 @@
 [settings]
-identifier = 'my_sample_model'
+identifier = 'Some Model'  # Has to be unique for different models.
 null_values = ["\\n", "", "na", "unk", "null", "none"]
 boolean_true = ["true", "t", "yes", "y", "1"]
 boolean_false = ["false", "f", "no", "n", "0"]

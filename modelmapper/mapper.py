@@ -113,6 +113,7 @@ class Mapper:
             self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
+        self.settings['identifier'] = escape_word(self.settings['identifier'])
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
@@ -366,7 +367,7 @@ class Mapper:
     def _get_analyzed_file_path_from_csv_path(self, path):
         setup_dir = os.path.dirname(self.setup_path)
         csv_name = os.path.basename(path)
-        analyzed_file_name = f'{escape_word(csv_name)}_analysis.toml'
+        analyzed_file_name = f'{self.settings.identifier}_{escape_word(csv_name)}_analysis.toml'
         return os.path.join(setup_dir, analyzed_file_name)
 
     def _get_csv_full_path(self, path):
@@ -391,7 +392,7 @@ class Mapper:
             result = {}
             for field_name, field_result in self._get_field_results_from_csv(csv_path):
                 result[field_name] = named_tuple_to_compact_dict(field_result)
-            write_toml(file_path, result)
+            write_toml(file_path, result, auto_generated_from=os.path.basename(csv_path))
             results.append(result)
             print(f'{file_path} updated.')
         return results
