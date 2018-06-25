@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 
 SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
 
+HasNull = 'HasNull'
+HasDecimal = 'HasDecimal'
+HasInt = 'HasInt'
+HasDollar = 'HasDollar'
+HasPercent = 'HasPercent'
+HasString = 'HasString'
+HasDateTime = 'HasDateTime'
+HasBoolean = 'HasBoolean'
+
+
 INVALID_DATETIME_USER_OPTIONS = {
     'y': {'help': 'to define the date format', 'func': lambda x: True},
     'n': {'help': 'to abort', 'func': lambda x: sys.exit}
@@ -53,22 +63,31 @@ class FieldResult(NamedTuple):
     is_dollar: 'FieldResult' = None
     datetime_formats: 'FieldResult' = None
     to_index: 'FieldResult' = None
+    args: 'FieldResult' = None
 
 
-HasNull = 'HasNull'
-HasDecimal = 'HasDecimal'
-HasInt = 'HasInt'
-HasDollar = 'HasDollar'
-HasPercent = 'HasPercent'
-HasString = 'HasString'
-HasDateTime = 'HasDateTime'
-HasBoolean = 'HasBoolean'
+def get_field_result_from_dict(item):
+    field_db_str = item.pop('field_db_str')
+    field_db_str_low = field_db_str.lower().strip()
+    field_db_sqlalchemy_type = {i.name.lower(): i for i in SqlalchemyFieldType}.get(field_db_str_low, None)
+    args = None
+    if field_db_sqlalchemy_type is None:
+        if field_db_str_low.startswith('string'):
+            field_db_sqlalchemy_type = SqlalchemyFieldType.String
+            arg = field_db_str_low.replace('string(', '').rstrip(')')
+            args = [int(arg)]
+        if field_db_str_low.lower().startswith('decimal'):
+            field_db_sqlalchemy_type = SqlalchemyFieldType.Decimal
+            args = field_db_str_low.replace('decimal(', '').rstrip(')').split(',')
+            args = list(map(int, args))
+    return FieldResult(field_db_sqlalchemy_type=field_db_sqlalchemy_type, args=args, **item)
 
 
 class SqlalchemyFieldType(enum.Enum):
     String = 'String({})'
     SmallInteger = 'SmallInteger'
     Integer = 'Integer'
+    BigInteger = 'BigInteger'
     Decimal = 'DECIMAL({}, {})'
     DateTime = 'DateTime'
     Boolean = 'Boolean'
@@ -251,7 +270,7 @@ class Mapper:
                     if new_format in self.settings.datetime_formats:
                         raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
                     else:
-                        sys.stdout.write(f'Adding {new_format} to your settings.')
+                        print(f'Adding {new_format} to your settings.')
                         self.settings.datetime_formats.add(new_format)
                         self._original_settings['datetime_formats'].append(new_format)
                         write_toml(self.setup_path, self._original_settings)
@@ -403,6 +422,9 @@ class Mapper:
             print(f'{file_path} updated.')
 
         return results
+
+    def get_final_results(self):
+        results = self._read_analyzed_csv_results()
 
     def run(self):
         self.analyze()

@@ -5,7 +5,7 @@ from collections import Counter
 from deepdiff import DeepDiff
 
 from modelmapper import Mapper
-from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType
+from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType, get_field_result_from_dict
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,4 +151,14 @@ class TestMapper:
         expected_results = mapper._read_analyzed_csv_results()
         results = mapper.analyze()
         diff = DeepDiff(expected_results, results)
+        assert not diff
+
+    @pytest.mark.parametrize("item, expected", [
+        ({'field_db_str': "Boolean", 'is_nullable': True}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)),
+        ({'field_db_str': "string(64)", 'is_nullable': True}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=True, args=[64])),
+        ({'field_db_str': " decimal( 11, 12 )"}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, args=[11, 12])),
+    ])
+    def test_get_field_result_from_dict(self, item, expected):
+        result = get_field_result_from_dict(item)
+        diff = DeepDiff(expected, result)
         assert not diff
