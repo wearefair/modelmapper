@@ -33,6 +33,7 @@ def load_toml(path, keys_to_convert_to_set=None):
 
 
 def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list=None):
+    import pdb; pdb.set_trace()
     _convert_keys(contents, keys=keys_to_convert_to_list, func=list)
     dump = pytoml.dumps(contents)
     if auto_generated_from:

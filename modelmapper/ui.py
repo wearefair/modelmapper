@@ -19,22 +19,22 @@ def _get_input():
 
 def get_user_input(message, validate_func, **kwargs):
     user_input = None
-    sys.stdout.write(message)
+    print(message)
     i = 0
     while user_input is None or not validate_func(user_input=user_input, **kwargs):
         i += 1
         if i > MAX_TRY:
             raise TooManyFailures('Too many failures. Giving up.')
         if user_input is not None:
-            sys.stdout.write(f"{user_input} is not valid for {', '.join(map(str, kwargs.values()))}")
+            print(f"{user_input} is not valid for {', '.join(map(str, kwargs.values()))}")
         user_input = _get_input()
-    sys.stdout.write(f"{user_input} works!")
+    print(f"{user_input} works!")
     return user_input
 
 
 YES_NO_CHOICES = {
     'y': {'help': 'to continue', 'func': lambda x: True},
-    'n': {'help': 'to abort', 'func': lambda x: sys.exit}
+    'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
 
 
@@ -46,7 +46,7 @@ def get_user_choice(message, choices, **kwargs):
         msg = f"Press ({key}) {value['help']}."
         msgs.append(msg)
         allowed_keys.add(key)
-    sys.stdout.write(' '.join(msgs))
+    print('\n'.join(msgs))
 
     i = 0
     while pressed not in allowed_keys:
@@ -54,11 +54,10 @@ def get_user_choice(message, choices, **kwargs):
         if i > MAX_TRY:
             raise TooManyFailures('Too many failures. Giving up.')
         if pressed is not None:
-            sys.stdout.write(f'{pressed} is not a valid option.')
+            print(f'{pressed} is not a valid option.')
         pressed = read_single_keypress()
 
-    sys.stdout.write(pressed)
-
+    print(pressed)
     return choices[pressed]['func'](pressed, **kwargs)
 
 

@@ -33,13 +33,13 @@ HasBoolean = 'HasBoolean'
 
 INVALID_DATETIME_USER_OPTIONS = {
     'y': {'help': 'to define the date format', 'func': lambda x: True},
-    'n': {'help': 'to abort', 'func': lambda x: sys.exit}
+    'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
 
 
 CONTINUE_OR_ABORT_OPTIONS = {
     'y': {'help': 'to continue when done', 'func': lambda x: True},
-    'n': {'help': 'to abort', 'func': lambda x: sys.exit}
+    'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
 
 
@@ -326,6 +326,11 @@ class Mapper:
 
         _type = _type_str = None
         null_count = counter.pop(HasNull, 0)
+        if not counter:
+            logger.error(f'Unable to understand the field type for {field_name} since it only had null values.')
+            return
+            # the field only had boolean values
+
         non_string_nullable = self.settings.non_string_fields_are_all_nullable or null_count
         max_bool_word_size = max(map(len, self.settings.booleans))
 
@@ -400,7 +405,7 @@ class Mapper:
         logger.error(f'Unable to understand the field type from the data in {field_name}')
         logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
         self.failed_to_infer_fields.append(field_name)
-        return FieldResult(None)
+        return None
 
     def _get_field_orm_string(self, field_name, field_result, orm=SQLALCHEMY_ORM):
         field_db_type = field_result.field_db_str if field_result.field_db_str else field_result.field_db_sqlalchemy_type.value
@@ -417,7 +422,9 @@ class Mapper:
         all_items = self._get_all_values_per_clean_name(path)
         for field_name, field_values in all_items.items():
             stats = self._get_stats(field_name=field_name, items=field_values)
-            yield field_name, self._get_field_result_from_stats(field_name=field_name, stats=stats)
+            field_result = self._get_field_result_from_stats(field_name=field_name, stats=stats)
+            if field_result:
+                yield field_name, field_result
 
     def _get_analyzed_file_path_from_csv_path(self, path):
         csv_name = os.path.basename(path)
