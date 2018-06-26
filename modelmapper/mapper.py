@@ -131,9 +131,10 @@ def _is_valid_dateformat(user_input, item):
 
 class Mapper:
 
-    def __init__(self, setup_path):
+    def __init__(self, setup_path, debug=False):
         if not setup_path.endswith('_setup.toml'):
             raise ValueError('The path needs to end with _setup.toml')
+        self.debug = debug
         self.setup_path = setup_path
         self.setup_dir = os.path.dirname(setup_path)
         clean_later = ['field_name_full_conversion']
@@ -471,21 +472,27 @@ class Mapper:
         return results
 
     def run(self):
-        self.analyze()
-        if self.failed_to_infer_fields:
-            print("Failed to process results for:")
-            print('\n'.join(self.failed_to_infer_fields))
-            msg = f'Please provide the overrides for these fields in {self.settings.overrides_file_name}'
-            get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+        try:
+            self.analyze()
+            if self.failed_to_infer_fields:
+                print("Failed to process results for:")
+                print('\n'.join(self.failed_to_infer_fields))
+                msg = f'Please provide the overrides for these fields in {self.settings.overrides_file_name}'
+                get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
 
-        if self.questionable_fields:
-            print("The following fields had results that might need to be verified:")
-            headers = ['field name', 'reason']
-            print(tabulate(self.questionable_fields.items(), headers=headers))
-            msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
-            get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+            if self.questionable_fields:
+                print("The following fields had results that might need to be verified:")
+                headers = ['field name', 'reason']
+                print(tabulate(self.questionable_fields.items(), headers=headers))
+                msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
+                get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
 
-        analyzed_results_all = self._read_analyzed_csv_results()
-        overrides = self._get_overrides()
-        combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all, overrides)
-        print(combined_results)
+            analyzed_results_all = self._read_analyzed_csv_results()
+            overrides = self._get_overrides()
+            combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all, overrides)
+            print(combined_results)
+        except Exception as e:
+            if self.debug:
+                raise
+            else:
+                print(e)
