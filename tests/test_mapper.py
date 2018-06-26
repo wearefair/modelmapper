@@ -7,7 +7,9 @@ from deepdiff import DeepDiff
 from modelmapper import Mapper
 from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType, get_field_result_from_dict
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
-from fixtures.analysis_fixtures import analysis_fixture_a, analysis_fixture_b, analysis_fixture_c, analysis_fixture_a_only_combined
+from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, analysis_fixture_c, override_fixture1,
+                                        analysis_fixture_a_only_combined, analysis_fixture_a_and_b_combined,
+                                        analysis_fixture_a_and_b_combined_with_override)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/some_model_setup.toml')
@@ -172,8 +174,8 @@ class TestMapper:
 
     @pytest.mark.parametrize("item, expected", [
         ({'field_db_str': "Boolean", 'is_nullable': True}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean, is_nullable=True)),
-        ({'field_db_str': "string(64)", 'is_nullable': True}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=True, args=[64])),
-        ({'field_db_str': " decimal( 11, 12 )"}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, args=[11, 12])),
+        ({'field_db_str': "string(64)", 'is_nullable': True}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=True, args=64)),
+        ({'field_db_str': " decimal( 11, 12 )"}, FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, args=(11, 12))),
     ])
     def test_get_field_result_from_dict(self, item, expected):
         result = get_field_result_from_dict(item)
@@ -181,7 +183,15 @@ class TestMapper:
         assert not diff
 
     @pytest.mark.parametrize("values, overrides, expected", [
-        ([analysis_fixture_a()], None, analysis_fixture_a_only_combined()),
+        ([analysis_fixture_a()],
+         None,
+         analysis_fixture_a_only_combined()),
+        ([analysis_fixture_a(), analysis_fixture_b()],
+         None,
+         analysis_fixture_a_and_b_combined()),
+        ([analysis_fixture_a(), analysis_fixture_b()],
+         override_fixture1(),
+         analysis_fixture_a_and_b_combined_with_override()),
     ])
     def test_combine_analyzed_csvs(self, values, overrides, expected, mapper):
         result = mapper._combine_analyzed_csvs(values, overrides)

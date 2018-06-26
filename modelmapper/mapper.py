@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
 
+TOML_KEYS_THAT_ARE_SET = ('last_payment_date.datetime_formats', )
+
 HasNull = 'HasNull'
 HasDecimal = 'HasDecimal'
 HasInt = 'HasInt'
@@ -75,11 +77,11 @@ def update_field_result_dict_metadata(item):
         if field_db_str_low.startswith('string'):
             field_db_sqlalchemy_type = SqlalchemyFieldType.String
             arg = field_db_str_low.replace('string(', '').rstrip(')')
-            args = [int(arg)]
+            args = int(arg)
         if field_db_str_low.lower().startswith('decimal'):
             field_db_sqlalchemy_type = SqlalchemyFieldType.Decimal
             args = field_db_str_low.replace('decimal(', '').rstrip(')').split(',')
-            args = list(map(int, args))
+            args = tuple(map(int, args))
     item['field_db_sqlalchemy_type'] = field_db_sqlalchemy_type
     if args:
         item['args'] = args
@@ -99,6 +101,11 @@ class SqlalchemyFieldType(enum.Enum):
     Decimal = 'DECIMAL({}, {})'
     DateTime = 'DateTime'
     Boolean = 'Boolean'
+
+    def __str__(self):
+        return f"{self.__class__.__name__}.{self._name_}"
+
+    __repr__ = __str__
 
 
 FIELD_RESULT_COMPARISON_NUMBERS = {
@@ -423,13 +430,13 @@ class Mapper:
         return os.path.join(self.setup_dir, csv_path)
 
     def _get_overrides(self):
-        return load_toml(self.settings.overrides_path)
+        return load_toml(self.settings.overrides_path, keys_to_convert_to_set=TOML_KEYS_THAT_ARE_SET)
 
     def _read_analyzed_csv_results(self):
         results = []
         for csv_path in self.settings.training_csvs:
             file_path = self._get_analyzed_file_path_from_csv_path(csv_path)
-            result = load_toml(file_path)
+            result = load_toml(file_path, keys_to_convert_to_set=TOML_KEYS_THAT_ARE_SET)
             results.append(result)
         return results
 
@@ -441,7 +448,8 @@ class Mapper:
             result = {}
             for field_name, field_result in self._get_field_results_from_csv(csv_path):
                 result[field_name] = named_tuple_to_compact_dict(field_result)
-            write_toml(file_path, result, auto_generated_from=os.path.basename(csv_path))
+            write_toml(file_path, result, auto_generated_from=os.path.basename(csv_path),
+                       keys_to_convert_to_list=TOML_KEYS_THAT_ARE_SET)
             results.append(result)
             print(f'{file_path} updated.')
 
@@ -453,6 +461,7 @@ class Mapper:
             for field_name, field_result_dict in analyzed_results.items():
                 update_field_result_dict_metadata(field_result_dict)
                 if overrides and field_name in overrides:
+                    update_field_result_dict_metadata(overrides[field_name])
                     field_result_dict.update(overrides[field_name])
                 if field_name not in results:
                     results[field_name] = field_result_dict
@@ -462,13 +471,13 @@ class Mapper:
                     _type = field_result_dict['field_db_sqlalchemy_type']
                     if old_type == _type:
                         if _type == SqlalchemyFieldType.String:
-                            bigger_field_result_dict = get_combined_dict(lambda x: x['args'][0], old_field_result_dict, field_result_dict)
+                            bigger_field_result_dict = get_combined_dict(lambda x: x['args'], old_field_result_dict, field_result_dict)
                         elif _type == SqlalchemyFieldType.Decimal:
                             bigger_pre_decimal = max(old_field_result_dict['args'][0], field_result_dict['args'][0])
                             bigger_decimal_scale = max(old_field_result_dict['args'][1], field_result_dict['args'][1])
                             field_result_dict['args'] = [bigger_pre_decimal, bigger_decimal_scale]
                         else:
-                            continue
+                            bigger_field_result_dict = get_combined_dict(None, old_field_result_dict, field_result_dict)
                     else:
                         if {old_type, _type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
                             bigger_field_result_dict = get_combined_dict(lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']], field_result_dict, old_field_result_dict)
@@ -495,7 +504,7 @@ class Mapper:
 
             analyzed_results_all = self._read_analyzed_csv_results()
             overrides = self._get_overrides()
-            combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all, overrides)
+            combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
             print(combined_results)
         except Exception as e:
             if self.debug:

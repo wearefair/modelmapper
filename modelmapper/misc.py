@@ -13,14 +13,27 @@ def _check_file_exists(path):
         raise FileNotFound(f'{path} does not exist')
 
 
-def load_toml(path):
+def _convert_keys(obj, keys, func):
+    if keys:
+        for key_path in keys:
+            _keys = key_path.split('.')
+            for _key in _keys[:-1]:
+                obj = obj.get(_key)
+            last_key = _keys[-1]
+            obj[last_key] = func(obj[last_key])
+
+
+def load_toml(path, keys_to_convert_to_set=None):
     _check_file_exists(path)
     with open(path, 'r') as the_file:
         contents = the_file.read()
-    return pytoml.loads(contents)
+    loaded = pytoml.loads(contents)
+    _convert_keys(loaded, keys=keys_to_convert_to_set, func=set)
+    return loaded
 
 
-def write_toml(path, contents, auto_generated_from=None):
+def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list=None):
+    _convert_keys(contents, keys=keys_to_convert_to_list, func=list)
     dump = pytoml.dumps(contents)
     if auto_generated_from:
         dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"
@@ -47,8 +60,6 @@ def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):
             result[k] = v
         if include_enums and isinstance(v, enum.Enum):
             result[k] = v.value
-        elif isinstance(v, set):
-            result[k] = list(v)
     return result
 
 
@@ -74,7 +85,8 @@ def escape_word(word):
 
 def get_combined_dict(comparison_func, *dicts):
     dicts = list(dicts)
-    dicts.sort(key=comparison_func)
+    if comparison_func:
+        dicts.sort(key=comparison_func, reverse=True)
     result = {}
     while dicts:
         item = dicts.pop()
