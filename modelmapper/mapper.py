@@ -135,6 +135,7 @@ class Mapper:
         if not setup_path.endswith('_setup.toml'):
             raise ValueError('The path needs to end with _setup.toml')
         self.setup_path = setup_path
+        self.setup_dir = os.path.dirname(setup_path)
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
         self._original_settings = load_toml(setup_path)['settings']
@@ -144,9 +145,10 @@ class Mapper:
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
         self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
-        self.settings['overrides_file_name'] = f"{self.settings['identifier']}_overrides.toml"
+        self.settings['overrides_file_name'] = overrides_file_name = f"{self.settings['identifier']}_overrides.toml"
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
+        self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
@@ -402,16 +404,17 @@ class Mapper:
             yield field_name, self._get_field_result_from_stats(field_name=field_name, stats=stats)
 
     def _get_analyzed_file_path_from_csv_path(self, path):
-        setup_dir = os.path.dirname(self.setup_path)
         csv_name = os.path.basename(path)
         analyzed_file_name = f'{self.settings.identifier}_{escape_word(csv_name)}_analysis.toml'
-        return os.path.join(setup_dir, analyzed_file_name)
+        return os.path.join(self.setup_dir, analyzed_file_name)
 
     def _get_csv_full_path(self, path):
-        setup_dir = os.path.dirname(self.setup_path)
         if not path.startswith('/'):
-            csv_path = os.path.join(setup_dir, path)
-        return os.path.join(setup_dir, csv_path)
+            csv_path = os.path.join(self.setup_dir, path)
+        return os.path.join(self.setup_dir, csv_path)
+
+    def _get_overrides(self):
+        return load_toml(self.settings.overrides_path)
 
     def _read_analyzed_csv_results(self):
         results = []
@@ -435,7 +438,7 @@ class Mapper:
 
         return results
 
-    def get_combined_field_results_from_analyzed_csvs(self, analyzed_results_all):
+    def get_combined_field_results_from_analyzed_csvs(self, analyzed_results_all, overrides=None):
         results = {}
         for analyzed_results in analyzed_results_all:
             for field_name, field_result_dict in analyzed_results.items():
@@ -483,5 +486,6 @@ class Mapper:
             get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
 
         analyzed_results_all = self._read_analyzed_csv_results()
-        combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all)
+        overrides = self._get_overrides()
+        combined_results = self.get_combined_field_results_from_analyzed_csvs(analyzed_results_all, overrides)
         print(combined_results)
