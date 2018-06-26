@@ -24,7 +24,7 @@ def analysis_fixture_c():
 
 @pytest.fixture
 def analysis_fixture_a_only_combined():
-    return {'casualty': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean),
-            'last_payment_date': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, is_nullable=True, datetime_formats=['%m/%d/%y']),
-            'slope': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer),
-            'value_current': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=False, args=[38])}
+    return {'casualty': dict(field_db_sqlalchemy_type=SqlalchemyFieldType.Boolean),
+            'last_payment_date': dict(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, is_nullable=True, datetime_formats={'%m/%d/%y', '%d/%m/%y'}),
+            'slope': dict(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer),
+            'value_current': dict(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=False, args=[38])}

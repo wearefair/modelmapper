@@ -70,3 +70,19 @@ def escape_word(word):
                 result.append(i)
         last_i = i
     return ''.join(result).strip('_')
+
+
+def get_combined_dict(comparison_func, *dicts):
+    dicts = list(dicts)
+    dicts.sort(key=comparison_func)
+    result = {}
+    while dicts:
+        item = dicts.pop()
+        for k, v in item.items():
+            if k in result and isinstance(v, set):
+                result[k] |= v
+            elif k in result and isinstance(v, list):
+                result[k].extend(v)
+            else:
+                result[k] = v
+    return result

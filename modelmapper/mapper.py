@@ -13,7 +13,7 @@ from collections import namedtuple
 from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input
-from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict, escape_word
+from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict, escape_word, get_combined_dict
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class FieldResult(NamedTuple):
     args: 'FieldResult' = None
 
 
-def get_field_result_from_dict(item):
+def update_field_result_dict_metadata(item):
     field_db_str = item.pop('field_db_str')
     field_db_str_low = field_db_str.lower().strip()
     field_db_sqlalchemy_type = {i.name.lower(): i for i in SqlalchemyFieldType}.get(field_db_str_low, None)
@@ -80,7 +80,15 @@ def get_field_result_from_dict(item):
             field_db_sqlalchemy_type = SqlalchemyFieldType.Decimal
             args = field_db_str_low.replace('decimal(', '').rstrip(')').split(',')
             args = list(map(int, args))
-    return FieldResult(field_db_sqlalchemy_type=field_db_sqlalchemy_type, args=args, **item)
+    item['field_db_sqlalchemy_type'] = field_db_sqlalchemy_type
+    if args:
+        item['args'] = args
+    return item
+
+
+def get_field_result_from_dict(item):
+    item = update_field_result_dict_metadata(item)
+    return FieldResult(**item)
 
 
 class SqlalchemyFieldType(enum.Enum):
@@ -439,36 +447,34 @@ class Mapper:
 
         return results
 
-    def get_combined_field_results_from_analyzed_csvs(self, analyzed_results_all, overrides=None):
+    def _combine_analyzed_csvs(self, analyzed_results_all, overrides=None):
         results = {}
         for analyzed_results in analyzed_results_all:
             for field_name, field_result_dict in analyzed_results.items():
-                field_result = get_field_result_from_dict(field_result_dict)
+                update_field_result_dict_metadata(field_result_dict)
+                if overrides and field_name in overrides:
+                    field_result_dict.update(overrides[field_name])
                 if field_name not in results:
-                    results[field_name] = field_result
+                    results[field_name] = field_result_dict
                 else:
-                    old_field_result = results[field_name]
-                    old_type = old_field_result.field_db_sqlalchemy_type
-                    new_type = field_result.field_db_sqlalchemy_type
-                    if old_type != new_type:
-                        if {old_type, new_type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
-                            bigger_field_result = max(field_result, old_field_result, key=lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x.field_db_sqlalchemy_type])
-                        else:
-                            raise ValueError(f'Field types that are inferred have conflicts: {old_type.name} vs {new_type.name} for field name {field_name}')
-                    else:
-                        if new_type == SqlalchemyFieldType.String:
-                            bigger_field_result = max(old_field_result, field_result, key=lambda x: x.args[0])
-                        elif new_type == SqlalchemyFieldType.Decimal:
-                            bigger_pre_decimal = max(old_field_result.args[0] - old_field_result.args[1], field_result.args[0] - field_result.args[1])
-                            bigger_decimal_scale = max(old_field_result.args[1], field_result.args[1])
-                            bigger_decimal_precision = bigger_pre_decimal + bigger_decimal_scale
-                            field_result_dict = named_tuple_to_compact_dict(field_result)
-                            field_result_dict['args'] = [bigger_decimal_precision, bigger_decimal_scale]
-                            field_result_dict['field_db_sqlalchemy_type'] = new_type
-                            bigger_field_result = FieldResult(**field_result_dict)
+                    old_field_result_dict = results[field_name]
+                    old_type = old_field_result_dict['field_db_sqlalchemy_type']
+                    _type = field_result_dict['field_db_sqlalchemy_type']
+                    if old_type == _type:
+                        if _type == SqlalchemyFieldType.String:
+                            bigger_field_result_dict = get_combined_dict(lambda x: x['args'][0], old_field_result_dict, field_result_dict)
+                        elif _type == SqlalchemyFieldType.Decimal:
+                            bigger_pre_decimal = max(old_field_result_dict['args'][0], field_result_dict['args'][0])
+                            bigger_decimal_scale = max(old_field_result_dict['args'][1], field_result_dict['args'][1])
+                            field_result_dict['args'] = [bigger_pre_decimal, bigger_decimal_scale]
                         else:
                             continue
-                    results[field_name] = bigger_field_result
+                    else:
+                        if {old_type, _type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
+                            bigger_field_result_dict = get_combined_dict(lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']], field_result_dict, old_field_result_dict)
+                        else:
+                            raise ValueError(f'Field types that are inferred have conflicts: {old_type.name} vs {_type.name} for field name {field_name}')
+                    results[field_name] = bigger_field_result_dict
         return results
 
     def run(self):

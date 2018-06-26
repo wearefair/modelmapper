@@ -180,10 +180,10 @@ class TestMapper:
         diff = DeepDiff(expected, result)
         assert not diff
 
-    @pytest.mark.parametrize("values, expected", [
-        ([analysis_fixture_a()], analysis_fixture_a_only_combined()),
+    @pytest.mark.parametrize("values, overrides, expected", [
+        ([analysis_fixture_a()], None, analysis_fixture_a_only_combined()),
     ])
-    def test_get_combined_field_results_from_analyzed_csvs(self, values, expected, mapper):
-        result = mapper.get_combined_field_results_from_analyzed_csvs(values)
+    def test_combine_analyzed_csvs(self, values, overrides, expected, mapper):
+        result = mapper._combine_analyzed_csvs(values, overrides)
         diff = DeepDiff(expected, result)
         assert not diff
