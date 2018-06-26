@@ -90,7 +90,7 @@ class TestMapper:
          ),
         (['$1.92', '$33.6', '$0', 'null', '$13000.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
-                    max_decimal_precision=7, max_decimal_scale=2, len=5),
+                    max_pre_decimal=5, max_decimal_scale=2, len=5),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
          ),
         (['apple', 'orange', 'what is going on here?', 'aha!'],
@@ -112,6 +112,21 @@ class TestMapper:
          FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),
                     datetime_formats={'%m/%d/%y'}, max_string_len=13, len=6),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, is_nullable=False, field_db_str='String(45)')
+         ),
+        (['1%', '2%', '0%', '0%', '20%'],
+         FieldStats(counter=Counter(HasPercent=5, HasInt=5),
+                    max_int=20, len=5),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(6, 2)', is_nullable=True, is_percent=True)
+         ),
+        (['1.102933', '220.23', '0'],
+         FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1),
+                    max_int=0, len=3, max_decimal_scale=6, max_pre_decimal=3),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(13, 8)', is_nullable=True)
+         ),
+        (['1.102933%', '220.23%', '0%'],
+         FieldStats(counter=Counter(HasPercent=3, HasInt=1, HasDecimal=2),
+                    max_int=0, len=3, max_decimal_scale=6, max_pre_decimal=3),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(13, 10)', is_nullable=True, is_percent=True)
          ),
     ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
@@ -141,7 +156,8 @@ class TestMapper:
 
     def test_get_field_results_from_csv(self, all_field_results_fixture1, mapper):
         for field_name, field_result in mapper._get_field_results_from_csv(training_fixture1_path):
-            assert all_field_results_fixture1[field_name] == field_result
+            diff = DeepDiff(all_field_results_fixture1[field_name], field_result)
+            assert not diff
 
     def test_get_field_orm_string(self, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1, mapper):
         for field_name, field_result in all_field_results_fixture1.items():

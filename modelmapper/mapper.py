@@ -48,7 +48,7 @@ class InconsistentData(ValueError):
 class FieldStats(NamedTuple):
     counter: Any
     max_int: 'FieldStats' = 0
-    max_decimal_precision: 'FieldStats' = 0
+    max_pre_decimal: 'FieldStats' = 0
     max_decimal_scale: 'FieldStats' = 0
     max_string_len: 'FieldStats' = 0
     datetime_formats: 'FieldStats' = None
@@ -202,7 +202,7 @@ class Mapper:
     def _get_decimal_places(self, item):
         if '.' in item:
             i, v = list(map(len, item.split('.')))
-            return i + v, v
+            return i, v
         else:
             return 0, 0
 
@@ -229,7 +229,7 @@ class Mapper:
 
     def _get_stats(self, field_name, items):
         max_int = 0
-        max_decimal_precision = 0
+        max_pre_decimal = 0
         max_decimal_scale = 0
         max_string_len = 0
         datetime_formats = self.settings.datetime_formats.copy()
@@ -257,8 +257,8 @@ class Mapper:
             positive_decimal = get_positive_decimal(item)
             if positive_decimal is not False:
                 result.append(HasDecimal)
-                decimal_precision, decimal_scale = self._get_decimal_places(item)
-                max_decimal_precision = max(max_decimal_precision, decimal_precision)
+                pre_decimal_precision, decimal_scale = self._get_decimal_places(item)
+                max_pre_decimal = max(max_pre_decimal, pre_decimal_precision)
                 max_decimal_scale = max(max_decimal_scale, decimal_scale)
                 continue
             if set(item) <= self.settings.datetime_allowed_characters:
@@ -287,7 +287,7 @@ class Mapper:
             max_string_len = max(max_string_len, len(item))
 
         return FieldStats(counter=Counter(result), max_int=max_int,
-                          max_decimal_precision=max_decimal_precision,
+                          max_pre_decimal=max_pre_decimal,
                           max_decimal_scale=max_decimal_scale,
                           max_string_len=max_string_len,
                           datetime_formats=datetime_formats if datetime_detected_in_this_field else None,
@@ -345,27 +345,31 @@ class Mapper:
         is_percent = is_dollar = None
         if HasDecimal in counter:
             _type = SqlalchemyFieldType.Decimal
-            max_decimal_precision = stats.max_decimal_precision
+            max_pre_decimal = stats.max_pre_decimal
             max_decimal_scale = stats.max_decimal_scale
             if counter['HasInt']:
-                max_int_precision = len(str(stats.max_int)) + max_decimal_scale
-                max_decimal_precision = max(max_decimal_precision, max_int_precision)
+                max_int_precision = len(str(stats.max_int))
+                max_pre_decimal = max(max_pre_decimal, max_int_precision)
             if counter['HasDollar'] and self.settings.dollar_to_cent:
-                max_int = int('9' * max_decimal_precision)
+                max_int = int('9' * (max_pre_decimal + max_decimal_scale))
                 _type = self._get_integer_field(max_int)
                 is_dollar = True
+            if counter['HasPercent'] and self.settings.percent_to_decimal:
+                max_decimal_scale += 2
+                max_pre_decimal -= 2
+                is_percent = True
         elif HasInt in most_common_keys:
             if counter['HasPercent'] and self.settings.percent_to_decimal:
-                max_decimal_scale = 2
-                max_decimal_precision = len(str(stats.max_int))
+                max_decimal_scale = 0
+                max_pre_decimal = len(str(stats.max_int))
                 _type = SqlalchemyFieldType.Decimal
                 is_percent = True
             else:
                 _type = self._get_integer_field(stats.max_int)
         if _type is SqlalchemyFieldType.Decimal:
-            max_decimal_precision += 2 * self.settings.add_digits_to_decimal_field
+            max_pre_decimal += self.settings.add_digits_to_decimal_field
             max_decimal_scale += self.settings.add_digits_to_decimal_field
-            _type_str = SqlalchemyFieldType.Decimal.value.format(max_decimal_precision, max_decimal_scale)
+            _type_str = SqlalchemyFieldType.Decimal.value.format(max_pre_decimal + max_decimal_scale, max_decimal_scale)
 
         if _type:
             return FieldResult(

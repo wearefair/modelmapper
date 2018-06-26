@@ -22,8 +22,9 @@ field_db_str = "SmallInteger"
 is_nullable = true
 
 [slope]
-field_db_str = "DECIMAL(8, 4)"
+field_db_str = "DECIMAL(8, 6)"
 is_nullable = true
+is_percent = true
 
 [available]
 field_db_str = "Boolean"
