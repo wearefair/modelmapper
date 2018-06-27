@@ -27,7 +27,7 @@ class TestMapper:
         expected = [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']]
         assert expected == mapper.settings.field_name_full_conversion
         assert isinstance(mapper.settings.field_name_part_conversion, list)
-        assert ['#', 'num'] == mapper.settings.field_name_part_conversion[0]
+        assert [['\n', '_'], ['#', 'num']] == mapper.settings.field_name_part_conversion[:2]
 
     @pytest.mark.parametrize("data, expected", [
         (("Burrito's CAN Fly!", "Really?", "keep it <= 99"),

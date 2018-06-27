@@ -204,6 +204,8 @@ class Mapper:
         self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
         self.settings['combined_path'] = os.path.join(self.setup_dir, combined_file_name)
         self.settings['output_model_path'] = os.path.join(self.setup_dir, self.settings['output_model_file'])
+        # Since we cleaning up the field_name_part_conversion, special characters such as \n need to be added seperately.
+        self.settings['field_name_part_conversion'].insert(0, ['\n', '_'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
@@ -215,8 +217,6 @@ class Mapper:
 
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
-        # Since we cleaning up the field_name_part_conversion, special characters such as \n need to be added seperately.
-        conv.append(['\n', '_'])
         item = name.lower().strip()
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
@@ -245,13 +245,17 @@ class Mapper:
             else:
                 clean_names_mapping[clean_name] = name
 
-    def _get_all_values_per_clean_name(self, path):
-        result = defaultdict(list)
+    def _get_clean_names_and_csv_data_gen(self, path):
         reader = read_csv_gen(path)
         names = next(reader)
         name_mapping = self._get_all_clean_field_names_mapping(names)
         self._verify_no_duplicate_clean_names(name_mapping)
         clean_names = list(name_mapping.values())
+        return clean_names, reader
+
+    def _get_all_values_per_clean_name(self, path):
+        result = defaultdict(list)
+        clean_names, reader = self._get_clean_names_and_csv_data_gen(path)
         # transposing csv and turning into dictionary
         for line in reader:
             # do not parse empty lines
@@ -569,9 +573,12 @@ class Mapper:
                                contents=combined_results, header='from modelmapper import SqlalchemyFieldType')
         print(f'{self.settings.combined_path} overwritten.')
 
-    def write_orm_model(self):
+    def _get_combined_module(self):
         combined_module_str = self.settings.combined_file_name[:-3]
-        combined_module = importlib.import_module(combined_module_str)
+        return importlib.import_module(combined_module_str)
+
+    def write_orm_model(self):
+        combined_module = self._get_combined_module()
         code = []
         for field_name, field_result_dict in combined_module.FIELDS.items():
             result = self._get_field_orm_string(field_name, field_result=FieldResult(**field_result_dict), orm=SQLALCHEMY_ORM)
@@ -613,3 +620,66 @@ class Mapper:
                 raise
             else:
                 print(e)
+
+    # def 
+    #     combined_module = self._get_combined_module()
+
+    # def _get_cleaned_csv_rows(self, field_name, csv_gen):
+    #     max_int = 0
+    #     max_pre_decimal = 0
+    #     max_decimal_scale = 0
+    #     max_string_len = 0
+    #     datetime_formats = self.settings.datetime_formats.copy()
+    #     failed_datetime_formats = set()
+    #     datetime_detected_in_this_field = False
+    #     result = []
+    #     for item in items:
+    #         item = item.lower().strip()
+    #         if item.lower() in self.settings.null_values:
+    #             result.append(HasNull)
+    #             continue
+    #         if item.lower() in self.settings.booleans:
+    #             result.append(HasBoolean)
+    #         if '$' in item:
+    #             item = item.replace('$', '')
+    #             result.append(HasDollar)
+    #         if '%' in item:
+    #             item = item.replace('%', '')
+    #             result.append(HasPercent)
+    #         positive_int = get_positive_int(item)
+    #         if positive_int is not False:
+    #             result.append(HasInt)
+    #             max_int = max(positive_int, max_int)
+    #             continue
+    #         positive_decimal = get_positive_decimal(item)
+    #         if positive_decimal is not False:
+    #             result.append(HasDecimal)
+    #             pre_decimal_precision, decimal_scale = self._get_decimal_places(positive_decimal)
+    #             max_pre_decimal = max(max_pre_decimal, pre_decimal_precision)
+    #             max_decimal_scale = max(max_decimal_scale, decimal_scale)
+    #             continue
+    #         if set(item) <= self.settings.datetime_allowed_characters:
+    #             datetime_formats, failed_datetime_formats = self._get_datetime_formats(
+    #                 field_name, item, datetime_formats, failed_datetime_formats)
+    #             if datetime_formats:
+    #                 result.append(HasDateTime)
+    #                 datetime_detected_in_this_field = True
+    #                 continue
+    #             elif datetime_detected_in_this_field:
+    #                 msg = f'field {field_name} has inconsistent datetime data: {item}.'
+    #                 get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
+    #                 msg = f'Please enter the datetime format for {item}'
+    #                 new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
+    #                 datetime_formats.add(new_format)
+    #                 result.append(HasDateTime)
+    #                 if new_format in self.settings.datetime_formats:
+    #                     raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
+    #                 else:
+    #                     print(f'Adding {new_format} to your settings.')
+    #                     self.settings.datetime_formats.add(new_format)
+    #                     self._original_settings['datetime_formats'].append(new_format)
+    #                     write_toml(self.setup_path, self._original_settings)
+    #                     continue
+    #         result.append(HasString)
+    #         max_string_len = max(max_string_len, len(item))
+
