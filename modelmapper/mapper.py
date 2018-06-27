@@ -203,7 +203,8 @@ class Mapper:
         self.settings = Settings(**self.settings)
         self.questionable_fields = {}
         self.solid_decisions = {}
-        self.failed_to_infer_fields = []
+        self.failed_to_infer_fields = set()
+        self.empty_fields = set()
 
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
@@ -372,9 +373,8 @@ class Mapper:
         _type = _type_str = None
         null_count = counter.pop(HasNull, 0)
         if not counter:
-            logger.error(f'Unable to understand the field type for {field_name} since it only had null values.')
+            self.empty_fields.add(field_name)
             return
-            # the field only had boolean values
 
         non_string_nullable = self.settings.non_string_fields_are_all_nullable or null_count
         max_bool_word_size = max(map(len, self.settings.booleans))
@@ -397,6 +397,7 @@ class Mapper:
             datetime_formats=stats.datetime_formats)
 
         if stats.max_string_len > max_bool_word_size:
+            self._validate_decision(field_name, field_result=field_result_string, stats=stats)
             return field_result_string
 
         most_common = dict(counter.most_common(3))
@@ -455,7 +456,7 @@ class Mapper:
 
         logger.error(f'Unable to understand the field type from the data in {field_name}')
         logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
-        self.failed_to_infer_fields.append(field_name)
+        self.failed_to_infer_fields.add(field_name)
         return None
 
     def _get_field_orm_string(self, field_name, field_result, orm=SQLALCHEMY_ORM):
@@ -547,11 +548,21 @@ class Mapper:
     def run(self):
         try:
             self.analyze()
+            self.empty_fields = self.empty_fields - (self.failed_to_infer_fields | set(self.solid_decisions.keys()) | set(self.questionable_fields.keys()))
+
+            if self.empty_fields:
+                print("=" * 50)
+                print("The following fields were empty in the csvs. Omiting them:")
+                print("\n".join(self.empty_fields))
+                print("")
+
             if self.failed_to_infer_fields:
-                print("Failed to process results for:")
+                print("=" * 50)
+                print("The following fields failed:")
                 print('\n'.join(self.failed_to_infer_fields))
-                msg = f'Please provide the overrides for these fields in {self.settings.overrides_file_name}'
+                msg = f'Please provide the overrides for these fields in {self.settings.overrides_file_name}\n'
                 get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+                print("")
 
             if self.questionable_fields:
                 print("The following fields had results that might need to be verified:")
@@ -559,6 +570,7 @@ class Mapper:
                 print(tabulate(self.questionable_fields.values(), headers=headers))
                 msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
                 get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
+                print("")
 
             analyzed_results_all = self._read_analyzed_csv_results()
             overrides = self._get_overrides()
