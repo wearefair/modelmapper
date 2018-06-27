@@ -36,6 +36,22 @@ def convert_dict_key(obj, key, func):
                 convert_dict_key(child, key, func)
 
 
+def convert_dict_item_type(obj, _type, func):
+    if isinstance(obj, dict):
+        for child_key, child in obj.items():
+            if isinstance(child, dict):
+                convert_dict_item_type(child, _type, func)
+            elif isinstance(child, _type):
+                try:
+                    obj[child_key] = func(child)
+                except Exception as e:
+                    logger.error(f'failed to convert key {child_key} with the value of {child} into {func.__name__}: {e}')
+            else:
+                convert_dict_item_type(child, _type, func)
+    elif isinstance(obj, list):
+        obj[:] = list(map(lambda x: func(x) if isinstance(x, _type) else x, obj))
+
+
 def load_toml(path, keys_to_convert_to_set=None):
     _check_file_exists(path)
     with open(path, 'r') as the_file:
@@ -46,7 +62,8 @@ def load_toml(path, keys_to_convert_to_set=None):
     return loaded
 
 
-def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list=None):
+def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list=None, types_to_str=(enum.Enum,)):
+    convert_dict_item_type(contents, _type=types_to_str, func=str)
     if keys_to_convert_to_list:
         convert_dict_keys(contents, keys=keys_to_convert_to_list, func=list)
     dump = pytoml.dumps(contents)

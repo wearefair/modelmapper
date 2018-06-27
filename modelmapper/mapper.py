@@ -194,9 +194,11 @@ class Mapper:
             self.settings[item] = set(self.settings.get(item, []))
         self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = overrides_file_name = f"{self.settings['identifier']}_overrides.toml"
+        self.settings['combined_file_name'] = combined_file_name = f"{self.settings['identifier']}_combined.toml"
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
+        self.settings['combined_path'] = os.path.join(self.setup_dir, combined_file_name)
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
@@ -545,6 +547,15 @@ class Mapper:
                     results[field_name] = bigger_field_result_dict
         return results
 
+    def combine_results(self):
+        analyzed_results_all = self._read_analyzed_csv_results()
+        overrides = self._get_overrides()
+        combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
+        import pdb; pdb.set_trace()
+        write_toml(self.settings.combined_path, combined_results, auto_generated_from=self.settings.identifier,
+                   keys_to_convert_to_list=TOML_KEYS_THAT_ARE_SET)
+        print(f'{self.settings.combined_path} updated.')
+
     def run(self):
         try:
             self.analyze()
@@ -572,10 +583,7 @@ class Mapper:
                 get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
                 print("")
 
-            analyzed_results_all = self._read_analyzed_csv_results()
-            overrides = self._get_overrides()
-            combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
-            print(combined_results)
+            self.combine_results()
         except Exception as e:
             if self.debug:
                 raise

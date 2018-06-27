@@ -1,7 +1,10 @@
 import os
+import enum
 import pytest
+from unittest import mock
 from deepdiff import DeepDiff
-from modelmapper.misc import escape_word, get_combined_dict, load_toml, convert_dict_key
+from modelmapper.misc import escape_word, get_combined_dict, load_toml, convert_dict_key, convert_dict_item_type, write_toml
+from modelmapper.mapper import SqlalchemyFieldType
 from fixtures.analysis_fixtures import analysis_fixture_c_in_dict
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
@@ -54,3 +57,20 @@ class TestMisc:
     def test_convert_dict_key(self, values, func, expected):
         convert_dict_key(values, key='a', func=func)
         diff = DeepDiff(expected, values)
+
+    @pytest.mark.parametrize("values, func, expected", [
+        (
+            {'a': [], 'b': [1, SqlalchemyFieldType.Integer], 'c': {'a': SqlalchemyFieldType.String}},
+            str,
+            {'a': [], 'b': [1, 'SqlalchemyFieldType.Integer'], 'c': {'a': 'SqlalchemyFieldType.String'}},
+        ),
+    ])
+    def test_convert_dict_item_type(self, values, func, expected):
+        convert_dict_item_type(values, _type=enum.Enum, func=func)
+        diff = DeepDiff(expected, values)
+        assert not diff
+
+    @mock.patch('modelmapper.misc.open')
+    def test_write_toml(self, mock_open):
+        item = {'a': [], 'b': [1, SqlalchemyFieldType.Integer], 'c': {'a': SqlalchemyFieldType.String}}
+        write_toml('some path', item)
