@@ -13,7 +13,9 @@ from collections import namedtuple
 from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input
-from modelmapper.misc import read_csv_gen, load_toml, write_toml, named_tuple_to_compact_dict, escape_word, get_combined_dict
+from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
+                              named_tuple_to_compact_dict, escape_word, get_combined_dict,
+                              write_full_python_file)
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +196,7 @@ class Mapper:
             self.settings[item] = set(self.settings.get(item, []))
         self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = overrides_file_name = f"{self.settings['identifier']}_overrides.toml"
-        self.settings['combined_file_name'] = combined_file_name = f"{self.settings['identifier']}_combined.toml"
+        self.settings['combined_file_name'] = combined_file_name = f"{self.settings['identifier']}_combined.py"
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
@@ -551,10 +553,9 @@ class Mapper:
         analyzed_results_all = self._read_analyzed_csv_results()
         overrides = self._get_overrides()
         combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
-        import pdb; pdb.set_trace()
-        write_toml(self.settings.combined_path, combined_results, auto_generated_from=self.settings.identifier,
-                   keys_to_convert_to_list=TOML_KEYS_THAT_ARE_SET)
-        print(f'{self.settings.combined_path} updated.')
+        write_full_python_file(self.settings.combined_path, variable_name=f'{self.settings.identifier.upper()}_FIELDS',
+                               contents=combined_results, header='from modelmapper import SqlalchemyFieldType')
+        print(f'{self.settings.combined_path} overwritten.')
 
     def run(self):
         try:
