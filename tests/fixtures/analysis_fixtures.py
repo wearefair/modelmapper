@@ -1,7 +1,8 @@
 import os
 import pytest
 from modelmapper.misc import load_toml
-from modelmapper.mapper import SqlalchemyFieldType, TOML_KEYS_THAT_ARE_SET
+from modelmapper.mapper import SqlalchemyFieldType
+TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

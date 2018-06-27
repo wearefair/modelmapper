@@ -1,7 +1,10 @@
 import csv
 import os
 import enum
+import logging
 import pytoml
+
+logger = logging.getLogger(__name__)
 
 
 class FileNotFound(ValueError):
@@ -13,14 +16,24 @@ def _check_file_exists(path):
         raise FileNotFound(f'{path} does not exist')
 
 
-def _convert_keys(obj, keys, func):
-    if keys:
-        for key_path in keys:
-            _keys = key_path.split('.')
-            for _key in _keys[:-1]:
-                obj = obj.get(_key)
-            last_key = _keys[-1]
-            obj[last_key] = func(obj[last_key])
+def convert_dict_keys(obj, keys, func):
+    if isinstance(keys, (str, bytes)):
+        convert_dict_key(obj, keys, func)
+    else:
+        for key in keys:
+            convert_dict_key(obj, key, func)
+
+
+def convert_dict_key(obj, key, func):
+    if isinstance(obj, dict):
+        for child_key, child in obj.items():
+            if child_key == key:
+                try:
+                    obj[child_key] = func(child)
+                except Exception as e:
+                    logger.error(f'failed to convert key {key} with the value of {child} into {func.__name__}: {e}')
+            elif isinstance(child, dict):
+                convert_dict_key(child, key, func)
 
 
 def load_toml(path, keys_to_convert_to_set=None):
@@ -28,13 +41,14 @@ def load_toml(path, keys_to_convert_to_set=None):
     with open(path, 'r') as the_file:
         contents = the_file.read()
     loaded = pytoml.loads(contents)
-    _convert_keys(loaded, keys=keys_to_convert_to_set, func=set)
+    if keys_to_convert_to_set:
+        convert_dict_keys(loaded, keys=keys_to_convert_to_set, func=set)
     return loaded
 
 
 def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list=None):
-    import pdb; pdb.set_trace()
-    _convert_keys(contents, keys=keys_to_convert_to_list, func=list)
+    if keys_to_convert_to_list:
+        convert_dict_keys(contents, keys=keys_to_convert_to_list, func=list)
     dump = pytoml.dumps(contents)
     if auto_generated_from:
         dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"

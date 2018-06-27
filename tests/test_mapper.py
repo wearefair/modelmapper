@@ -130,7 +130,17 @@ class TestMapper:
                     max_int=0, len=3, max_decimal_scale=6, max_pre_decimal=3),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(13, 10)', is_nullable=True, is_percent=True)
          ),
-    ])
+        (['1,001.10', '220.23', '0'],
+         FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1),
+                    max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(10, 4)', is_nullable=True)
+         ),
+        (['$1,001.10', '$220.23', '0'],
+         FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1, HasDollar=2),
+                    max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
+         ),
+        ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
     def test_get_stats_and_get_field_result_from_stats(self, mock_get_user_choice, mock_get_user_input,

@@ -22,8 +22,8 @@ def all_field_results_fixture1():
             'last_payment_date': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.DateTime, field_db_str='DateTime', is_nullable=True, datetime_formats={'%m/%d/%y'}),
             'make': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, field_db_str='String(40)', is_nullable=False),
             'score': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True),
-            'slope': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(8, 6)', is_nullable=True, is_percent=True),
-            'value_current': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.String, field_db_str='String(38)', is_nullable=False),
+            'slope': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(7, 6)', is_nullable=True, is_percent=True),
+            'value_current': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True),
             'year': FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)}
 
 
@@ -35,6 +35,6 @@ def all_field_sqlalchemy_str_fixture1():
                                  'nullable=True)\n',
             'make': "    make = Column(String(40), nullable=False, default='')\n",
             'score': '    score = Column(SmallInteger, nullable=True)\n',
-            'slope': '    slope = Column(DECIMAL(8, 6), nullable=True)\n',
-            'value_current': "    value_current = Column(String(38), nullable=False, default='')\n",
+            'slope': '    slope = Column(DECIMAL(7, 6), nullable=True)\n',
+            'value_current': "    value_current = Column(Integer, nullable=True)\n",
             'year': '    year = Column(SmallInteger, nullable=True)\n'}

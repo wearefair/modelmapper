@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
 
-TOML_KEYS_THAT_ARE_SET = ('last_payment_date.datetime_formats', )
-
 HasNull = 'HasNull'
 HasDecimal = 'HasDecimal'
 HasInt = 'HasInt'
@@ -29,6 +27,9 @@ HasPercent = 'HasPercent'
 HasString = 'HasString'
 HasDateTime = 'HasDateTime'
 HasBoolean = 'HasBoolean'
+
+
+TOML_KEYS_THAT_ARE_SET = {'datetime_formats'}
 
 
 INVALID_DATETIME_USER_OPTIONS = {
@@ -68,6 +69,13 @@ class FieldResult(NamedTuple):
     args: 'FieldResult' = None
 
 
+class FieldReport(NamedTuple):
+    field_name: 'FieldReport' = None
+    decision: 'FieldReport' = None
+    item_count: 'FieldReport' = None
+    stats: 'FieldReport' = None
+
+
 def update_field_result_dict_metadata(item):
     field_db_str = item.pop('field_db_str')
     field_db_str_low = field_db_str.lower().strip()
@@ -93,6 +101,26 @@ def get_field_result_from_dict(item):
     return FieldResult(**item)
 
 
+HasNull = 'HasNull'
+HasDecimal = 'HasDecimal'
+HasInt = 'HasInt'
+HasDollar = 'HasDollar'
+HasPercent = 'HasPercent'
+HasString = 'HasString'
+HasDateTime = 'HasDateTime'
+HasBoolean = 'HasBoolean'
+
+SqlalchemyFieldTypeToHas = dict(
+    String=HasString,
+    SmallInteger=HasInt,
+    Integer=HasInt,
+    BigInteger=HasInt,
+    Decimal=HasDecimal,
+    DateTime=HasDateTime,
+    Boolean=HasBoolean,
+)
+
+
 class SqlalchemyFieldType(enum.Enum):
     String = 'String({})'
     SmallInteger = 'SmallInteger'
@@ -107,6 +135,10 @@ class SqlalchemyFieldType(enum.Enum):
 
     __repr__ = __str__
 
+    @property
+    def hastype(self):
+        return SqlalchemyFieldTypeToHas[self._name_]
+
 
 FIELD_RESULT_COMPARISON_NUMBERS = {
     SqlalchemyFieldType.Decimal: 10,
@@ -117,7 +149,7 @@ FIELD_RESULT_COMPARISON_NUMBERS = {
 
 
 def get_positive_int(item):
-    item = item.replace('-', '')
+    item = item.replace('-', '').replace(',', '')
     try:
         result = int(item)
     except ValueError:
@@ -126,7 +158,7 @@ def get_positive_int(item):
 
 
 def get_positive_decimal(item):
-    item = item.replace('-', '')
+    item = item.replace('-', '').replace(',', '')
     try:
         result = Decimal(item)
     except decimal.InvalidOperation:
@@ -170,6 +202,7 @@ class Mapper:
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
         self.settings = Settings(**self.settings)
         self.questionable_fields = {}
+        self.solid_decisions = {}
         self.failed_to_infer_fields = []
 
     def _clean_it(self, name):
@@ -218,6 +251,7 @@ class Mapper:
         return result
 
     def _get_decimal_places(self, item):
+        item = str(item)
         if '.' in item:
             i, v = list(map(len, item.split('.')))
             return i, v
@@ -275,7 +309,7 @@ class Mapper:
             positive_decimal = get_positive_decimal(item)
             if positive_decimal is not False:
                 result.append(HasDecimal)
-                pre_decimal_precision, decimal_scale = self._get_decimal_places(item)
+                pre_decimal_precision, decimal_scale = self._get_decimal_places(positive_decimal)
                 max_pre_decimal = max(max_pre_decimal, pre_decimal_precision)
                 max_decimal_scale = max(max_decimal_scale, decimal_scale)
                 continue
@@ -321,6 +355,17 @@ class Mapper:
                 return getattr(SqlalchemyFieldType, field_db_type)
         raise ValueError(f'{max_int} is bigger than the largest integer the database takes: {key}')
 
+    def _validate_decision(self, field_name, field_result, stats):
+        field_report = FieldReport(field_name=field_name,
+                                   decision=field_result.field_db_sqlalchemy_type.name,
+                                   item_count=stats.len, stats=stats.counter)
+        if stats.counter[field_result.field_db_sqlalchemy_type.hastype] + stats.counter['HasNull'] == stats.len:
+            if field_name in self.questionable_fields:
+                del self.questionable_fields[field_name]
+            self.solid_decisions[field_name] = field_report
+        elif field_name not in self.solid_decisions:
+            self.questionable_fields[field_name] = field_report
+
     def _get_field_result_from_stats(self, field_name, stats):
         counter = stats.counter.copy()
 
@@ -358,11 +403,11 @@ class Mapper:
         most_common_keys = set(most_common.keys())
         most_common_count = counter.most_common(1)[0][1]
 
-        for _has, _field_result in (('HasBoolean', field_result_boolean), ('HasDateTime', field_result_datetime), ('HasString', field_result_string)):
+        for _has, _field_result in (('HasBoolean', field_result_boolean),
+                                    ('HasDateTime', field_result_datetime),
+                                    ('HasString', field_result_string)):
             if counter[_has] == most_common_count:
-                if counter[_has] + counter['HasNull'] != stats.len:
-                    _field_type = _field_result.field_db_sqlalchemy_type.value
-                    self.questionable_fields[field_name] = f'Field is probably {_field_type}. There are values that are not {_field_type} and not Null though.'
+                self._validate_decision(field_name, field_result=_field_result, stats=stats)
                 return _field_result
 
         is_percent = is_dollar = None
@@ -387,6 +432,10 @@ class Mapper:
                 max_pre_decimal = len(str(stats.max_int))
                 _type = SqlalchemyFieldType.Decimal
                 is_percent = True
+            elif counter['HasDollar'] and self.settings.dollar_to_cent:
+                max_int = stats.max_int * 100
+                _type = self._get_integer_field(max_int)
+                is_dollar = True
             else:
                 _type = self._get_integer_field(stats.max_int)
         if _type is SqlalchemyFieldType.Decimal:
@@ -395,12 +444,14 @@ class Mapper:
             _type_str = SqlalchemyFieldType.Decimal.value.format(max_pre_decimal + max_decimal_scale, max_decimal_scale)
 
         if _type:
-            return FieldResult(
+            field_result = FieldResult(
                 field_db_sqlalchemy_type=_type,
                 field_db_str=_type_str if _type_str else _type.value,
                 is_nullable=non_string_nullable,
                 is_percent=is_percent,
                 is_dollar=is_dollar)
+            self._validate_decision(field_name, field_result=field_result, stats=stats)
+            return field_result
 
         logger.error(f'Unable to understand the field type from the data in {field_name}')
         logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
@@ -504,8 +555,8 @@ class Mapper:
 
             if self.questionable_fields:
                 print("The following fields had results that might need to be verified:")
-                headers = ['field name', 'reason']
-                print(tabulate(self.questionable_fields.items(), headers=headers))
+                headers = FieldReport._fields
+                print(tabulate(self.questionable_fields.values(), headers=headers))
                 msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
                 get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
 

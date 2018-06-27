@@ -5,8 +5,9 @@ field_db_str = "Boolean"
 is_nullable = true
 
 [value_current]
-field_db_str = "String(38)"
-is_nullable = false
+field_db_str = "Integer"
+is_nullable = true
+is_dollar = true
 
 [last_payment_date]
 field_db_str = "DateTime"
@@ -22,7 +23,7 @@ field_db_str = "SmallInteger"
 is_nullable = true
 
 [slope]
-field_db_str = "DECIMAL(8, 6)"
+field_db_str = "DECIMAL(7, 6)"
 is_nullable = true
 is_percent = true
 
