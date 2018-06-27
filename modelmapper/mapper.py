@@ -215,6 +215,8 @@ class Mapper:
 
     def _clean_it(self, name):
         conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
+        # Since we cleaning up the field_name_part_conversion, special characters such as \n need to be added seperately.
+        conv.append(['\n', '_'])
         item = name.lower().strip()
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
