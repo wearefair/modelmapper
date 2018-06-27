@@ -4,6 +4,7 @@ import sys
 import decimal
 import datetime
 import logging
+import importlib
 from copy import deepcopy
 from collections import defaultdict, Counter
 from decimal import Decimal
@@ -15,7 +16,7 @@ from tabulate import tabulate
 from modelmapper.ui import get_user_choice, get_user_input
 from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
-                              write_full_python_file)
+                              write_full_python_file, update_file_chunk_content)
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +187,7 @@ class Mapper:
         self.debug = debug
         self.setup_path = setup_path
         self.setup_dir = os.path.dirname(setup_path)
+        sys.path.append(self.setup_dir)
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
         self._original_settings = load_toml(setup_path)['settings']
@@ -201,6 +203,7 @@ class Mapper:
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
         self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
         self.settings['combined_path'] = os.path.join(self.setup_dir, combined_file_name)
+        self.settings['output_model_path'] = os.path.join(self.setup_dir, self.settings['output_model_file'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
@@ -464,7 +467,14 @@ class Mapper:
         return None
 
     def _get_field_orm_string(self, field_name, field_result, orm=SQLALCHEMY_ORM):
-        field_db_type = field_result.field_db_str if field_result.field_db_str else field_result.field_db_sqlalchemy_type.value
+        if field_result.field_db_str:
+            field_db_type = field_result.field_db_str
+        elif isinstance(field_result.args, (tuple, list)):
+            field_db_type = field_result.field_db_sqlalchemy_type.value.format(*field_result.args)
+        elif field_result.args is not None:
+            field_db_type = field_result.field_db_sqlalchemy_type.value.format(field_result.args)
+        else:
+            field_db_type = field_result.field_db_sqlalchemy_type.value
         default = "" if field_result.is_nullable else ", default=''"
         nullable = str(field_result.is_nullable)
         index = ", index=True" if field_result.to_index else ""
@@ -553,9 +563,19 @@ class Mapper:
         analyzed_results_all = self._read_analyzed_csv_results()
         overrides = self._get_overrides()
         combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
-        write_full_python_file(self.settings.combined_path, variable_name=f'{self.settings.identifier.upper()}_FIELDS',
+        write_full_python_file(self.settings.combined_path, variable_name='FIELDS',
                                contents=combined_results, header='from modelmapper import SqlalchemyFieldType')
         print(f'{self.settings.combined_path} overwritten.')
+
+    def write_orm_model(self):
+        combined_module_str = self.settings.combined_file_name[:-3]
+        combined_module = importlib.import_module(combined_module_str)
+        code = []
+        for field_name, field_result_dict in combined_module.FIELDS.items():
+            result = self._get_field_orm_string(field_name, field_result=FieldResult(**field_result_dict), orm=SQLALCHEMY_ORM)
+            code.append(result)
+        update_file_chunk_content(path=self.settings.output_model_path, code=code, identifier=self.settings.identifier)
+        print(f'{self.settings.output_model_path} is updated.')
 
     def run(self):
         try:
@@ -585,6 +605,7 @@ class Mapper:
                 print("")
 
             self.combine_results()
+            self.write_orm_model()
         except Exception as e:
             if self.debug:
                 raise
