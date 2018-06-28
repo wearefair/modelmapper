@@ -1,5 +1,5 @@
 [settings]
-null_values = ["\\n", "", "na", "unk", "null", "none"]
+null_values = ["\\n", "", "na", "unk", "null", "none", "nan"]
 boolean_true = ["true", "t", "yes", "y", "1"]
 boolean_false = ["false", "f", "no", "n", "0"]
 dollar_to_cent = true

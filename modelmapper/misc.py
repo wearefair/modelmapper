@@ -122,7 +122,7 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
             new_model_lines.append(line)
 
     if not is_block_added:
-        raise ValueError(f'{path} is not properly setup. We can not find the start line and end line indicators.\nPlease add the following lines at the proper places in that file:]\n{start_line}\n{end_line}')
+        raise ValueError(f'{path} is not properly setup. We can not find the start line and end line indicators.\nPlease add the following lines at the proper places in that file\n{start_line}\n{end_line}')
 
     with open(path, 'w') as model_file:
         model_file.write("".join(new_model_lines))

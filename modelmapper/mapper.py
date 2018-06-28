@@ -31,6 +31,7 @@ HasString = 'HasString'
 HasDateTime = 'HasDateTime'
 HasBoolean = 'HasBoolean'
 
+ONE_HUNDRED = Decimal('100')
 
 TOML_KEYS_THAT_ARE_SET = {'datetime_formats'}
 
@@ -150,6 +151,9 @@ FIELD_RESULT_COMPARISON_NUMBERS = {
     SqlalchemyFieldType.SmallInteger: 4,
 }
 
+INTEGER_SQLALCHEMY_TYPES = {SqlalchemyFieldType.SmallInteger, SqlalchemyFieldType.Integer, SqlalchemyFieldType.BigInteger}
+NUMERIC_REMOVE = (',', '$', '%')
+
 
 def get_positive_int(item):
     item = item.replace('-', '').replace(',', '')
@@ -261,7 +265,10 @@ class Mapper:
             # do not parse empty lines
             if filter(lambda x: bool(x.strip()), line):
                 for i, v in enumerate(line):
-                    result[clean_names[i]].append(v)
+                    try:
+                        result[clean_names[i]].append(v)
+                    except IndexError:
+                        raise ValueError('Your csv might have new lines in the field names. Please fix that and try again.')
         return result
 
     def _get_decimal_places(self, item):
@@ -621,65 +628,99 @@ class Mapper:
             else:
                 print(e)
 
-    # def 
-    #     combined_module = self._get_combined_module()
+    def get_csv_data_cleaned(self, path):
+        combined_module = self._get_combined_module()
+        model_info = combined_module.FIELDS
 
-    # def _get_cleaned_csv_rows(self, field_name, csv_gen):
-    #     max_int = 0
-    #     max_pre_decimal = 0
-    #     max_decimal_scale = 0
-    #     max_string_len = 0
-    #     datetime_formats = self.settings.datetime_formats.copy()
-    #     failed_datetime_formats = set()
-    #     datetime_detected_in_this_field = False
-    #     result = []
-    #     for item in items:
-    #         item = item.lower().strip()
-    #         if item.lower() in self.settings.null_values:
-    #             result.append(HasNull)
-    #             continue
-    #         if item.lower() in self.settings.booleans:
-    #             result.append(HasBoolean)
-    #         if '$' in item:
-    #             item = item.replace('$', '')
-    #             result.append(HasDollar)
-    #         if '%' in item:
-    #             item = item.replace('%', '')
-    #             result.append(HasPercent)
-    #         positive_int = get_positive_int(item)
-    #         if positive_int is not False:
-    #             result.append(HasInt)
-    #             max_int = max(positive_int, max_int)
-    #             continue
-    #         positive_decimal = get_positive_decimal(item)
-    #         if positive_decimal is not False:
-    #             result.append(HasDecimal)
-    #             pre_decimal_precision, decimal_scale = self._get_decimal_places(positive_decimal)
-    #             max_pre_decimal = max(max_pre_decimal, pre_decimal_precision)
-    #             max_decimal_scale = max(max_decimal_scale, decimal_scale)
-    #             continue
-    #         if set(item) <= self.settings.datetime_allowed_characters:
-    #             datetime_formats, failed_datetime_formats = self._get_datetime_formats(
-    #                 field_name, item, datetime_formats, failed_datetime_formats)
-    #             if datetime_formats:
-    #                 result.append(HasDateTime)
-    #                 datetime_detected_in_this_field = True
-    #                 continue
-    #             elif datetime_detected_in_this_field:
-    #                 msg = f'field {field_name} has inconsistent datetime data: {item}.'
-    #                 get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
-    #                 msg = f'Please enter the datetime format for {item}'
-    #                 new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
-    #                 datetime_formats.add(new_format)
-    #                 result.append(HasDateTime)
-    #                 if new_format in self.settings.datetime_formats:
-    #                     raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
-    #                 else:
-    #                     print(f'Adding {new_format} to your settings.')
-    #                     self.settings.datetime_formats.add(new_format)
-    #                     self._original_settings['datetime_formats'].append(new_format)
-    #                     write_toml(self.setup_path, self._original_settings)
-    #                     continue
-    #         result.append(HasString)
-    #         max_string_len = max(max_string_len, len(item))
+        all_items = self._get_all_values_per_clean_name(path)
+        for field_name, field_values in all_items.items():
+            field_info = model_info[field_name]
+            self.get_field_values_cleaned_for_importing(field_name, field_info, field_values)
 
+        # transposing
+        all_lines_cleaned = zip(*all_items.values())
+
+        for i in all_lines_cleaned:
+            yield dict(zip(all_items.keys(), i))
+
+    def get_field_values_cleaned_for_importing(self, field_name, field_info, field_values):
+        is_nullable = field_info.get('is_nullable', False)
+        is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
+        is_dollar = field_info.get('is_dollar', False)
+        is_integer = field_info['field_db_sqlalchemy_type'] in INTEGER_SQLALCHEMY_TYPES
+        is_percent = field_info.get('is_percent', False)
+        is_boolean = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Boolean
+        is_datetime = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.DateTime
+        is_string = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.String
+        datetime_formats = list(field_info.get('datetime_formats', []))
+
+        max_string_len = field_info.get('args', 255) if is_string else 0
+
+        def _mark_nulls(item):
+            return None if item in self.settings.null_values else item
+
+        def _remove_extra_chars_from_number(item):
+            for i in NUMERIC_REMOVE:
+                item = item.replace(i, '')
+            return item
+
+        def _mark_booleans(item):
+            if item in self.settings.boolean_true:
+                result = True
+            elif item in self.settings.boolean_false:
+                result = False
+            else:
+                raise ValueError(f'There is a value of {item} in {field_name} which is not a recognized Boolean or Null value.')
+            return result
+
+        for i, item in enumerate(field_values):
+            original_item = item
+            item = item.strip().lower()
+            if is_string:
+                if len(item) > max_string_len:
+                    raise ValueError(f'There is a value that is longer than {max_string_len} for {field_name}: {item}')
+
+            if is_integer or is_decimal:
+                item = _remove_extra_chars_from_number(item)
+
+            if is_nullable:
+                item = _mark_nulls(item)
+
+            if item is not None:
+                if is_boolean:
+                    item = _mark_booleans(item)
+
+                if is_integer or is_decimal or is_dollar or is_percent:
+                    try:
+                        item = Decimal(item)
+                    except Exception as e:
+                        raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
+
+                if is_dollar:
+                    item = item * ONE_HUNDRED
+                if is_percent:
+                    item = item / ONE_HUNDRED
+                if is_integer:
+                    item = int(item)
+                if is_datetime:
+                    if not set(item) <= self.settings.datetime_allowed_characters:
+                        raise ValueError(f'Datetime value of {item} in {field_name} has characters that are NOT defined in datetime_allowed_characters')
+                    msg = f"{field_name} has invalid datetime format for {item} that is not in {field_info.get('datetime_formats')}"
+                    try:
+                        _format = datetime_formats[-1]
+                        datetime.datetime.strptime(item, _format)
+                    except IndexError:
+                        raise ValueError(msg) from None
+                    except ValueError:
+                        if datetime_formats:
+                            datetime_formats.pop()
+                        else:
+                            raise ValueError(msg) from None
+                if is_string:
+                    item = original_item
+
+            field_values[i] = item
+
+        if is_datetime:
+            field_values[:] = map(lambda x: None if x is None else datetime.datetime.strptime(x, _format), field_values)
+        return field_values

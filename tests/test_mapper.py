@@ -10,6 +10,8 @@ from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_re
 from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, analysis_fixture_c, override_fixture1,
                                         analysis_fixture_a_only_combined, analysis_fixture_a_and_b_combined,
                                         analysis_fixture_a_and_b_combined_with_override)
+from fixtures.cleaned_csv_for_importing import cleaned_csv_for_import_fixture
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_setup_path = os.path.join(current_dir, '../modelmapper/templates/some_model_setup.toml')
@@ -207,3 +209,7 @@ class TestMapper:
         result = mapper._combine_analyzed_csvs(values, overrides)
         diff = DeepDiff(expected, result)
         assert not diff
+
+    def test_get_csv_data_cleaned(self, mapper, cleaned_csv_for_import_fixture):
+        result = list(mapper.get_csv_data_cleaned(training_fixture1_path))
+        assert result == cleaned_csv_for_import_fixture
