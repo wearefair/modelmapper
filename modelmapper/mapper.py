@@ -605,6 +605,10 @@ class Mapper:
         analyzed_results_all = self._read_analyzed_csv_results()
         overrides = self._get_overrides()
         combined_results = self._combine_analyzed_csvs(analyzed_results_all, overrides)
+        for field_name in self.empty_fields:
+            if field_name not in combined_results:
+                combined_results[field_name] = {'field_db_sqlalchemy_type': SqlalchemyFieldType.Boolean,
+                                                'is_nullable': True}
         write_full_python_file(self.settings.combined_path, variable_name='FIELDS',
                                contents=combined_results, header='from modelmapper import SqlalchemyFieldType')
         print(f'{self.settings.combined_path} overwritten.')
@@ -629,7 +633,7 @@ class Mapper:
 
             if self.empty_fields:
                 print("=" * 50)
-                print("The following fields were empty in the csvs. Omiting them:")
+                print("The following fields were empty in the csvs. Setting them to nullable boolean:")
                 print("\n".join(self.empty_fields))
                 print("")
 
