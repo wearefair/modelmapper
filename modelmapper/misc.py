@@ -94,7 +94,7 @@ def write_full_python_file(path, variable_name, contents, header=''):
         the_file.write("\n".join(content_lines))
 
 
-def update_file_chunk_content(path, code, identifier='', start_line=None, end_line=None):
+def update_file_chunk_content(path, code, identifier='', start_line=None, end_line=None, check_only=False):
     """
     Rewrites a chunk of a file only between the start and end lines.
     """
@@ -124,8 +124,9 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
     if not is_block_added:
         raise ValueError(f'{path} is not properly setup. We can not find the start line and end line indicators.\nPlease add the following lines at the proper places in that file\n{start_line}\n{end_line}')
 
-    with open(path, 'w') as model_file:
-        model_file.write("".join(new_model_lines))
+    if not check_only:
+        with open(path, 'w') as model_file:
+            model_file.write("".join(new_model_lines))
 
 
 def read_csv_gen(path, **kwargs):

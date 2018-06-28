@@ -13,7 +13,7 @@ from typing import Any, NamedTuple
 from collections import namedtuple
 from tabulate import tabulate
 
-from modelmapper.ui import get_user_choice, get_user_input
+from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES
 from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
@@ -183,6 +183,25 @@ def _is_valid_dateformat(user_input, item):
     return result
 
 
+def _is_valid_path(user_input, setup_dir):
+    full_path = os.path.join(setup_dir, user_input)
+    return os.path.exists(full_path)
+
+
+def _validate_file_has_start_and_end_lines(user_input, path, identifier):
+    try:
+        update_file_chunk_content(path=path, code=[], identifier=identifier, check_only=True)
+    except ValueError as e:
+        print(e)
+        return False
+    else:
+        return True
+
+
+OVERRIDES_FILE_NAME = "{}_overrides.toml"
+COMBINED_FILE_NAME = "{}_combined.py"
+
+
 class Mapper:
 
     def __init__(self, setup_path, debug=False):
@@ -200,14 +219,15 @@ class Mapper:
             self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
-        self.settings['identifier'] = os.path.basename(setup_path).replace('_setup.toml', '')
-        self.settings['overrides_file_name'] = overrides_file_name = f"{self.settings['identifier']}_overrides.toml"
-        self.settings['combined_file_name'] = combined_file_name = f"{self.settings['identifier']}_combined.py"
+        self.settings['identifier'] = identifier = os.path.basename(setup_path).replace('_setup.toml', '')
+        self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
+        self.settings['combined_file_name'] = COMBINED_FILE_NAME.format(identifier)
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']
         self.settings['datetime_allowed_characters'] = set(self.settings['datetime_allowed_characters'])
-        self.settings['overrides_path'] = os.path.join(self.setup_dir, overrides_file_name)
-        self.settings['combined_path'] = os.path.join(self.setup_dir, combined_file_name)
-        self.settings['output_model_path'] = os.path.join(self.setup_dir, self.settings['output_model_file'])
+        for i, v in (('overrides_path', 'overrides_file_name'),
+                     ('combined_path', 'combined_file_name'),
+                     ('output_model_path', 'output_model_file')):
+            self.settings[i] = os.path.join(self.setup_dir, self.settings[v])
         # Since we cleaning up the field_name_part_conversion, special characters such as \n need to be added seperately.
         self.settings['field_name_part_conversion'].insert(0, ['\n', '_'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
@@ -354,7 +374,7 @@ class Mapper:
                         print(f'Adding {new_format} to your settings.')
                         self.settings.datetime_formats.add(new_format)
                         self._original_settings['datetime_formats'].append(new_format)
-                        write_toml(self.setup_path, self._original_settings)
+                        write_toml(self.setup_path, {'settings': self._original_settings})
                         continue
             result.append(HasString)
             max_string_len = max(max_string_len, len(item))
@@ -516,7 +536,8 @@ class Mapper:
         return os.path.join(self.setup_dir, csv_path)
 
     def _get_overrides(self):
-        return load_toml(self.settings.overrides_path, keys_to_convert_to_set=TOML_KEYS_THAT_ARE_SET)
+        if os.path.exists(self.settings.overrides_path):
+            return load_toml(self.settings.overrides_path, keys_to_convert_to_set=TOML_KEYS_THAT_ARE_SET)
 
     def _read_analyzed_csv_results(self):
         results = []
@@ -724,3 +745,30 @@ class Mapper:
         if is_datetime:
             field_values[:] = map(lambda x: None if x is None else datetime.datetime.strptime(x, _format), field_values)
         return field_values
+
+
+def initialize(path):
+    identifier = os.path.basename(path)
+    setup_dir = os.path.dirname(path)
+    setup_path = os.path.join(setup_dir, f'{identifier}_setup.toml')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
+    settings = load_toml(template_setup_path)['settings']
+    overrides_file_name = OVERRIDES_FILE_NAME.format(identifier)
+    overrides_path = os.path.join(setup_dir, overrides_file_name)
+    if os.path.exists(overrides_path):
+        get_user_choice(f'{overrides_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
+    with open(overrides_path, 'w') as the_file:
+        the_file.write('# Overrides file. You can add your overrides for any fields here.')
+    output_model_file = get_user_input('Please provide the relative path to the existing ORM model file.', validate_func=_is_valid_path, setup_dir=setup_dir)
+    settings['output_model_file'] = output_model_file
+    output_model_path = os.path.join(setup_dir, output_model_file)
+    if not _validate_file_has_start_and_end_lines(user_input=None, path=output_model_path, identifier=identifier):
+        get_user_input(f'Please add the lines in a proper place in {output_model_file} code and enter continue',
+                       _validate_file_has_start_and_end_lines, path=output_model_path, identifier=identifier)
+
+    if os.path.exists(setup_path):
+        get_user_choice(f'{setup_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
+
+    write_toml(setup_path, {'settings': settings})
+    print(f'{setup_path} is written. Please modify the settings and add the relative path to the training CSV files and run modelmapper')

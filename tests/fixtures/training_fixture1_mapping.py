@@ -1,6 +1,6 @@
 import pytest
 
-from modelmapper.mapper import FieldResult,SqlalchemyFieldType
+from modelmapper.mapper import FieldResult, SqlalchemyFieldType
 
 
 @pytest.fixture

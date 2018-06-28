@@ -1,3 +1,4 @@
+import modelmapper
 from setuptools import setup, find_packages
 
 with open("requirements.txt") as reqs_file:
@@ -10,7 +11,7 @@ setup(
     url='https://github.com/wearefair/modelmapper',
     download_url='https://github.com/wearefair/modelmapper/tarball/master',
     author_email='sepd@fair.com',
-    version='0.0.1',
+    version=modelmapper.__version__,
     install_requires=reqs,
     dependency_links=[],
     packages=find_packages(exclude=('tests', 'docs')),

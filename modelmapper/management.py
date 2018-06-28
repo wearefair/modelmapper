@@ -1,5 +1,5 @@
 import click
-from modelmapper import Mapper
+from modelmapper import Mapper, initialize
 
 
 @click.group()
@@ -27,7 +27,7 @@ def write_orm_model(path, debug):
     """
     Only write model the files based on the setup_toml if the combined python module is already written.
     """
-    click.echo(f'Analyzing {path}')
+    click.echo(f'Writrng model files')
     mapper = Mapper(path, debug=debug)
     mapper.write_orm_model()
 
@@ -42,3 +42,13 @@ def run(path, debug):
     click.echo(f'Running {path}')
     mapper = Mapper(path, debug=debug)
     mapper.run()
+
+
+@cli.command()
+@click.argument('path', type=click.Path(resolve_path=True))
+def init(path):
+    """
+    Initializing ModelMapper for a model
+    """
+    click.echo(f'Initializing')
+    initialize(path)
