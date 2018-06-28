@@ -81,6 +81,8 @@ class FieldReport(NamedTuple):
 
 
 def update_field_result_dict_metadata(item):
+    if item.get('field_db_sqlalchemy_type', None):
+        return item
     field_db_str = item.pop('field_db_str')
     field_db_str_low = field_db_str.lower().strip()
     field_db_sqlalchemy_type = {i.name.lower(): i for i in SqlalchemyFieldType}.get(field_db_str_low, None)
@@ -549,6 +551,8 @@ class Mapper:
 
     def analyze(self):
         results = []
+        if not self.settings.training_csvs:
+            raise ValueError('The list of training_csvs in the settings file is empty.')
         for csv_path in self.settings.training_csvs:
             csv_path = self._get_csv_full_path(csv_path)
             file_path = self._get_analyzed_file_path_from_csv_path(csv_path)
@@ -576,6 +580,7 @@ class Mapper:
                     old_field_result_dict = results[field_name]
                     old_type = old_field_result_dict['field_db_sqlalchemy_type']
                     _type = field_result_dict['field_db_sqlalchemy_type']
+                    bigger_field_result_dict = None
                     if old_type == _type:
                         if _type == SqlalchemyFieldType.String:
                             bigger_field_result_dict = get_combined_dict(lambda x: x['args'], old_field_result_dict, field_result_dict)
@@ -583,6 +588,7 @@ class Mapper:
                             bigger_pre_decimal = max(old_field_result_dict['args'][0], field_result_dict['args'][0])
                             bigger_decimal_scale = max(old_field_result_dict['args'][1], field_result_dict['args'][1])
                             field_result_dict['args'] = [bigger_pre_decimal, bigger_decimal_scale]
+                            bigger_field_result_dict = field_result_dict
                         else:
                             bigger_field_result_dict = get_combined_dict(None, old_field_result_dict, field_result_dict)
                     else:
@@ -590,6 +596,8 @@ class Mapper:
                             bigger_field_result_dict = get_combined_dict(lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']], field_result_dict, old_field_result_dict)
                         else:
                             raise ValueError(f'Field types that are inferred have conflicts: {old_type.name} vs {_type.name} for field name {field_name}')
+                    if bigger_field_result_dict is None:
+                        raise ValueError('Bug: bigger_field_result_dict is not set when making the decision.')
                     results[field_name] = bigger_field_result_dict
         return results
 
@@ -748,6 +756,9 @@ class Mapper:
 
 
 def initialize(path):
+    """
+    Initialize a ModelMapper setup for a model
+    """
     identifier = os.path.basename(path)
     setup_dir = os.path.dirname(path)
     setup_path = os.path.join(setup_dir, f'{identifier}_setup.toml')
@@ -772,3 +783,4 @@ def initialize(path):
 
     write_toml(setup_path, {'settings': settings})
     print(f'{setup_path} is written. Please modify the settings and add the relative path to the training CSV files and run modelmapper')
+    print('Please verify the generated settings and provide a list of relative paths for training csvs in the settings file.')
