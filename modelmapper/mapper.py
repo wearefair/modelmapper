@@ -587,7 +587,7 @@ class Mapper:
                         elif _type == SqlalchemyFieldType.Decimal:
                             bigger_pre_decimal = max(old_field_result_dict['args'][0], field_result_dict['args'][0])
                             bigger_decimal_scale = max(old_field_result_dict['args'][1], field_result_dict['args'][1])
-                            field_result_dict['args'] = [bigger_pre_decimal, bigger_decimal_scale]
+                            field_result_dict['args'] = (bigger_pre_decimal, bigger_decimal_scale)
                             bigger_field_result_dict = field_result_dict
                         else:
                             bigger_field_result_dict = get_combined_dict(None, old_field_result_dict, field_result_dict)
