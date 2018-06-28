@@ -25,7 +25,7 @@ ModelMapper aims to solve all these problems by inferring the model from your CS
 `pip install modelmapper`
 
 
-## Workflow
+# Workflow
 
 1. Install modelmapper
 
