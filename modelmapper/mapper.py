@@ -609,6 +609,12 @@ class Mapper:
                     if bigger_field_result_dict is None:
                         raise ValueError('Bug: bigger_field_result_dict is not set when making the decision.')
                     results[field_name] = bigger_field_result_dict
+        if overrides:
+            for field_name, value in overrides.items():
+                if field_name not in results:
+                    results[field_name] = value
+                    if field_name in self.empty_fields:
+                        self.empty_fields.remove(field_name)
         return results
 
     def combine_results(self):
@@ -643,7 +649,7 @@ class Mapper:
 
             if self.empty_fields:
                 print("=" * 50)
-                print("The following fields were empty in the csvs. Setting them to nullable boolean:")
+                print("The following fields were empty in the csvs. Setting them to nullable boolean. If you have defined overrides for them, the override will later be applied.")
                 print("\n".join(self.empty_fields))
                 print("")
 
