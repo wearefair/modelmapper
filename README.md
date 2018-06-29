@@ -26,6 +26,7 @@ ModelMapper aims to solve all these problems by inferring the model from your CS
 
 `pip install modelmapper`
 
+Note: ModelMapper requires Python 3.6 or higher.
 
 # How?
 

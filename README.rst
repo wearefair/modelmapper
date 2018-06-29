@@ -33,6 +33,8 @@ Install
 
 ``pip install modelmapper``
 
+Note: ModelMapper requires Python 3.6 or higher.
+
 How?
 ====
 
