@@ -4,8 +4,11 @@ import enum
 import logging
 import pprint
 import pytoml
+from string import ascii_lowercase, digits
 
 logger = logging.getLogger(__name__)
+
+_ESCAPE_ACCEPTABLED = frozenset(ascii_lowercase + digits)
 
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
@@ -151,9 +154,6 @@ def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):
         if include_enums and isinstance(v, enum.Enum):
             result[k] = v.value
     return result
-
-
-_ESCAPE_ACCEPTABLED = set('1234567890qwertyuiopasdfghjklzxcvbnm')
 
 
 def escape_word(word):

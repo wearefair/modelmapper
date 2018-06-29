@@ -285,7 +285,7 @@ class Mapper:
         # transposing csv and turning into dictionary
         for line in reader:
             # do not parse empty lines
-            if filter(lambda x: bool(x.strip()), line):
+            if any(filter(lambda x: bool(x.strip()), line)):
                 for i, v in enumerate(line):
                     try:
                         result[clean_names[i]].append(v)
@@ -669,7 +669,7 @@ class Mapper:
             if self.debug:
                 raise
             else:
-                print(e)
+                print(f'{e.__class__}: {e}')
 
     def get_csv_data_cleaned(self, path):
         combined_module = self._get_combined_module()
@@ -796,5 +796,5 @@ def initialize(path):
         get_user_choice(f'{setup_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
 
     write_toml(setup_path, {'settings': settings})
-    print(f'{setup_path} is written. Please modify the settings and add the relative path to the training CSV files and run modelmapper')
+    print(f'{setup_path} is written. Please add "the relative path to the training CSV files" in your settings and run modelmapper')
     print('Please verify the generated settings and provide a list of relative paths for training csvs in the settings file.')
