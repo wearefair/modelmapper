@@ -71,3 +71,18 @@ ModelMapper aims to solve all these problems by inferring the model from your CS
 10. It is left up to the user how to insert the cleaned data it into the database.
 
 11. You have new fields in the CSV or something changed? DO NOT MODIFY THE GENERATED MODELS DIRECTLY. Instead, add this csv to the list of training csvs in your settings TOML file. Re-train the system. Use git diff to see what has been changed.
+
+
+# F.A.Q
+
+## Is ModelMapper a one-off tool?
+
+No. ModelMapper is designed to be deterministic. If it does not infer any data type changes in your training CSVs, it should keep your model intact. The idea is that your data should define your model instead of the other way. ModelMapper will update your model ONLY if it infers from your data that a change in your ORM schema is needed.
+
+## I have certain fields in my ORM model that are not in the training CSVs. How does that work?
+
+ModelMapper only deals with the chunk in your ORM file that is inbetween ModelMapper's markers. You can have any other field and functionality outside those markers and ModelMapper won't touch them.
+
+## Seems like ModelMapper is susiptable to SQL injection
+
+The training of ModelMapper should NEVER happen on a live server. ModelMapper is ONLY intended for the development time. All it focuses on is to help the developer make the right choices in automatic fashion. It has no need to even think about SQL injection. You have to use your ORM's recommended methods to escape the data before putting it into your database.
