@@ -15,9 +15,16 @@ else:
 with open("requirements.txt") as reqs_file:
     reqs = reqs_file.readlines()
 
+
+try:
+    with open('README.rst') as file:
+        long_description = file.read()
+except Exception:
+    long_description = 'Model Mapper: Auto generate SQLalchemy models, cleaning and field normalization from your csv files!'
+
 setup(
     name='modelmapper',
-    description='Model Mapper: Auto generate SQLalchemy models and GRPC Prorotbufs from your csv files!',
+    description=long_description,
     author='Sep Dehpour',
     url='https://github.com/wearefair/modelmapper',
     download_url='https://github.com/wearefair/modelmapper/tarball/master',
