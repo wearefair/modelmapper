@@ -2,6 +2,8 @@
 
 ## Deterministic Data Driven Schema Modeling
 
+Your data should define your database schema, not the other way!
+
 Auto generate ORM models, infer normalization and cleaning functionality directly from your csv files in a **deterministic** way.
 
 # Why?
@@ -111,7 +113,7 @@ output_model_file = ''  # The relative path to the ORM model file that the outpu
 
 ## Is ModelMapper a one-off tool?
 
-No. ModelMapper is designed to be deterministic. If it does not infer any data type changes in your training CSVs, it should keep your model intact. The idea is that your data should define your model instead of the other way. ModelMapper will update your model ONLY if it infers from your data that a change in your ORM schema is needed.
+No. ModelMapper is designed to be deterministic. If it does not infer any data type changes in your training CSVs, it should keep your model intact. The idea is that your data should define your model, not the other way. ModelMapper will update your model ONLY if it infers from your data that a change in your ORM schema is needed.
 
 ## I have certain fields in my ORM model that are not in the training CSVs. How does that work?
 
