@@ -5,11 +5,12 @@ boolean_false = ["false", "f", "no", "n", "0"]
 dollar_to_cent = true
 percent_to_decimal = true
 add_digits_to_decimal_field = 2
-add_to_string_legth = 32
+add_to_string_length = 32
 datetime_allowed_characters = "0123456789/:-"
 datetime_formats = ["%m/%d/%y", "%m/%d/%Y", "%Y%m%d"]
 field_name_full_conversion = [["carrot", "cheese"], ["BREAD", "salted butter"], ["Model Year", "Year"]]
 field_name_part_conversion = [["#", "num"], [" (e)", ""], ["(y/n)", ""], [" (s)", ""], [" (e,s)", ""], ["yyyymmdd", ""], [")", ""], ["(", ""], [": ", "_"], [" ", "_"], ["/", "_"], [".", "_"], ["-", "_"], ["%", "_percent"], ["?", ""], ["!", ""], [",", ""], ["'", ""], ["&", "_and_"], ["@", "_at_"], ["$", "_dollar_"], [">=", "_bigger_or_equal_"], [">", "_bigger_"], ["<=", "_less_or_equal_"], ["<", "_less_"], ["=", "_equal_"], ["___", "_"], ["__", "_"]]
+dollar_value_if_word_in_field_name = []
 non_string_fields_are_all_nullable = true
 string_fields_can_be_nullable = false
 training_csvs = ['../../tests/fixtures/training_fixture1.csv']

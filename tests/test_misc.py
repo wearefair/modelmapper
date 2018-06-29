@@ -46,17 +46,18 @@ class TestMisc:
         (
             {'a': [], 'b': [1, 2], 'c': {'a': [4, 5]}},
             set,
-            {'a': [], 'b': {1, 2}, 'c': {'a': {4, 5}}},
+            {'a': [], 'b': {1, 2}, 'c': {'a': [4, 5]}},
         ),
         (
             {'a': [], 'b': {1, 2}, 'c': {'a': {4, 5}}},
             list,
-            {'a': [], 'b': [1, 2], 'c': {'a': [4, 5]}},
+            {'a': [], 'b': [1, 2], 'c': {'a': {4, 5}}},
         ),
     ])
     def test_convert_dict_key(self, values, func, expected):
-        convert_dict_key(values, key='a', func=func)
+        convert_dict_key(values, key='b', func=func)
         diff = DeepDiff(expected, values)
+        assert not diff
 
     @pytest.mark.parametrize("values, func, expected", [
         (
@@ -73,4 +74,5 @@ class TestMisc:
     @mock.patch('modelmapper.misc.open')
     def test_write_toml(self, mock_open):
         item = {'a': [], 'b': [1, SqlalchemyFieldType.Integer], 'c': {'a': SqlalchemyFieldType.String}}
-        write_toml('some path', item)
+        result = write_toml('some path', item)
+        assert result == 'a = []\nb = [1, "SqlalchemyFieldType.Integer"]\n\n[c]\na = "SqlalchemyFieldType.String"\n'

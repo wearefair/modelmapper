@@ -81,11 +81,11 @@ class FieldReport(NamedTuple):
 
 
 def update_field_result_dict_metadata(item):
-    if item.get('field_db_sqlalchemy_type', None):
+    if item.get('field_db_sqlalchemy_type'):
         return item
     field_db_str = item.pop('field_db_str')
     field_db_str_low = field_db_str.lower().strip()
-    field_db_sqlalchemy_type = {i.name.lower(): i for i in SqlalchemyFieldType}.get(field_db_str_low, None)
+    field_db_sqlalchemy_type = {i.name.lower(): i for i in SqlalchemyFieldType}.get(field_db_str_low)
     args = None
     if field_db_sqlalchemy_type is None:
         if field_db_str_low.startswith('string'):
@@ -402,12 +402,22 @@ class Mapper:
         field_report = FieldReport(field_name=field_name,
                                    decision=field_result.field_db_sqlalchemy_type.name,
                                    item_count=stats.len, stats=stats.counter)
-        if stats.counter[field_result.field_db_sqlalchemy_type.hastype] + stats.counter['HasNull'] == stats.len:
+        if stats.counter[field_result.field_db_sqlalchemy_type.hastype] + stats.counter[HasNull] == stats.len or \
+                (self.settings.dollar_to_cent and field_result.is_dollar and stats.counter[HasInt] + stats.counter[HasDecimal] + stats.counter[HasNull] == stats.len):
             if field_name in self.questionable_fields:
                 del self.questionable_fields[field_name]
             self.solid_decisions[field_name] = field_report
         elif field_name not in self.solid_decisions:
             self.questionable_fields[field_name] = field_report
+
+    def _is_dollar_field(self, field_name, counter):
+        is_dollar = counter['HasDollar'] and self.settings.dollar_to_cent
+        if not is_dollar:
+            for item in self.settings.dollar_value_if_word_in_field_name:
+                if item in field_name:
+                    is_dollar = True
+                    break
+        return is_dollar
 
     def _get_field_result_from_stats(self, field_name, stats):
         counter = stats.counter.copy()
@@ -421,7 +431,7 @@ class Mapper:
         non_string_nullable = self.settings.non_string_fields_are_all_nullable or null_count
         max_bool_word_size = max(map(len, self.settings.booleans))
 
-        str_length = min(stats.max_string_len + self.settings.add_to_string_legth, 255)
+        str_length = min(stats.max_string_len + self.settings.add_to_string_length, 255)
         field_result_string = FieldResult(
             field_db_sqlalchemy_type=SqlalchemyFieldType.String,
             field_db_str=SqlalchemyFieldType.String.value.format(str_length),
@@ -461,7 +471,7 @@ class Mapper:
             if counter['HasInt']:
                 max_int_precision = len(str(stats.max_int))
                 max_pre_decimal = max(max_pre_decimal, max_int_precision)
-            if counter['HasDollar'] and self.settings.dollar_to_cent:
+            if self._is_dollar_field(field_name, counter):
                 max_int = int('9' * (max_pre_decimal + max_decimal_scale))
                 _type = self._get_integer_field(max_int)
                 is_dollar = True
@@ -475,7 +485,7 @@ class Mapper:
                 max_pre_decimal = len(str(stats.max_int))
                 _type = SqlalchemyFieldType.Decimal
                 is_percent = True
-            elif counter['HasDollar'] and self.settings.dollar_to_cent:
+            elif self._is_dollar_field(field_name, counter):
                 max_int = stats.max_int * 100
                 _type = self._get_integer_field(max_int)
                 is_dollar = True

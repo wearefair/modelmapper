@@ -76,6 +76,7 @@ def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list
         dump = f"# NOTE: THIS FILE IS AUTO GENERATED BASED ON THE ANALYSIS OF {auto_generated_from}.\n# DO NOT MODIFY THIS FILE DIRECTLY.\n{dump}"
     with open(path, 'w') as the_file:
         the_file.write(dump)
+    return dump
 
 
 def write_full_python_file(path, variable_name, contents, header=''):
