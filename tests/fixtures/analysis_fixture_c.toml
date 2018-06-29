@@ -1,0 +1,14 @@
+[value_current]
+field_db_str = "String(23)"
+is_nullable = false
+
+[last_payment_date]
+field_db_str = "DateTime"
+datetime_formats = ["%d/%m/%y"]
+
+[score]
+field_db_str = "BigInteger"
+is_nullable = true
+
+[slope]
+field_db_str = "DECIMAL(11, 2)"

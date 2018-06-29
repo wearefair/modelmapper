@@ -1,0 +1,20 @@
+[casualty]
+field_db_str = "Boolean"
+is_nullable = true
+
+[value_current]
+field_db_str = "String(64)"
+is_nullable = false
+
+[last_payment_date]
+field_db_str = "DateTime"
+is_nullable = true
+datetime_formats = ["%d/%m/%y"]
+
+[score]
+field_db_str = "SmallInteger"
+is_nullable = true
+
+[slope]
+field_db_str = "DECIMAL(5, 2)"
+is_nullable = true
