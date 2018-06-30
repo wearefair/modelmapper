@@ -12,6 +12,7 @@ SmallInteger = mock.Mock()
 class SomeModel():
     __tablename__ = "some_model"
 
+    # flake8: noqa
     # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. some_model --------
     available = Column(Boolean, nullable=True)
     casualty = Column(Boolean, nullable=True)

@@ -20,7 +20,10 @@ try:
     with open('README.rst') as file:
         long_description = file.read()
 except Exception:
-    long_description = 'Model Mapper: Auto generate SQLalchemy models, cleaning and field normalization from your csv files!'
+    long_description = (
+        "Model Mapper: Auto generate SQLalchemy models, cleaning "
+        "and field normalization from your csv files!"
+    )
 
 setup(
     name='modelmapper',

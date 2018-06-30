@@ -1,0 +1,54 @@
+
+aliases:
+  - &restore_cache_step
+    restore_cache:
+      key: deps1-{{ .Branch }}-{{ checksum "requirements-dev.txt" }}
+
+  - &save_cache_step
+    save_cache:
+      key: deps1-{{ .Branch }}-{{ checksum "requirements-dev.txt" }}
+      paths:
+        - "venv"
+
+  - &install_deps_step
+    run:
+      name: Install Python deps in a venv
+      command: |
+        python3 -m venv venv
+        . venv/bin/activate
+        pip install -r requirements-dev.txt
+
+version: 2
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.6.2
+    steps:
+      - checkout
+      - *restore_cache_step
+      - *install_deps_step
+      - *save_cache_step
+      - run:
+          name: Test the project 
+          command: |
+            . venv/bin/activate
+            python -m pytest
+  lint:
+    docker:
+      - image: circleci/python:3.6.2
+    steps:
+      - checkout
+      - *restore_cache_step
+      - *install_deps_step
+      - *save_cache_step
+      - run:
+          name: Test the project 
+          command: |
+            . venv/bin/activate
+            flake8
+workflows:
+  version: 2
+  test-and-lint:
+    jobs:
+      - test 
+      - lint
