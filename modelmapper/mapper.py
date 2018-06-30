@@ -153,7 +153,11 @@ FIELD_RESULT_COMPARISON_NUMBERS = {
     SqlalchemyFieldType.SmallInteger: 4,
 }
 
-INTEGER_SQLALCHEMY_TYPES = {SqlalchemyFieldType.SmallInteger, SqlalchemyFieldType.Integer, SqlalchemyFieldType.BigInteger}
+INTEGER_SQLALCHEMY_TYPES = {
+    SqlalchemyFieldType.SmallInteger,
+    SqlalchemyFieldType.Integer,
+    SqlalchemyFieldType.BigInteger
+}
 NUMERIC_REMOVE = (',', '$', '%')
 
 
@@ -230,7 +234,8 @@ class Mapper:
                      ('combined_path', 'combined_file_name'),
                      ('output_model_path', 'output_model_file')):
             self.settings[i] = os.path.join(self.setup_dir, self.settings[v])
-        # Since we cleaning up the field_name_part_conversion, special characters such as \n need to be added seperately.
+        # Since we cleaning up the field_name_part_conversion, special characters
+        # such as \n need to be added seperately.
         self.settings['field_name_part_conversion'].insert(0, ['\n', '_'])
         _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
@@ -242,7 +247,8 @@ class Mapper:
         self.empty_fields = set()
 
     def _clean_it(self, name):
-        conv = self.settings['field_name_part_conversion'] if isinstance(self.settings, dict) else self.settings.field_name_part_conversion
+        conv = (self.settings['field_name_part_conversion'] if isinstance(self.settings, dict)
+                else self.settings.field_name_part_conversion)
         item = name.lower().strip()
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
@@ -267,7 +273,8 @@ class Mapper:
         clean_names_mapping = {}
         for name, clean_name in names_mapping.items():
             if clean_name in clean_names_mapping:
-                raise ValueError(f"'{name}' field has a collision with '{clean_names_mapping[clean_name]}'. They both produce '{clean_name}'")
+                raise ValueError(f"'{name}' field has a collision with '{clean_names_mapping[clean_name]}'. "
+                                 f"They both produce '{clean_name}'")
             else:
                 clean_names_mapping[clean_name] = name
 
@@ -290,7 +297,8 @@ class Mapper:
                     try:
                         result[clean_names[i]].append(v)
                     except IndexError:
-                        raise ValueError('Your csv might have new lines in the field names. Please fix that and try again.')
+                        raise ValueError("Your csv might have new lines in the field names. "
+                                         "Please fix that and try again.")
         return result
 
     def _get_decimal_places(self, item):
@@ -318,7 +326,9 @@ class Mapper:
                 except ValueError:
                     pass
                 else:
-                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: {item} had {_format} but previous dates in this field had {', '.join(datetime_formats)}")
+                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
+                                           f"{item} had {_format} but previous dates in this field "
+                                           f"had {', '.join(datetime_formats)}")
         failed_datetime_formats |= current_failed_formats
         return current_successful_formats, failed_datetime_formats
 
@@ -371,7 +381,8 @@ class Mapper:
                     datetime_formats.add(new_format)
                     result.append(HasDateTime)
                     if new_format in self.settings.datetime_formats:
-                        raise InconsistentData(f'field {field_name} has inconsistent datetime data: {item}. {new_format} was already in your settings.')
+                        raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
+                                               f"{item}. {new_format} was already in your settings.")
                     else:
                         print(f'Adding {new_format} to your settings.')
                         self.settings.datetime_formats.add(new_format)
@@ -402,8 +413,11 @@ class Mapper:
         field_report = FieldReport(field_name=field_name,
                                    decision=field_result.field_db_sqlalchemy_type.name,
                                    item_count=stats.len, stats=stats.counter)
-        if stats.counter[field_result.field_db_sqlalchemy_type.hastype] + stats.counter[HasNull] == stats.len or \
-                (self.settings.dollar_to_cent and field_result.is_dollar and stats.counter[HasInt] + stats.counter[HasDecimal] + stats.counter[HasNull] == stats.len):
+        field_stats = stats.counter[field_result.field_db_sqlalchemy_type.hastype]
+        should_process_as_dollar = self.settings.dollar_to_cent and field_result.is_dollar
+        if (field_stats + stats.counter[HasNull] == stats.len or
+                (should_process_as_dollar and
+                 stats.counter[HasInt] + stats.counter[HasDecimal] + stats.counter[HasNull] == stats.len)):
             if field_name in self.questionable_fields:
                 del self.questionable_fields[field_name]
             self.solid_decisions[field_name] = field_report
@@ -507,7 +521,8 @@ class Mapper:
             return field_result
 
         logger.error(f'Unable to understand the field type from the data in {field_name}')
-        logger.error('Please train the system for that field with a different dataset or manually define an override in the output later.')
+        logger.error("Please train the system for that field with a different dataset "
+                     "or manually define an override in the output later.")
         self.failed_to_infer_fields.add(field_name)
         return None
 
@@ -593,7 +608,8 @@ class Mapper:
                     bigger_field_result_dict = None
                     if old_type == _type:
                         if _type == SqlalchemyFieldType.String:
-                            bigger_field_result_dict = get_combined_dict(lambda x: x['args'], old_field_result_dict, field_result_dict)
+                            bigger_field_result_dict = get_combined_dict(lambda x: x['args'], old_field_result_dict,
+                                                                         field_result_dict)
                         elif _type == SqlalchemyFieldType.Decimal:
                             bigger_pre_decimal = max(old_field_result_dict['args'][0], field_result_dict['args'][0])
                             bigger_decimal_scale = max(old_field_result_dict['args'][1], field_result_dict['args'][1])
@@ -603,9 +619,13 @@ class Mapper:
                             bigger_field_result_dict = get_combined_dict(None, old_field_result_dict, field_result_dict)
                     else:
                         if {old_type, _type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
-                            bigger_field_result_dict = get_combined_dict(lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']], field_result_dict, old_field_result_dict)
+                            bigger_field_result_dict = get_combined_dict(
+                                lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']],
+                                field_result_dict,
+                                old_field_result_dict)
                         else:
-                            raise ValueError(f'Field types that are inferred have conflicts: {old_type.name} vs {_type.name} for field name {field_name}')
+                            raise ValueError("Field types that are inferred have conflicts: "
+                                             f"{old_type.name} vs {_type.name} for field name {field_name}")
                     if bigger_field_result_dict is None:
                         raise ValueError('Bug: bigger_field_result_dict is not set when making the decision.')
                     results[field_name] = bigger_field_result_dict
@@ -637,7 +657,8 @@ class Mapper:
         combined_module = self._get_combined_module()
         code = []
         for field_name, field_result_dict in combined_module.FIELDS.items():
-            result = self._get_field_orm_string(field_name, field_result=FieldResult(**field_result_dict), orm=SQLALCHEMY_ORM)
+            result = self._get_field_orm_string(field_name, field_result=FieldResult(**field_result_dict),
+                                                orm=SQLALCHEMY_ORM)
             code.append(result)
         update_file_chunk_content(path=self.settings.output_model_path, code=code, identifier=self.settings.identifier)
         print(f'{self.settings.output_model_path} is updated.')
@@ -645,11 +666,15 @@ class Mapper:
     def run(self):
         try:
             self.analyze()
-            self.empty_fields = self.empty_fields - (self.failed_to_infer_fields | set(self.solid_decisions.keys()) | set(self.questionable_fields.keys()))
+            self.empty_fields = self.empty_fields - (
+                self.failed_to_infer_fields |
+                set(self.solid_decisions.keys()) |
+                set(self.questionable_fields.keys()))
 
             if self.empty_fields:
                 print("=" * 50)
-                print("The following fields were empty in the csvs. Setting them to nullable boolean. If you have defined overrides for them, the override will later be applied.")
+                print("The following fields were empty in the csvs. Setting them to nullable boolean. "
+                      "If you have defined overrides for them, the override will later be applied.")
                 print("\n".join(self.empty_fields))
                 print("")
 
@@ -665,7 +690,8 @@ class Mapper:
                 print("The following fields had results that might need to be verified:")
                 headers = FieldReport._fields
                 print(tabulate(self.questionable_fields.values(), headers=headers))
-                msg = f'Please verify the fields and provide the overrides if necessary in {self.settings.overrides_file_name}'
+                msg = ("Please verify the fields and provide the overrides if "
+                       f"necessary in {self.settings.overrides_file_name}")
                 get_user_choice(msg, choices=CONTINUE_OR_ABORT_OPTIONS)
                 print("")
 
@@ -719,7 +745,8 @@ class Mapper:
             elif item in self.settings.boolean_false:
                 result = False
             else:
-                raise ValueError(f'There is a value of {item} in {field_name} which is not a recognized Boolean or Null value.')
+                raise ValueError(f"There is a value of {item} in {field_name} "
+                                 "which is not a recognized Boolean or Null value.")
             return result
 
         for i, item in enumerate(field_values):
@@ -753,8 +780,10 @@ class Mapper:
                     item = int(item)
                 if is_datetime:
                     if not set(item) <= self.settings.datetime_allowed_characters:
-                        raise ValueError(f'Datetime value of {item} in {field_name} has characters that are NOT defined in datetime_allowed_characters')
-                    msg = f"{field_name} has invalid datetime format for {item} that is not in {field_info.get('datetime_formats')}"
+                        raise ValueError(f"Datetime value of {item} in {field_name} has characters "
+                                         "that are NOT defined in datetime_allowed_characters")
+                    msg = (f"{field_name} has invalid datetime format for {item} "
+                           f"that is not in {field_info.get('datetime_formats')}")
                     try:
                         _format = datetime_formats[-1]
                         datetime.datetime.strptime(item, _format)
@@ -791,7 +820,8 @@ def initialize(path):
         get_user_choice(f'{overrides_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
     with open(overrides_path, 'w') as the_file:
         the_file.write('# Overrides file. You can add your overrides for any fields here.')
-    output_model_file = get_user_input('Please provide the relative path to the existing ORM model file.', validate_func=_is_valid_path, setup_dir=setup_dir)
+    output_model_file = get_user_input('Please provide the relative path to the existing ORM model file.',
+                                       validate_func=_is_valid_path, setup_dir=setup_dir)
     settings['output_model_file'] = output_model_file
     output_model_path = os.path.join(setup_dir, output_model_file)
     if not _validate_file_has_start_and_end_lines(user_input=None, path=output_model_path, identifier=identifier):
@@ -802,5 +832,7 @@ def initialize(path):
         get_user_choice(f'{setup_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
 
     write_toml(setup_path, {'settings': settings})
-    print(f'{setup_path} is written. Please add "the relative path to the training CSV files" in your settings and run modelmapper')
-    print('Please verify the generated settings and provide a list of relative paths for training csvs in the settings file.')
+    print(f'{setup_path} is written. Please add "the relative path to the training CSV files"'
+          'in your settings and run modelmapper')
+    print('Please verify the generated settings and provide a list of relative paths for training'
+          'csvs in the settings file.')
