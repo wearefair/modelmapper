@@ -559,8 +559,8 @@ class Mapper:
 
     def _get_csv_full_path(self, path):
         if not path.startswith('/'):
-            csv_path = os.path.join(self.setup_dir, path)
-        return os.path.join(self.setup_dir, csv_path)
+            path = os.path.join(self.setup_dir, path)
+        return os.path.join(self.setup_dir, path)
 
     def _get_overrides(self):
         if os.path.exists(self.settings.overrides_path):
@@ -588,6 +588,12 @@ class Mapper:
                        keys_to_convert_to_list=TOML_KEYS_THAT_ARE_SET)
             results.append(result)
             print(f'{file_path} updated.')
+        overrides = self._get_overrides()
+        if overrides:
+            overrides_keys = {k for k, v in overrides.items() if 'field_db_str' in v}
+        else:
+            overrides_keys = set()
+        self.empty_fields -= overrides_keys
 
         return results
 
@@ -632,6 +638,7 @@ class Mapper:
         if overrides:
             for field_name, value in overrides.items():
                 if field_name not in results:
+                    update_field_result_dict_metadata(value)
                     results[field_name] = value
                     if field_name in self.empty_fields:
                         self.empty_fields.remove(field_name)
@@ -674,7 +681,8 @@ class Mapper:
             if self.empty_fields:
                 print("=" * 50)
                 print("The following fields were empty in the csvs. Setting them to nullable boolean. "
-                      "If you have defined overrides for them, the override will later be applied.")
+                      "If you define overrides for them in "
+                      f"{self.settings.overrides_file_name}, the override will be applied.")
                 print("\n".join(self.empty_fields))
                 print("")
 
