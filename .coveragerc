@@ -1,0 +1,5 @@
+[run]
+source =
+    modelmapper
+omit =
+    modelmapper/management.py
