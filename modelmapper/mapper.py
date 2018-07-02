@@ -681,7 +681,8 @@ class Mapper:
             if self.empty_fields:
                 print("=" * 50)
                 print("The following fields were empty in the csvs. Setting them to nullable boolean. "
-                      f"If you define overrides for them in {self.settings.overrides_file_name}, the override will be applied.")
+                      "If you define overrides for them in "
+                      f"{self.settings.overrides_file_name}, the override will be applied.")
                 print("\n".join(self.empty_fields))
                 print("")
 
