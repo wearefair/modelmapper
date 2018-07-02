@@ -1,4 +1,4 @@
-Model Mapper 0.1.1
+Model Mapper 0.1.2
 ==================
 
 Deterministic Data Driven Schema Modeling
