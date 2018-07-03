@@ -142,6 +142,11 @@ class TestMapper:
                     max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
          ),
+        # (['$0.00', '($12,000.00)', '$7,765.00'],
+        #  FieldStats(counter=Counter({'HasDollar': 3, 'HasDecimal': 3}),
+        #             max_int=0, max_pre_decimal=5, max_decimal_scale=2, len=3),
+        #  FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
+        #  ),
         ])
     @mock.patch('modelmapper.mapper.get_user_input', return_value='somehow passed validation')
     @mock.patch('modelmapper.mapper.get_user_choice')
