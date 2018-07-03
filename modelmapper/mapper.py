@@ -17,7 +17,7 @@ from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
 
-from modelmapper.stats import StatsCollector, UserInferenceRequired
+from modelmapper.stats import StatsCollector, UserInferenceRequired, InconsistentData
 from modelmapper.types import (
     HasNull,
     HasDecimal,
@@ -46,10 +46,6 @@ CONTINUE_OR_ABORT_OPTIONS = {
     'y': {'help': 'to continue when done', 'func': lambda x: True},
     'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
-
-
-class InconsistentData(ValueError):
-    pass
 
 
 class FieldResult(NamedTuple):
@@ -265,35 +261,25 @@ class Mapper:
         return result
 
     def _get_stats(self, field_name, items):
-        collector = StatsCollector()
-        datetime_detected_in_this_field = False
-        idx = 0
-        while idx < len(items):
-            item = items[idx].lower().strip()
-            try:
-                value_type = collector.inspect_item(item, self.settings)
-                if value_type == HasDateTime:
-                    datetime_detected_in_this_field = True
-            except UserInferenceRequired as err:
-                if err.value_type == HasDateTime and datetime_detected_in_this_field:
-                    msg = f'field {field_name} has inconsistent datetime data: {item}.'
-                    get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
-                    msg = f'Please enter the datetime format for {item}'
-                    new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
-                    if new_format in self.settings.datetime_formats:
-                        raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
-                                               f"{item}. {new_format} was already in your settings.")
-                    else:
-                        print(f'Adding {new_format} to your settings.')
-                        self.settings.datetime_formats.add(new_format)
-                        self._original_settings['datetime_formats'].append(new_format)
-                        write_toml(self.setup_path, {'settings': self._original_settings})
-                    continue
-                idx += 1
-            else:
-                idx += 1
-
-        return collector.collect()
+        try:
+            collector = StatsCollector(self.settings)
+            for item in items:
+                collector.inspect_item(field_name, item.lower().strip(), self.settings)
+            return collector.collect()
+        except UserInferenceRequired as err:
+            if err.value_type == HasDateTime:
+                msg = f'field {field_name} has inconsistent datetime data: {item}.'
+                get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
+                msg = f'Please enter the datetime format for {item}'
+                new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
+                if new_format in self.settings.datetime_formats:
+                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
+                                           f"{item}. {new_format} was already in your settings.")
+                print(f'Adding {new_format} to your settings.')
+                self.settings.datetime_formats.add(new_format)
+                self._original_settings['datetime_formats'].append(new_format)
+                write_toml(self.setup_path, {'settings': self._original_settings})
+                return self._get_stats(field_name, items)
 
     def _get_integer_field(self, max_int):
         previous_key = 0

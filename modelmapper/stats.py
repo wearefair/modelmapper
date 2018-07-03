@@ -37,6 +37,11 @@ class NoMatchFound(ValueError):
     pass
 
 
+class InconsistentData(ValueError):
+    """Thrown when we detect inconsistent data within a field"""
+    pass
+
+
 class TypeMatcher(object):
     """
     Matches a value to a type
@@ -61,7 +66,7 @@ class TypeAccumulator(object):
         """
         pass
 
-    def inspect(self, item, settings):
+    def inspect(self, field_name, item, settings):
         """
         Inspects the item
         """
@@ -76,7 +81,7 @@ class TypeAccumulator(object):
 
 class InSettingsMatcher(TypeMatcher):
     """
-    Abstract Matacher -- This should be subclasses not created directly.
+    Abstract Matacher -- This should be subclassed and not created directly.
 
     Matches a value by comparing it to values in
     the settings object.
@@ -101,7 +106,7 @@ class InSettingsMatcher(TypeMatcher):
 
 class InMatcher(TypeMatcher):
     """
-    Abstract Matacher -- This should be subclasses not created directly.
+    Abstract Matacher -- This should be subclassed and not created directly.
 
     Matches when a value contains a certain character
 
@@ -209,7 +214,7 @@ class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
     def match(self, item, settings):
         return self._get_positive_int(item) is not False
 
-    def inspect(self, item, settings):
+    def inspect(self, field_name, item, settings):
         self.max_int = max(self._get_positive_int(item), self.max_int)
 
     def collect(self):
@@ -256,7 +261,7 @@ class PositiveDecimalMatcher(TypeMatcher, TypeAccumulator):
     def match(self, item, settings):
         return self._get_positive_decimal(item) is not False
 
-    def inspect(self, item, settings):
+    def inspect(self, field_name, item, settings):
         value = self._get_positive_decimal(item)
         precision, scale = self._get_decimal_places(value)
         self.max_precision = max(precision, self.max_precision)
@@ -305,46 +310,62 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
     """
     value_type = HasDateTime
 
-    def __init__(self):
+    def __init__(self, datetime_formats):
+        self.datetime_formats = datetime_formats
         self.reset()
 
     def reset(self):
-        self.matched_formats = set()
+        self.candidate_formats = self.datetime_formats.copy()
         self.has_matched_before = False
 
     def match(self, item, settings):
-        if set(item) <= settings.datetime_allowed_characters:
-            matches = self._get_matching_formats(item, settings.datetime_formats)
-            if not matches and not self.has_matched_before:
-                return False
-            elif not matches:
-                # Inconsistent data exception instead?
-                raise UserInferenceRequired(
-                    self.value_type,
-                    "Item contained datetime characters, but didn't match any expected format."
-                )
-            return True
+        for _format in self.datetime_formats:
+            try:
+                datetime.datetime.strptime(item, _format)
+                self.has_matched_before = True
+                return True
+            except ValueError:
+                continue
+
+        if self.has_matched_before:
+            raise UserInferenceRequired(
+                self.value_type,
+                "Item contained invalid datetime, prompting the user for a valid format."
+            )
         return False
 
-    def inspect(self, item, settings):
-        self.matched_formats |= self._get_matching_formats(item, settings.datetime_formats)
+    def inspect(self, field_name, item, settings):
+        """
+        Narrows down candidate datetime formats for a column. If there isn't any format that matches all
+        the data, this will raise an InconsistentData exception.
+        """
+        matches, failures = self._get_format_data(item)
+        # Subtract out any failing formats from our candidates
+        new_candidates = self.candidate_formats - failures
+        # If no possible matches are left, panic!
+        if not new_candidates:
+            matching = ", ".join(matches)
+            old_formats = ", ".join(self.candidate_formats)
+            raise InconsistentData(f"field {field_name} has inconsistent datetime data: {item} "
+                                   f"had {matching} but previous dates in this field had {old_formats}")
+        self.candidate_formats = new_candidates
 
     def collect(self):
-        return {'datetime_formats': self.matched_formats} if self.matched_formats else {}
+        return {'datetime_formats': self.candidate_formats} if self.has_matched_before else {}
 
     def is_exclusive(self):
         return True
 
-    def _get_matching_formats(self, item, datetime_formats):
-        matched_formats = set()
-        for _format in datetime_formats:
+    def _get_format_data(self, item):
+        matching_formats = set()
+        failed_formats = set()
+        for _format in self.datetime_formats:
             try:
                 datetime.datetime.strptime(item, _format)
+                matching_formats.add(_format)
             except ValueError:
-                continue
-            else:
-                matched_formats.add(_format)
-        return matched_formats
+                failed_formats.add(_format)
+        return matching_formats, failed_formats
 
 
 class StringMatcher(TypeMatcher, TypeAccumulator):
@@ -364,7 +385,7 @@ class StringMatcher(TypeMatcher, TypeAccumulator):
     def reset(self):
         self.max_length = 0
 
-    def inspect(self, item, settings):
+    def inspect(self, field_name, item, settings):
         self.max_length = max(len(item), self.max_length)
 
     def collect(self):
@@ -382,7 +403,7 @@ class StatsCollector(object):
 
     Users may extend or override this by passing in their own matchers and stats class.
     """
-    def __init__(self, matchers=None, stats_class=None):
+    def __init__(self, settings, matchers=None, stats_class=None):
         self.results = []
         self.inspected = 0
         self.stats_class = stats_class or FieldStats
@@ -393,7 +414,7 @@ class StatsCollector(object):
             PercentMatcher(),
             PositiveIntMatcher(),
             PositiveDecimalMatcher(),
-            DateTimeMatcher(),
+            DateTimeMatcher(settings.datetime_formats),
             StringMatcher(),
         ]
 
@@ -422,7 +443,7 @@ class StatsCollector(object):
         return self.stats_class(counter=Counter(self.results),
                                 len=self.inspected, **data)
 
-    def inspect_item(self, item, settings):
+    def inspect_item(self, field_name, item, settings):
         """
         Inspects a given field value against all the matchers and accumulators. This will raise an
         exception if no type was able to be determined.
@@ -437,7 +458,7 @@ class StatsCollector(object):
             if not matcher.match(item, settings):
                 continue
             if isinstance(matcher, TypeAccumulator):
-                matcher.inspect(item, settings)
+                matcher.inspect(field_name, item, settings)
             results.append(matcher.value_type)
             if matcher.is_exclusive():
                 break
@@ -447,6 +468,7 @@ class StatsCollector(object):
 
         self.results.extend(results)
         self.inspected += 1
+        return results
 
     def _match(self, matcher, item, settings):
         return matcher.value_type
