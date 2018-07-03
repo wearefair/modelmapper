@@ -7,10 +7,10 @@ from deepdiff import DeepDiff
 from modelmapper import Mapper
 from modelmapper.mapper import FieldStats, InconsistentData, FieldResult, SqlalchemyFieldType, get_field_result_from_dict
 from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
-from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, analysis_fixture_c, override_fixture1,
+from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, override_fixture1,
                                         analysis_fixture_a_only_combined, analysis_fixture_a_and_b_combined,
                                         analysis_fixture_a_and_b_combined_with_override)
-from fixtures.cleaned_csv_for_importing import cleaned_csv_for_import_fixture
+from fixtures.cleaned_csv_for_importing import cleaned_csv_for_import_fixture  # NOQA
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,6 +92,11 @@ class TestMapper:
                     max_int=20, len=5),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)
          ),
+        (['1', '1', '0', '0', '(20)'],
+         FieldStats(counter=Counter(HasBoolean=4, HasInt=5),
+                    max_int=20, len=5),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.SmallInteger, field_db_str='SmallInteger', is_nullable=True)
+         ),
         (['$1.92', '$33.6', '$0', 'null', '$13000.22'],
          FieldStats(counter=Counter(HasNull=1, HasDecimal=3, HasInt=1, HasDollar=4),
                     max_pre_decimal=5, max_decimal_scale=2, len=5),
@@ -124,22 +129,27 @@ class TestMapper:
          ),
         (['1.102933', '220.23', '0'],
          FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1),
-                    max_int=0, len=3, max_decimal_scale=6, max_pre_decimal=3),
+                    len=3, max_decimal_scale=6, max_pre_decimal=3),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(13, 8)', is_nullable=True)
          ),
         (['1.102933%', '220.23%', '0%'],
          FieldStats(counter=Counter(HasPercent=3, HasInt=1, HasDecimal=2),
-                    max_int=0, len=3, max_decimal_scale=6, max_pre_decimal=3),
+                    len=3, max_decimal_scale=6, max_pre_decimal=3),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(13, 10)', is_nullable=True, is_percent=True)
          ),
         (['1,001.10', '220.23', '0'],
          FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1),
-                    max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
+                    len=3, max_decimal_scale=2, max_pre_decimal=4),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Decimal, field_db_str='DECIMAL(10, 4)', is_nullable=True)
          ),
         (['$1,001.10', '$220.23', '0'],
          FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1, HasDollar=2),
-                    max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
+                    len=3, max_decimal_scale=2, max_pre_decimal=4),
+         FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
+         ),
+        (['$0.00', '($12,000.00)', '$7,765.00'],
+         FieldStats(counter=Counter({'HasDollar': 3, 'HasDecimal': 3}),
+                    max_pre_decimal=5, max_decimal_scale=2, len=3),
          FieldResult(field_db_sqlalchemy_type=SqlalchemyFieldType.Integer, field_db_str='Integer', is_nullable=True, is_dollar=True)
          ),
         ])
@@ -210,6 +220,6 @@ class TestMapper:
         diff = DeepDiff(expected, result)
         assert not diff
 
-    def test_get_csv_data_cleaned(self, mapper, cleaned_csv_for_import_fixture):
+    def test_get_csv_data_cleaned(self, mapper, cleaned_csv_for_import_fixture):  # NOQA
         result = list(mapper.get_csv_data_cleaned(training_fixture1_path))
         assert result == cleaned_csv_for_import_fixture

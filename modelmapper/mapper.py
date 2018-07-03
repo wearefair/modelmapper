@@ -146,6 +146,9 @@ class SqlalchemyFieldType(enum.Enum):
         return SqlalchemyFieldTypeToHas[self._name_]
 
 
+# The priority of these field types when deciding between the types during
+# csv results combining phase.
+# The field with high number will overwrite the values from the lower field.
 FIELD_RESULT_COMPARISON_NUMBERS = {
     SqlalchemyFieldType.Decimal: 10,
     SqlalchemyFieldType.BigInteger: 8,
@@ -158,11 +161,22 @@ INTEGER_SQLALCHEMY_TYPES = {
     SqlalchemyFieldType.Integer,
     SqlalchemyFieldType.BigInteger
 }
-NUMERIC_REMOVE = (',', '$', '%')
+
+NUMERIC_REMOVE = (',', '$', '%', '-')
+
+
+def _remove_extra_chars_from_number(item, absolute=False):
+    if item.startswith('(') and item.endswith(')'):
+        item = item.strip('()')
+        item = f'-{item}'
+    for i in NUMERIC_REMOVE:
+        if not(i == '-' and not absolute):
+            item = item.replace(i, '')
+    return item
 
 
 def get_positive_int(item):
-    item = item.replace('-', '').replace(',', '')
+    item = _remove_extra_chars_from_number(item, absolute=True)
     try:
         result = int(item)
     except ValueError:
@@ -171,7 +185,7 @@ def get_positive_int(item):
 
 
 def get_positive_decimal(item):
-    item = item.replace('-', '').replace(',', '')
+    item = _remove_extra_chars_from_number(item, absolute=True)
     try:
         result = Decimal(item)
     except decimal.InvalidOperation:
@@ -741,11 +755,6 @@ class Mapper:
 
         def _mark_nulls(item):
             return None if item in self.settings.null_values else item
-
-        def _remove_extra_chars_from_number(item):
-            for i in NUMERIC_REMOVE:
-                item = item.replace(i, '')
-            return item
 
         def _mark_booleans(item):
             if item in self.settings.boolean_true:
