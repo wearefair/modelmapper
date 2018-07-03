@@ -161,14 +161,16 @@ INTEGER_SQLALCHEMY_TYPES = {
     SqlalchemyFieldType.Integer,
     SqlalchemyFieldType.BigInteger
 }
-NUMERIC_REMOVE = (',', '$', '%', '(', ')', '-')
+
+NUMERIC_REMOVE = (',', '$', '%', '-')
 
 
 def _remove_extra_chars_from_number(item, absolute=False):
-    if not absolute and item.startswith('(') and item.endswith(')'):
+    if item.startswith('(') and item.endswith(')'):
+        item = item.strip('()')
         item = f'-{item}'
     for i in NUMERIC_REMOVE:
-        if not(absolute and i == '-'):
+        if not(i == '-' and not absolute):
             item = item.replace(i, '')
     return item
 
