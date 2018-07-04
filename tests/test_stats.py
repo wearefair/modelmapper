@@ -2,7 +2,8 @@ import pytest
 from collections import Counter
 from deepdiff import DeepDiff
 
-from modelmapper.stats import StatsCollector, FieldStats
+from modelmapper.stats import StatsCollector, FieldStats, InconsistentData
+from modelmapper.types import HasDateTime
 
 
 @pytest.fixture(scope='function')
@@ -98,3 +99,19 @@ def test_expected_stats_with_defaults(default_collector, values, expected_stats)
         default_collector.inspect_item('test-field', item)
     stats = default_collector.collect()
     assert DeepDiff(expected_stats, stats) == {}
+
+
+@pytest.mark.parametrize("values, expected_error", [
+    (['8/8/18', '12/8/18', '12/11/2018'],
+     'field blah has inconsistent datetime data: 12/11/2018 had %m/%d/%Y but previous dates in this field had %m/%d/%y'
+     ),
+])
+def test_inconsistent_datetime(default_collector, values, expected_error):
+    """
+    Tests that without any arguments, the stats collector uses the usual defaults
+    """
+    with pytest.raises(InconsistentData) as excinfo:
+        for item in values:
+            default_collector.inspect_item('blah', item)
+        default_collector.collect()
+    assert str(excinfo.value) == expected_error
