@@ -148,7 +148,6 @@ class TestMapper:
     def test_get_stats_and_get_field_result_from_stats(self, mock_get_user_choice, mock_get_user_input,
                                                        values, expected_stats, expected_field_result, mapper):
         result = mapper._get_stats(field_name='blah', items=values)
-        print(result)
         diff = DeepDiff(expected_stats, result)
         assert not diff
 

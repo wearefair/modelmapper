@@ -17,7 +17,12 @@ from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
 
-from modelmapper.stats import StatsCollector, UserInferenceRequired, InconsistentData
+from modelmapper.stats import (
+    StatsCollector,
+    UserInferenceRequired,
+    InconsistentData,
+    matchers_from_settings
+)
 from modelmapper.types import (
     HasNull,
     HasDecimal,
@@ -262,9 +267,9 @@ class Mapper:
 
     def _get_stats(self, field_name, items):
         try:
-            collector = StatsCollector(self.settings)
+            collector = StatsCollector(matchers=matchers_from_settings(self.settings))
             for item in items:
-                collector.inspect_item(field_name, item.lower().strip(), self.settings)
+                collector.inspect_item(field_name, item)
             return collector.collect()
         except UserInferenceRequired as err:
             if err.value_type == HasDateTime:

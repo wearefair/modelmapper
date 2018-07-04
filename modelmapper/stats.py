@@ -42,12 +42,12 @@ class InconsistentData(ValueError):
     pass
 
 
-class TypeMatcher(object):
+class TypeMatcher:
     """
     Matches a value to a type
     """
-    def match(self, item, settings):
-        return False
+    def match(self, item):
+        return self._match(self.__normalize(item))
 
     def is_exclusive(self):
         """
@@ -55,8 +55,20 @@ class TypeMatcher(object):
         """
         return False
 
+    def _match(self, item):
+        """
+        Subclasses should override this method
+        """
+        return False
 
-class TypeAccumulator(object):
+    def __normalize(self, item):
+        """
+        Default normalization, lowercases and strips the field.
+        """
+        return item.lower().strip()
+
+
+class TypeAccumulator:
     """
     Accumulates some value over every item it sees
     """
@@ -66,7 +78,7 @@ class TypeAccumulator(object):
         """
         pass
 
-    def inspect(self, field_name, item, settings):
+    def inspect(self, field_name, item):
         """
         Inspects the item
         """
@@ -79,114 +91,119 @@ class TypeAccumulator(object):
         pass
 
 
-class InSettingsMatcher(TypeMatcher):
+class InMatcher(TypeMatcher):
     """
     Abstract Matacher -- This should be subclassed and not created directly.
 
     Matches a value by comparing it to values in
     the settings object.
 
-    >>> settings.test = ['1', 'y', 'true']
-    >>> InSettingsMatcher('test').match('test', settings)
+    >>> InMatcher(['1', 'y', 'true']).match('test')
     False
-    >>> settings.test = ['1', 'y', 'true']
-    >>> InSettingsMatcher('test').match('1', settings)
+    >>> InMatcher(['1', 'y', 'true']).match('1')
     True
     """
-    def __init__(self, field):
-        self.field = field
+    def __init__(self, candidate_values):
+        self.candidate_values = candidate_values
 
-    def match(self, item, settings):
-        if not hasattr(settings, self.field):
-            # XXX: Raise exception
-            raise ValueError('missing field')
-            return False
-        return item in getattr(settings, self.field)
+    def _match(self, item):
+        return item in self.candidate_values
 
 
-class InMatcher(TypeMatcher):
+class ContainsMatcher(TypeMatcher):
     """
     Abstract Matacher -- This should be subclassed and not created directly.
 
     Matches when a value contains a certain character
 
-    >>> InMatcher('$').match('test', settings)
+    >>> ContainsMatcher('$').match('test')
     False
-    >>> InMatcher('$').match('$0.0', settings)
+    >>> ContainsMatcher('$').match('$0.0')
     True
     """
-    def __init__(self, to_match):
-        self.to_match = to_match
+    def __init__(self, contains):
+        self.contains = contains
 
-    def match(self, item, settings):
-        return self.to_match in item
+    def _match(self, item):
+        return self.contains in item
 
 
-class NullMatcher(InSettingsMatcher):
+class NullMatcher(InMatcher):
     """
     Matches values to the designated null value strings in the settings file
 
-    >>> settings.null_values = ['null', '', ' ']
-    >>> NullMatcher().match('test', settings)
+    >>> NullMatcher().match('test')
     False
-    >>> settings.null_values = ['null', '', ' ']
-    >>> NullMatcher().match('null', settings)
+    >>> NullMatcher().match('null')
     True
     """
     value_type = HasNull
 
-    def __init__(self):
-        super().__init__('null_values')
+    def __init__(self, null_values=None):
+        """
+        Constructs a new :class:`.NullMatcher`
+
+        :param null_values:
+            List of values that should be considered nulls
+        """
+        null_values = null_values or ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]
+        super().__init__(candidate_values=null_values)
 
     def is_exclusive(self):
         return True
 
 
-class BooleanMatcher(InSettingsMatcher):
+class BooleanMatcher(InMatcher):
     """
-    Matches values to the designated boolean value strings in the settings file
+    Matches values to the designated boolean value strings provided in the constructor
 
-    >>> settings.booleans = ['1', 'y', 'true']
-    >>> BooleanMatcher().match('test', settings)
+    >>> BooleanMatcher(['1', 'y', 'true']).match('test')
     False
-    >>> settings.booleans = ['1', 'y', 'true']
-    >>> BooleanMatcher().match('true', settings)
+    >>> BooleanMatcher(['1', 'y', 'true']).match('true')
     True
     """
     value_type = HasBoolean
 
-    def __init__(self):
-        super().__init__('booleans')
+    def __init__(self, boolean_values=None):
+        """
+        Constructs a new :class:`.BooleanMatcher`. This class is not an exclusive matcher
+        as 0 and 1 may denote true/false, but also an integer.
+
+        :param boolean_values:
+            List of values that should be considered booleans
+        """
+        boolean_values = boolean_values or ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
+        super().__init__(candidate_values=boolean_values)
 
 
-class DollarMatcher(InMatcher):
+class DollarMatcher(ContainsMatcher):
     """
     Matches values that contain the $ character
 
-    >>> DollarMatcher().match('test', settings)
+    >>> DollarMatcher().match('test')
     False
-    >>> DollarMatcher().match('$1.50', settings)
+    >>> DollarMatcher().match('$1.50')
     True
     """
     value_type = HasDollar
 
     def __init__(self):
-        super().__init__('$')
+        super().__init__(contains='$')
 
 
-class PercentMatcher(InMatcher):
+class PercentMatcher(ContainsMatcher):
     """
     Matches values that contain the % character
 
-    >>> PercentMatcher().match('test', settings)
+    >>> PercentMatcher().match('test')
     False
-    >>> PercentMatcher().match('10%', settings)
+    >>> PercentMatcher().match('10%')
     True
     """
     value_type = HasPercent
 
     def __init__(self):
-        super().__init__('%')
+        super().__init__(contains='%')
 
 
 class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
@@ -195,26 +212,26 @@ class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
     also acts as an accumulator and records the max integer value that
     it saw.
 
-    >>> PositiveIntMatcher().match('test', settings)
+    >>> PositiveIntMatcher().match('test')
     False
-    >>> PositiveIntMatcher().match('10', settings)
+    >>> PositiveIntMatcher().match('10')
     True
-    >>> PositiveIntMatcher().match('$10', settings)
+    >>> PositiveIntMatcher().match('$10')
     True
     """
     value_type = HasInt
 
     def __init__(self, max_int=0):
         self.original_max = max_int
-        self.max_int = max_int
+        self.reset()
 
     def reset(self):
         self.max_int = self.original_max
 
-    def match(self, item, settings):
+    def _match(self, item):
         return self._get_positive_int(item) is not False
 
-    def inspect(self, field_name, item, settings):
+    def inspect(self, field_name, item):
         self.max_int = max(self._get_positive_int(item), self.max_int)
 
     def collect(self):
@@ -239,29 +256,28 @@ class PositiveDecimalMatcher(TypeMatcher, TypeAccumulator):
     also acts as an accumulator and records the max scale and precision that
     it saw.
 
-    >>> PositiveDecimalMatcher().match('test', settings)
+    >>> PositiveDecimalMatcher().match('test')
     False
-    >>> PositiveDecimalMatcher().match('10.0', settings)
+    >>> PositiveDecimalMatcher().match('10.0')
     True
-    >>> PositiveIntMatcher().match('$10.01', settings)
+    >>> PositiveIntMatcher().match('$10.01')
     True
     """
     value_type = HasDecimal
 
     def __init__(self, max_scale=0, max_precision=0):
         self.original_scale = max_scale
-        self.max_scale = max_scale
         self.original_precision = max_precision
-        self.max_precision = max_precision
+        self.reset()
 
     def reset(self):
         self.max_scale = self.original_scale
         self.max_precision = self.original_precision
 
-    def match(self, item, settings):
+    def _match(self, item):
         return self._get_positive_decimal(item) is not False
 
-    def inspect(self, field_name, item, settings):
+    def inspect(self, field_name, item):
         value = self._get_positive_decimal(item)
         precision, scale = self._get_decimal_places(value)
         self.max_precision = max(precision, self.max_precision)
@@ -302,23 +318,22 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
     also acts as an accumulator and records the possible datetime formats
     that are used to represent this field.
 
-    >>> settings.datetime_formats = set(['%mm/%dd/%yyyy'])
-    >>> DateTimeMatcher().match('test', settings)
+    >>> DateTimeMatcher(datetime_formats=['%m/%d/%Y']).match('test', settings)
     False
-    >>> DateTimeMatcher().match('10/15/1992', settings)
+    >>> DateTimeMatcher(datetime_formats=['%m/%d/%Y']).match('10/15/1992', settings)
     True
     """
     value_type = HasDateTime
 
-    def __init__(self, datetime_formats):
-        self.datetime_formats = datetime_formats
+    def __init__(self, datetime_formats=None):
+        self.datetime_formats = datetime_formats or set(["%m/%d/%y", "%m/%d/%Y", "%Y%m%d"])
         self.reset()
 
     def reset(self):
         self.candidate_formats = self.datetime_formats.copy()
         self.has_matched_before = False
 
-    def match(self, item, settings):
+    def _match(self, item):
         for _format in self.datetime_formats:
             try:
                 datetime.datetime.strptime(item, _format)
@@ -334,7 +349,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
             )
         return False
 
-    def inspect(self, field_name, item, settings):
+    def inspect(self, field_name, item):
         """
         Narrows down candidate datetime formats for a column. If there isn't any format that matches all
         the data, this will raise an InconsistentData exception.
@@ -374,7 +389,7 @@ class StringMatcher(TypeMatcher, TypeAccumulator):
 
     This also acts as an accumulator and records the max string length that it found.
 
-    >>> StringMatcher().match('test', settings)
+    >>> StringMatcher().match('test')
     True
     """
     value_type = HasString
@@ -385,14 +400,33 @@ class StringMatcher(TypeMatcher, TypeAccumulator):
     def reset(self):
         self.max_length = 0
 
-    def inspect(self, field_name, item, settings):
+    def inspect(self, field_name, item):
         self.max_length = max(len(item), self.max_length)
 
     def collect(self):
         return {'max_string_len': self.max_length}
 
-    def match(self, item, settings):
+    def _match(self, item):
         return True
+
+
+def matchers_from_settings(settings=None):
+    """
+    Creates a default set of matchers from the settings object
+    """
+    datetime_formats = settings.datetime_formats if settings else None
+    null_values = settings.null_values if settings else None
+    boolean_values = settings.booleans if settings else None
+    return [
+        NullMatcher(null_values=null_values),
+        BooleanMatcher(boolean_values=boolean_values),
+        DollarMatcher(),
+        PercentMatcher(),
+        PositiveIntMatcher(),
+        PositiveDecimalMatcher(),
+        DateTimeMatcher(datetime_formats=datetime_formats),
+        StringMatcher(),
+    ]
 
 
 class StatsCollector(object):
@@ -403,20 +437,11 @@ class StatsCollector(object):
 
     Users may extend or override this by passing in their own matchers and stats class.
     """
-    def __init__(self, settings, matchers=None, stats_class=None):
+    def __init__(self, matchers=None, stats_class=None):
         self.results = []
         self.inspected = 0
         self.stats_class = stats_class or FieldStats
-        self.matchers = matchers or [
-            NullMatcher(),
-            BooleanMatcher(),
-            DollarMatcher(),
-            PercentMatcher(),
-            PositiveIntMatcher(),
-            PositiveDecimalMatcher(),
-            DateTimeMatcher(settings.datetime_formats),
-            StringMatcher(),
-        ]
+        self.matchers = matchers or matchers_from_settings()
 
     def reset(self):
         """
@@ -443,7 +468,7 @@ class StatsCollector(object):
         return self.stats_class(counter=Counter(self.results),
                                 len=self.inspected, **data)
 
-    def inspect_item(self, field_name, item, settings):
+    def inspect_item(self, field_name, item):
         """
         Inspects a given field value against all the matchers and accumulators. This will raise an
         exception if no type was able to be determined.
@@ -455,10 +480,10 @@ class StatsCollector(object):
         """
         results = []
         for matcher in self.matchers:
-            if not matcher.match(item, settings):
+            if not matcher.match(item):
                 continue
             if isinstance(matcher, TypeAccumulator):
-                matcher.inspect(field_name, item, settings)
+                matcher.inspect(field_name, item)
             results.append(matcher.value_type)
             if matcher.is_exclusive():
                 break
@@ -469,6 +494,3 @@ class StatsCollector(object):
         self.results.extend(results)
         self.inspected += 1
         return results
-
-    def _match(self, matcher, item, settings):
-        return matcher.value_type
