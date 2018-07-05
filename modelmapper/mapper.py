@@ -1,15 +1,14 @@
 import enum
 import os
 import sys
-import decimal
 import datetime
 import logging
 import importlib
 from copy import deepcopy
-from collections import defaultdict, Counter
+from collections import defaultdict
 from decimal import Decimal
 # We are using both the new style and old style of named tuple
-from typing import Any, NamedTuple
+from typing import NamedTuple
 from collections import namedtuple
 from tabulate import tabulate
 
@@ -18,18 +17,24 @@ from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
 
+from modelmapper.stats import (
+    StatsCollector,
+    UserInferenceRequired,
+    InconsistentData,
+    matchers_from_settings
+)
+from modelmapper.types import (
+    HasNull,
+    HasDecimal,
+    HasInt,
+    HasString,
+    HasDateTime,
+    HasBoolean,
+)
+
 logger = logging.getLogger(__name__)
 
 SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
-
-HasNull = 'HasNull'
-HasDecimal = 'HasDecimal'
-HasInt = 'HasInt'
-HasDollar = 'HasDollar'
-HasPercent = 'HasPercent'
-HasString = 'HasString'
-HasDateTime = 'HasDateTime'
-HasBoolean = 'HasBoolean'
 
 ONE_HUNDRED = Decimal('100')
 
@@ -46,20 +51,6 @@ CONTINUE_OR_ABORT_OPTIONS = {
     'y': {'help': 'to continue when done', 'func': lambda x: True},
     'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
-
-
-class InconsistentData(ValueError):
-    pass
-
-
-class FieldStats(NamedTuple):
-    counter: Any
-    max_int: 'FieldStats' = 0
-    max_pre_decimal: 'FieldStats' = 0
-    max_decimal_scale: 'FieldStats' = 0
-    max_string_len: 'FieldStats' = 0
-    datetime_formats: 'FieldStats' = None
-    len: 'FieldStats' = 0
 
 
 class FieldResult(NamedTuple):
@@ -107,15 +98,6 @@ def get_field_result_from_dict(item):
     return FieldResult(**item)
 
 
-HasNull = 'HasNull'
-HasDecimal = 'HasDecimal'
-HasInt = 'HasInt'
-HasDollar = 'HasDollar'
-HasPercent = 'HasPercent'
-HasString = 'HasString'
-HasDateTime = 'HasDateTime'
-HasBoolean = 'HasBoolean'
-
 SqlalchemyFieldTypeToHas = dict(
     String=HasString,
     SmallInteger=HasInt,
@@ -159,24 +141,6 @@ INTEGER_SQLALCHEMY_TYPES = {
     SqlalchemyFieldType.BigInteger
 }
 NUMERIC_REMOVE = (',', '$', '%')
-
-
-def get_positive_int(item):
-    item = item.replace('-', '').replace(',', '')
-    try:
-        result = int(item)
-    except ValueError:
-        result = False
-    return result
-
-
-def get_positive_decimal(item):
-    item = item.replace('-', '').replace(',', '')
-    try:
-        result = Decimal(item)
-    except decimal.InvalidOperation:
-        result = False
-    return result
 
 
 def _is_valid_dateformat(user_input, item):
@@ -301,103 +265,26 @@ class Mapper:
                                          "Please fix that and try again.")
         return result
 
-    def _get_decimal_places(self, item):
-        item = str(item)
-        if '.' in item:
-            i, v = list(map(len, item.split('.')))
-            return i, v
-        else:
-            return 0, 0
-
-    def _get_datetime_formats(self, field_name, item, datetime_formats, failed_datetime_formats):
-        current_successful_formats = set()
-        current_failed_formats = set()
-        for _format in datetime_formats:
-            try:
-                datetime.datetime.strptime(item, _format)
-            except ValueError:
-                failed_datetime_formats.add(_format)
-            else:
-                current_successful_formats.add(_format)
-        if not current_successful_formats:
-            for _format in failed_datetime_formats:
-                try:
-                    datetime.datetime.strptime(item, _format)
-                except ValueError:
-                    pass
-                else:
-                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
-                                           f"{item} had {_format} but previous dates in this field "
-                                           f"had {', '.join(datetime_formats)}")
-        failed_datetime_formats |= current_failed_formats
-        return current_successful_formats, failed_datetime_formats
-
     def _get_stats(self, field_name, items):
-        max_int = 0
-        max_pre_decimal = 0
-        max_decimal_scale = 0
-        max_string_len = 0
-        datetime_formats = self.settings.datetime_formats.copy()
-        failed_datetime_formats = set()
-        datetime_detected_in_this_field = False
-        result = []
-        for item in items:
-            item = item.lower().strip()
-            if item.lower() in self.settings.null_values:
-                result.append(HasNull)
-                continue
-            if item.lower() in self.settings.booleans:
-                result.append(HasBoolean)
-            if '$' in item:
-                item = item.replace('$', '')
-                result.append(HasDollar)
-            if '%' in item:
-                item = item.replace('%', '')
-                result.append(HasPercent)
-            positive_int = get_positive_int(item)
-            if positive_int is not False:
-                result.append(HasInt)
-                max_int = max(positive_int, max_int)
-                continue
-            positive_decimal = get_positive_decimal(item)
-            if positive_decimal is not False:
-                result.append(HasDecimal)
-                pre_decimal_precision, decimal_scale = self._get_decimal_places(positive_decimal)
-                max_pre_decimal = max(max_pre_decimal, pre_decimal_precision)
-                max_decimal_scale = max(max_decimal_scale, decimal_scale)
-                continue
-            if set(item) <= self.settings.datetime_allowed_characters:
-                datetime_formats, failed_datetime_formats = self._get_datetime_formats(
-                    field_name, item, datetime_formats, failed_datetime_formats)
-                if datetime_formats:
-                    result.append(HasDateTime)
-                    datetime_detected_in_this_field = True
-                    continue
-                elif datetime_detected_in_this_field:
-                    msg = f'field {field_name} has inconsistent datetime data: {item}.'
-                    get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
-                    msg = f'Please enter the datetime format for {item}'
-                    new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
-                    datetime_formats.add(new_format)
-                    result.append(HasDateTime)
-                    if new_format in self.settings.datetime_formats:
-                        raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
-                                               f"{item}. {new_format} was already in your settings.")
-                    else:
-                        print(f'Adding {new_format} to your settings.')
-                        self.settings.datetime_formats.add(new_format)
-                        self._original_settings['datetime_formats'].append(new_format)
-                        write_toml(self.setup_path, {'settings': self._original_settings})
-                        continue
-            result.append(HasString)
-            max_string_len = max(max_string_len, len(item))
-
-        return FieldStats(counter=Counter(result), max_int=max_int,
-                          max_pre_decimal=max_pre_decimal,
-                          max_decimal_scale=max_decimal_scale,
-                          max_string_len=max_string_len,
-                          datetime_formats=datetime_formats if datetime_detected_in_this_field else None,
-                          len=len(items))
+        try:
+            collector = StatsCollector(matchers=matchers_from_settings(self.settings))
+            for item in items:
+                collector.inspect_item(field_name, item)
+            return collector.collect()
+        except UserInferenceRequired as err:
+            if err.value_type == HasDateTime:
+                msg = f'field {field_name} has inconsistent datetime data: {item}.'
+                get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
+                msg = f'Please enter the datetime format for {item}'
+                new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
+                if new_format in self.settings.datetime_formats:
+                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
+                                           f"{item}. {new_format} was already in your settings.")
+                print(f'Adding {new_format} to your settings.')
+                self.settings.datetime_formats.add(new_format)
+                self._original_settings['datetime_formats'].append(new_format)
+                write_toml(self.setup_path, {'settings': self._original_settings})
+                return self._get_stats(field_name, items)
 
     def _get_integer_field(self, max_int):
         previous_key = 0
