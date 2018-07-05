@@ -13,6 +13,7 @@ from collections import namedtuple
 from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES
+from modelmapper.normalization import normalize_numberic_values
 from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
@@ -629,11 +630,6 @@ class Mapper:
         def _mark_nulls(item):
             return None if item in self.settings.null_values else item
 
-        def _remove_extra_chars_from_number(item):
-            for i in NUMERIC_REMOVE:
-                item = item.replace(i, '')
-            return item
-
         def _mark_booleans(item):
             if item in self.settings.boolean_true:
                 result = True
@@ -652,7 +648,7 @@ class Mapper:
                     raise ValueError(f'There is a value that is longer than {max_string_len} for {field_name}: {item}')
 
             if is_integer or is_decimal:
-                item = _remove_extra_chars_from_number(item)
+                item = normalize_numberic_values(item)
 
             if is_nullable:
                 item = _mark_nulls(item)

@@ -3,7 +3,6 @@ from collections import Counter
 from deepdiff import DeepDiff
 
 from modelmapper.stats import StatsCollector, FieldStats, InconsistentData
-from modelmapper.types import HasDateTime
 
 
 @pytest.fixture(scope='function')
@@ -89,6 +88,14 @@ def default_collector():
     (['$1,001.10', '$220.23', '0'],
      FieldStats(counter=Counter(HasInt=1, HasDecimal=2, HasBoolean=1, HasDollar=2),
                 max_int=0, len=3, max_decimal_scale=2, max_pre_decimal=4),
+     ),
+    (['$0.00', '($12,000.00)', '$7,765.00'],
+     FieldStats(counter=Counter({'HasDollar': 3, 'HasDecimal': 3}),
+                max_pre_decimal=5, max_decimal_scale=2, len=3)
+     ),
+    (['1', '1', '0', '0', '(20)'],
+     FieldStats(counter=Counter(HasBoolean=4, HasInt=5),
+                max_int=20, len=5),
      ),
 ])
 def test_expected_stats_with_defaults(default_collector, values, expected_stats):
