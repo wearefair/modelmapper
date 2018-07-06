@@ -3,6 +3,7 @@ import datetime
 from collections import Counter
 from typing import Any, NamedTuple
 
+from modelmapper.normalization import normalize_numberic_values
 from modelmapper.types import (
     HasBoolean,
     HasDateTime,
@@ -237,15 +238,12 @@ class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
     def collect(self):
         return {'max_int': self.max_int }
 
-    def _normalize(self, item):
-        return item.replace('-', '').replace(',', '').replace('$', '').replace('%', '')
-
     def is_exclusive(self):
         return True
 
     def _get_positive_int(self, item):
         try:
-            return int(self._normalize(item))
+            return int(normalize_numberic_values(item, absolute=True))
         except ValueError:
             return False
 
@@ -300,14 +298,11 @@ class PositiveDecimalMatcher(TypeMatcher, TypeAccumulator):
         else:
             return 0, 0
 
-    def _normalize(self, item):
-        return item.replace('-', '').replace(',', '').replace('$', '').replace('%', '')
-
     def _get_positive_decimal(self, item):
         if '.' not in item:
             return False
         try:
-            return decimal.Decimal(self._normalize(item))
+            return decimal.Decimal(normalize_numberic_values(item, absolute=True))
         except decimal.InvalidOperation:
             return False
 
