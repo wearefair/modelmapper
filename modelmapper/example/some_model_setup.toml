@@ -15,6 +15,7 @@ non_string_fields_are_all_nullable = true
 string_fields_can_be_nullable = false
 training_csvs = ['../../tests/fixtures/training_fixture1.csv']
 output_model_file = 'sample_model.py'
+ignore_lines_that_include_only_subset_of = ["", "-"]
 
 [settings.max_int]
 32767 = "SmallInteger"

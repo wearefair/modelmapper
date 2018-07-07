@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 _ESCAPE_ACCEPTABLED = frozenset(ascii_lowercase + digits)
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
@@ -81,6 +82,29 @@ def write_toml(path, contents, auto_generated_from=None, keys_to_convert_to_list
         the_file.write(dump)
     return dump
 
+
+def write_settings(path, contents):
+    contents = contents if 'settings' in contents else {'settings': contents}
+    template_setup_path = os.path.join(current_dir, 'templates/setup_template.toml')
+    with open(template_setup_path, 'r') as the_file:
+        lines = the_file.readlines()
+
+    comments = {}
+    for line in lines:
+        if '=' in line:
+            parts = line.split('=')
+            comments[parts[0]] = parts[-1].split('#')[-1].strip()
+    dump = pytoml.dumps(contents)
+    dump_lines = dump.split('\n')
+    for i, line in enumerate(dump_lines):
+        for key, comment in comments.items():
+            if line.startswith(key):
+                dump_lines[i] = f'{line}  # {comment}'
+                break
+    result = '\n'.join(dump_lines)
+    with open(path, 'w') as the_file:
+        the_file.write(result)
+    return result
 
 def write_full_python_file(path, variable_name, contents, header=''):
     """

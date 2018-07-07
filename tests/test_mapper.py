@@ -14,13 +14,13 @@ from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, 
 from fixtures.cleaned_csv_for_importing import cleaned_csv_for_import_fixture
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-template_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
+example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 
 
 @pytest.fixture
 def mapper():
-    return Mapper(template_setup_path)
+    return Mapper(example_setup_path)
 
 
 class TestMapper:
@@ -192,3 +192,13 @@ class TestMapper:
     def test_get_csv_data_cleaned(self, mapper, cleaned_csv_for_import_fixture):
         result = list(mapper.get_csv_data_cleaned(training_fixture1_path))
         assert result == cleaned_csv_for_import_fixture
+
+    @pytest.mark.parametrize("line, is_parsable", [
+        (["1", "2", ""], True),
+        (["", "", "a"], True),
+        (["", "", ""], False),
+        (["---", "-", "--"], False),
+    ])
+    def test_does_line_include_data(self, mapper, line, is_parsable):
+        result = mapper._does_line_include_data(line)
+        assert is_parsable is result

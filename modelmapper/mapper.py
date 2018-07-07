@@ -14,7 +14,7 @@ from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES
 from modelmapper.normalization import normalize_numberic_values
-from modelmapper.misc import (read_csv_gen, load_toml, write_toml,
+from modelmapper.misc import (read_csv_gen, load_toml, write_toml, write_settings,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
 
@@ -183,7 +183,8 @@ class Mapper:
         self.setup_dir = os.path.dirname(setup_path)
         sys.path.append(self.setup_dir)
         clean_later = ['field_name_full_conversion']
-        convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats']
+        convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
+                          'ignore_lines_that_include_only_subset_of', ]
         self._original_settings = load_toml(setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
@@ -243,6 +244,10 @@ class Mapper:
             else:
                 clean_names_mapping[clean_name] = name
 
+    def _does_line_include_data(self, line):
+        # whether line has any characters in it that are not in ignore_lines_that_include_only_subset_of
+        return any(filter(lambda x: set(x.strip()) - self.settings.ignore_lines_that_include_only_subset_of, line))
+
     def _get_clean_names_and_csv_data_gen(self, path):
         reader = read_csv_gen(path)
         names = next(reader)
@@ -256,8 +261,7 @@ class Mapper:
         clean_names, reader = self._get_clean_names_and_csv_data_gen(path)
         # transposing csv and turning into dictionary
         for line in reader:
-            # do not parse empty lines
-            if any(filter(lambda x: bool(x.strip()), line)):
+            if self._does_line_include_data(line):
                 for i, v in enumerate(line):
                     try:
                         result[clean_names[i]].append(v)
@@ -284,7 +288,7 @@ class Mapper:
                 print(f'Adding {new_format} to your settings.')
                 self.settings.datetime_formats.add(new_format)
                 self._original_settings['datetime_formats'].append(new_format)
-                write_toml(self.setup_path, {'settings': self._original_settings})
+                write_settings(self.setup_path, self._original_settings)
                 return self._get_stats(field_name, items)
 
     def _get_integer_field(self, max_int):
@@ -710,7 +714,7 @@ def initialize(path):
     if os.path.exists(overrides_path):
         get_user_choice(f'{overrides_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
     with open(overrides_path, 'w') as the_file:
-        the_file.write('# Overrides file. You can add your overrides for any fields here.')
+        the_file.write('# Overrides filse. You can add your overrides for any fields here.')
     output_model_file = get_user_input('Please provide the relative path to the existing ORM model file.',
                                        validate_func=_is_valid_path, setup_dir=setup_dir)
     settings['output_model_file'] = output_model_file
@@ -722,7 +726,7 @@ def initialize(path):
     if os.path.exists(setup_path):
         get_user_choice(f'{setup_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
 
-    write_toml(setup_path, {'settings': settings})
+    write_settings(setup_path, settings)
     print(f'{setup_path} is written. Please add "the relative path to the training CSV files"'
           'in your settings and run modelmapper')
     print('Please verify the generated settings and provide a list of relative paths for training'

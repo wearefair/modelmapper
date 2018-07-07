@@ -3,7 +3,8 @@ import enum
 import pytest
 from unittest import mock
 from deepdiff import DeepDiff
-from modelmapper.misc import escape_word, get_combined_dict, load_toml, convert_dict_key, convert_dict_item_type, write_toml
+from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
+                              convert_dict_item_type, write_toml, write_settings)
 from modelmapper.mapper import SqlalchemyFieldType
 from fixtures.analysis_fixtures import analysis_fixture_c_in_dict
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
@@ -76,3 +77,11 @@ class TestMisc:
         item = {'a': [], 'b': [1, SqlalchemyFieldType.Integer], 'c': {'a': SqlalchemyFieldType.String}}
         result = write_toml('some path', item)
         assert result == 'a = []\nb = [1, "SqlalchemyFieldType.Integer"]\n\n[c]\na = "SqlalchemyFieldType.String"\n'
+
+    def test_write_settings(self):
+        template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
+        loaded_template = load_toml(template_setup_path)
+        with open(template_setup_path, 'r') as the_file:
+            template_settings_content = the_file.read()
+        result = write_settings('/tmp/settings.toml', loaded_template)
+        assert template_settings_content == result
