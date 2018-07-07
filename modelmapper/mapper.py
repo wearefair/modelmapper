@@ -9,7 +9,7 @@ from collections import defaultdict
 from decimal import Decimal
 # We are using both the new style and old style of named tuple
 from typing import NamedTuple
-from collections import namedtuple
+from collections import namedtuple, Counter
 from tabulate import tabulate
 
 from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES
@@ -248,9 +248,16 @@ class Mapper:
         # whether line has any characters in it that are not in ignore_lines_that_include_only_subset_of
         return any(filter(lambda x: set(x.strip()) - self.settings.ignore_lines_that_include_only_subset_of, line))
 
+    def _verify_no_duplicate_names(self, names):
+        counter = Counter(names)
+        duplicates = {i: v for i, v in counter.most_common(10) if v > 1}
+        if duplicates:
+            raise ValueError(f'The following fields were repeated in the csv: {duplicates}')
+
     def _get_clean_names_and_csv_data_gen(self, path):
         reader = read_csv_gen(path)
         names = next(reader)
+        self._verify_no_duplicate_names(names)
         name_mapping = self._get_all_clean_field_names_mapping(names)
         self._verify_no_duplicate_clean_names(name_mapping)
         clean_names = list(name_mapping.values())

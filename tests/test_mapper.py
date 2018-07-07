@@ -57,6 +57,17 @@ class TestMapper:
             mapper._verify_no_duplicate_clean_names(names_mapping)
         assert str(exc_info.value).endswith("field has a collision with 'Name 1'. They both produce 'name_1'")
 
+
+    @pytest.mark.parametrize("names, expected_duplicates", [
+        (['this', 'or', 'this'], ['this']),
+        (['this', 'or', 'this', 'or', 'what'], ['this', 'or']),
+    ])
+    def test_verify_no_duplicate_names(self, names, expected_duplicates, mapper):
+        with pytest.raises(ValueError) as exc_info:
+            mapper._verify_no_duplicate_names(names)
+        for item in expected_duplicates:
+            assert item in str(exc_info.value)
+
     def test_get_all_values_per_clean_name(self, all_fixture1_values, mapper):
         result = mapper._get_all_values_per_clean_name(training_fixture1_path)
         assert all_fixture1_values == result
@@ -202,3 +213,4 @@ class TestMapper:
     def test_does_line_include_data(self, mapper, line, is_parsable):
         result = mapper._does_line_include_data(line)
         assert is_parsable is result
+
