@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Microsoft Office User</Author>
+  <LastAuthor>Microsoft Office User</LastAuthor>
+  <Created>2018-07-12T06:36:47Z</Created>
+  <LastSaved>2018-07-12T06:41:11Z</LastSaved>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>13500</WindowHeight>
+  <WindowWidth>21220</WindowWidth>
+  <WindowTopX>540</WindowTopX>
+  <WindowTopY>2340</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="12" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Sheet1">
+  <Table ss:ExpandedColumnCount="22" ss:ExpandedRowCount="3" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="65" ss:DefaultRowHeight="16">
+   <Row>
+    <Cell><Data ss:Type="String">VIN/HIN</Data></Cell>
+    <Cell><Data ss:Type="String">Account</Data></Cell>
+    <Cell><Data ss:Type="String">Loan</Data></Cell>
+    <Cell><Data ss:Type="String">Loan Suffix</Data></Cell>
+    <Cell><Data ss:Type="String">Branch</Data></Cell>
+    <Cell><Data ss:Type="String">Business Unit</Data></Cell>
+    <Cell><Data ss:Type="String">Owners</Data></Cell>
+    <Cell><Data ss:Type="String">Issuance Date</Data></Cell>
+    <Cell><Data ss:Type="String">Imported Date</Data></Cell>
+    <Cell><Data ss:Type="String">Year</Data></Cell>
+    <Cell><Data ss:Type="String">Make</Data></Cell>
+    <Cell><Data ss:Type="String">State</Data></Cell>
+    <Cell><Data ss:Type="String">Branding</Data></Cell>
+    <Cell><Data ss:Type="String">Title #</Data></Cell>
+    <Cell><Data ss:Type="String">License</Data></Cell>
+    <Cell><Data ss:Type="String">Media</Data></Cell>
+    <Cell><Data ss:Type="String">Original/Copy</Data></Cell>
+    <Cell><Data ss:Type="String">Status</Data></Cell>
+    <Cell><Data ss:Type="String">Doc Type</Data></Cell>
+    <Cell><Data ss:Type="String">Account Sub-type</Data></Cell>
+    <Cell><Data ss:Type="String">Collateral Type</Data></Cell>
+    <Cell><Data ss:Type="String">Document Not Required</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">KUHW</Data></Cell>
+    <Cell><Data ss:Type="String">83i</Data></Cell>
+    <Cell><Data ss:Type="String">17</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">fair</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">That guy</Data></Cell>
+    <Cell><Data ss:Type="String">3/1/2017</Data></Cell>
+    <Cell><Data ss:Type="String">9/13/2017</Data></Cell>
+    <Cell><Data ss:Type="String">2010</Data></Cell>
+    <Cell><Data ss:Type="String">BMW</Data></Cell>
+    <Cell><Data ss:Type="String">CA</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">Paper</Data></Cell>
+    <Cell><Data ss:Type="String">Original</Data></Cell>
+    <Cell><Data ss:Type="String">WOW</Data></Cell>
+    <Cell><Data ss:Type="String">TITLE</Data></Cell>
+    <Cell><Data ss:Type="String">None</Data></Cell>
+    <Cell><Data ss:Type="String">VEH</Data></Cell>
+    <Cell><Data ss:Type="String">False</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">IUWO</Data></Cell>
+    <Cell><Data ss:Type="String">OKOS</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">Somebody</Data></Cell>
+    <Cell><Data ss:Type="String">1/13/2017</Data></Cell>
+    <Cell><Data ss:Type="String">9/13/2017</Data></Cell>
+    <Cell><Data ss:Type="String">2016</Data></Cell>
+    <Cell><Data ss:Type="String">MERZ</Data></Cell>
+    <Cell><Data ss:Type="String">CA</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">Paper</Data></Cell>
+    <Cell><Data ss:Type="String">Original</Data></Cell>
+    <Cell><Data ss:Type="String">Closed (DE)</Data></Cell>
+    <Cell><Data ss:Type="String">TITLE</Data></Cell>
+    <Cell><Data ss:Type="String">None</Data></Cell>
+    <Cell><Data ss:Type="String"></Data></Cell>
+    <Cell><Data ss:Type="String">False</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <PageSetup>
+    <Header x:Margin="0.3"/>
+    <Footer x:Margin="0.3"/>
+    <PageMargins x:Bottom="0.75" x:Left="0.7" x:Right="0.7" x:Top="0.75"/>
+   </PageSetup>
+   <Selected/>
+   <Panes>
+    <Pane>
+     <Number>3</Number>
+     <ActiveRow>2</ActiveRow>
+     <ActiveCol>21</ActiveCol>
+    </Pane>
+   </Panes>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
