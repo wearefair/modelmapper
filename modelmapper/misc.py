@@ -1,4 +1,5 @@
 import csv
+import io
 import os
 import enum
 import logging
@@ -158,11 +159,20 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
 
 
 def read_csv_gen(path, **kwargs):
-    _check_file_exists(path)
-    encoding = kwargs.pop('encoding', 'utf-8-sig')
-    with open(path, 'r', encoding=encoding) as csvfile:
-        for i in csv.reader(csvfile, **kwargs):
+    """
+    Takes a path to a file or a StringIO object and creates a CSV generator
+    """
+    if isinstance(path, (str, bytes)):
+        _check_file_exists(path)
+        encoding = kwargs.pop('encoding', 'utf-8-sig')
+        with open(path, 'r', encoding=encoding) as csvfile:
+            for i in csv.reader(csvfile, **kwargs):
+                yield i
+    elif isinstance(path, io.StringIO):
+        for i in csv.reader(path, **kwargs):
             yield i
+    else:
+        raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 
 
 def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):

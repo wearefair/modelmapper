@@ -1,12 +1,14 @@
+import io
 import os
 import enum
 import pytest
 from unittest import mock
 from deepdiff import DeepDiff
 from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
-                              convert_dict_item_type, write_toml, write_settings)
+                              convert_dict_item_type, write_toml, write_settings, read_csv_gen)
 from modelmapper.mapper import SqlalchemyFieldType
-from fixtures.analysis_fixtures import analysis_fixture_c_in_dict
+from fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
+from fixtures.excel_fixtures import xls_contents, xls_xml_contents, xls_xml_contents_in_json, csv_contents  # NOQA
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 
@@ -85,3 +87,9 @@ class TestMisc:
             template_settings_content = the_file.read()
         result = write_settings('/tmp/settings.toml', loaded_template)
         assert template_settings_content == result
+
+    def test_read_csv_gen(self, csv_contents, xls_xml_contents_in_json):  # NOQA
+        item = io.StringIO(csv_contents)
+        csv_gen = read_csv_gen(item)
+        result = list(csv_gen)
+        assert result == xls_xml_contents_in_json['Sheet1']
