@@ -7,6 +7,7 @@ from fixtures.training_fixture1_cleaned_for_import import cleaned_csv_for_import
 current_dir = os.path.dirname(os.path.abspath(__file__))
 example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
+training_fixture1_xls_path = training_fixture1_path.replace('.csv', '.xls')
 
 
 @pytest.fixture
@@ -32,6 +33,7 @@ class TestCleaner:
 
     @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
         ('csv', training_fixture1_path, None, None),
+        ('xls', training_fixture1_xls_path, None, None),
     ])
     def test_clean(self, cleaner, cleaned_csv_for_import_fixture, content_type, path, content, sheet_names):
 

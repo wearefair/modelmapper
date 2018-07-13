@@ -123,11 +123,6 @@ class Cleaner(Mapper):
             field_values[:] = map(lambda x: None if x is None else datetime.datetime.strptime(x, _format), field_values)
         return field_values
 
-    def _excel_contents_cleaned(self, func, content, sheet_names):
-        results = func(content, sheet_names=sheet_names)
-        csvs_chained = results.values()
-        csvs_cleaned = map(self.get_csv_data_cleaned, csvs_chained)
-        return chain.from_iterable(csvs_cleaned)
 
     def clean(self, content_type, path=None, content=None, sheet_names=None):
         """
@@ -139,9 +134,15 @@ class Cleaner(Mapper):
                                 If none provided, all sheets will be considered.
         """
 
-        xls_contents_cleaned = partial(self._excel_contents_cleaned, func=_xls_contents_to_csvs,
+        def _excel_contents_cleaned(content, func, sheet_names):
+            results = func(content, sheet_names=sheet_names)
+            csvs_chained = results.values()
+            csvs_cleaned = map(self.get_csv_data_cleaned, csvs_chained)
+            return chain.from_iterable(csvs_cleaned)
+
+        xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,
                                        sheet_names=sheet_names)
-        xls_xml_contents_to_csvs = partial(self._excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
+        xls_xml_contents_to_csvs = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
                                            sheet_names=sheet_names)
 
         solutions = {
