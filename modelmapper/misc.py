@@ -224,6 +224,16 @@ def get_combined_dict(comparison_func, *dicts):
     return result
 
 
+def _validate_file_has_start_and_end_lines(user_input, path, identifier):
+    try:
+        update_file_chunk_content(path=path, code=[], identifier=identifier, check_only=True)
+    except ValueError as e:
+        print(e)
+        return False
+    else:
+        return True
+
+
 class cached_property:  # NOQA
     """
     Decorator that converts a method with a single self argument into a

@@ -39,10 +39,12 @@ class TestExcel:
         assert result_content == csv_contents
 
     def test_excel_file_to_csv_files(self):
+        output_csv_path = None
         try:
             path = os.path.join(current_dir, 'fixtures/training_fixture2.xls')
             excel_file_to_csv_files(path=path)
             output_csv_path = os.path.join(current_dir, 'fixtures/training_fixture2__Sheet1.csv')
             assert os.path.exists(output_csv_path)
         finally:
-            os.remove(output_csv_path)
+            if output_csv_path:
+                os.remove(output_csv_path)
