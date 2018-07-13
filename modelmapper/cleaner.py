@@ -158,7 +158,9 @@ class Cleaner(Mapper):
 
         if path:
             key = 'path'
+            value = path
         elif content:
+            value = content
             if isinstance(content, str):
                 key = 'content_str'
             elif isinstance(content, bytes):
@@ -173,8 +175,9 @@ class Cleaner(Mapper):
             raise ValueError('Either path or content need to be passed.')
 
         funcs = content_type_solution[key]
-        print(funcs)
-
+        for function in funcs:
+            value = function(value)
+        return value
 
     #     if path:
     #         if content_type == 'csv':
