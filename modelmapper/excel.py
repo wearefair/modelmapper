@@ -1,17 +1,41 @@
-from io import StringIO
+import os
 import csv
 import xlrd
+from io import StringIO
 from xml.sax import saxutils
 from xml.sax import parseString
 
 from .misc import cached_property
 
 
+def excel_file_to_csv_files(path, sheet_names=None):
+    dirpath, basename = os.path.split(path)
+    basename = basename.split('.')[0]
+    with open(path, 'rb') as the_file:
+        file_contents = the_file.read()
+        results = excel_contents_to_csvs(file_contents, sheet_names=sheet_names)
+        for sheet_name, csv_file in results.items():
+            result_content = results['Sheet1'].read()
+            new_file_name = f'{basename}__{sheet_name}.csv'
+            new_file_name = os.path.join(dirpath, new_file_name)
+            with open(new_file_name, 'w') as the_file:
+                the_file.write(result_content)
+            print(f'exported {new_file_name}')
+
+
 def excel_contents_to_csvs(file_contents, sheet_names=None):
+    """
+    Convert Excel file content into csvs.
+    Each sheet is converted to a separate file object.
+    If sheet_names is provided, only those sheet names will be converted, otherwise all.
+    """
     try:
         csvs = _xls_contents_to_csvs(file_contents, sheet_names)
     except xlrd.biffh.XLRDError:
-        csvs = _xls_xml_contents_to_csvs(file_contents, sheet_names)
+        try:
+            csvs = _xls_xml_contents_to_csvs(file_contents, sheet_names)
+        except Exception as e:
+            csvs = None
     return csvs
 
 

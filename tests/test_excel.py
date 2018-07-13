@@ -2,7 +2,8 @@ import os
 import json
 import pytest
 from modelmapper.excel import (_xls_contents_to_csvs, _xls_xml_contents_to_dict,
-                               _xls_xml_contents_to_csvs, excel_contents_to_csvs)
+                               _xls_xml_contents_to_csvs, excel_contents_to_csvs,
+                               excel_file_to_csv_files)
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,3 +60,12 @@ class TestExcel:
         assert 'Sheet1' in results
         result_content = results['Sheet1'].read()
         assert result_content == csv_contents
+
+    def test_excel_file_to_csv_files(self):
+        try:
+            path = os.path.join(current_dir, 'fixtures/training_fixture2.xls')
+            excel_file_to_csv_files(path=path)
+            output_csv_path = os.path.join(current_dir, 'fixtures/training_fixture2__Sheet1.csv')
+            assert os.path.exists(output_csv_path)
+        finally:
+            os.remove(output_csv_path)
