@@ -7,9 +7,15 @@ import datetime
 from itertools import chain
 from functools import partial
 from decimal import Decimal
+from string import digits
+from xlrd import xldate_as_datetime
 from modelmapper.normalization import normalize_numberic_values
 from modelmapper.mapper import Mapper, ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
 from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs
+
+strptime = datetime.datetime.strptime
+
+FLOAT_ACCEPTABLE = frozenset('.' + digits)
 
 
 def get_file_content_bytes(path):
@@ -24,7 +30,15 @@ def get_file_content_string(path):
 
 class Cleaner(Mapper):
 
-    def get_csv_data_cleaned(self, path):
+    def __init__(self, *args, **kwargs):
+        # setting the XLS date mode which is only used when parsing old Excel XLS files.
+        # https://github.com/python-excel/xlrd/blob/master/xlrd/xldate.py
+        # 0: 1900-based, 1: 1904-based.
+        self.xls_date_mode = kwargs.pop('xls_date_mode', 0)
+
+        super().__init__(*args, **kwargs)
+
+    def get_csv_data_cleaned(self, path, original_content_type=None):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
@@ -35,7 +49,7 @@ class Cleaner(Mapper):
         all_items = self._get_all_values_per_clean_name(path)
         for field_name, field_values in all_items.items():
             field_info = model_info[field_name]
-            self._get_field_values_cleaned_for_importing(field_name, field_info, field_values)
+            self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
 
         # transposing
         all_lines_cleaned = zip(*all_items.values())
@@ -43,7 +57,7 @@ class Cleaner(Mapper):
         for i in all_lines_cleaned:
             yield dict(zip(all_items.keys(), i))
 
-    def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values):
+    def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values, original_content_type):
         is_nullable = field_info.get('is_nullable', False)
         is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
         is_dollar = field_info.get('is_dollar', False)
@@ -99,14 +113,19 @@ class Cleaner(Mapper):
                 if is_integer:
                     item = int(item)
                 if is_datetime:
-                    if not set(item) <= self.settings.datetime_allowed_characters:
-                        raise ValueError(f"Datetime value of {item} in {field_name} has characters "
-                                         "that are NOT defined in datetime_allowed_characters")
+                    item_chars = set(item)
+                    if not item_chars <= self.settings.datetime_allowed_characters:
+                        if original_content_type == 'xls' and item_chars <= FLOAT_ACCEPTABLE:
+                            _format = original_content_type
+                            continue
+                        else:
+                            raise ValueError(f"Datetime value of {item} in {field_name} has characters "
+                                             "that are NOT defined in datetime_allowed_characters")
                     msg = (f"{field_name} has invalid datetime format for {item} "
                            f"that is not in {field_info.get('datetime_formats')}")
                     try:
                         _format = datetime_formats[-1]
-                        datetime.datetime.strptime(item, _format)
+                        strptime(item, _format)
                     except IndexError:
                         raise ValueError(msg) from None
                     except ValueError:
@@ -120,9 +139,13 @@ class Cleaner(Mapper):
             field_values[i] = item
 
         if is_datetime:
-            field_values[:] = map(lambda x: None if x is None else datetime.datetime.strptime(x, _format), field_values)
+            if _format == 'xls':
+                def xls_date(x):
+                    return xldate_as_datetime(float(x), self.xls_date_mode)
+                field_values[:] = map(lambda x: None if x is None else xls_date(x), field_values)
+            else:
+                field_values[:] = map(lambda x: None if x is None else strptime(x, _format), field_values)
         return field_values
-
 
     def clean(self, content_type, path=None, content=None, sheet_names=None):
         """
@@ -137,7 +160,7 @@ class Cleaner(Mapper):
         def _excel_contents_cleaned(content, func, sheet_names):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
-            csvs_cleaned = map(self.get_csv_data_cleaned, csvs_chained)
+            csvs_cleaned = map(lambda x: self.get_csv_data_cleaned(x, content_type), csvs_chained)
             return chain.from_iterable(csvs_cleaned)
 
         xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,

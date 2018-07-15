@@ -257,10 +257,12 @@ class Mapper:
             if self._does_line_include_data(line):
                 for i, v in enumerate(line):
                     try:
-                        result[clean_names[i]].append(v)
+                        field_name = clean_names[i]
                     except IndexError:
-                        raise ValueError("Your csv might have new lines in the field names. "
+                        raise ValueError("Your data might have new lines in the field names. "
                                          "Please fix that and try again.")
+                    else:
+                        result[field_name].append(v)
         return result
 
     def _get_stats(self, field_name, items):

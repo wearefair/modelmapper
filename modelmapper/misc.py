@@ -247,3 +247,57 @@ class cached_property:  # NOQA
             return self
         res = instance.__dict__[self.func.__name__] = self.func(instance)
         return res
+
+
+class DefaultList(list):
+    """
+    List with default value.
+    It lets you set an index that bigger than the list's current length.
+    Kind of how shitty Javascript arrays work. We need it to deal with Excel files.
+
+    aa = DefaultList()
+    >>> aa.append(1)
+    >>> aa[2] = 3
+    >>> print(aa)
+    [1, None, 3]
+
+    >>> aa = DefaultList([1, 2, 3])
+    >>> aa[6] = 'Nice, I like it.'
+    >>> print(aa)
+    [1, 2, 3, None, None, None, 'Nice, I like it.']
+
+    >>> aa = DefaultList([1, 2, 3], default='yes')
+    >>> aa[5] = 'Nice, I like it.'
+    >>> print(aa)
+    [1, 2, 3, 'yes', 'yes', 'Nice, I like it.']
+
+    >>> items = DefaultList([1, 2, 3], default=dict)
+    >>> items[5]['key'] = 'Nice, I like it.'
+    >>> print(items)
+    [1, 2, 3, {}, {}, {'key': 'Nice, I like it.'}]
+    """
+    def __init__(self, *args, **kwargs):
+        default = kwargs.pop('default', None)
+        self.default = default if callable(default) else lambda: default
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        current_len = len(self)
+        if key == current_len:
+            self.append(value)
+        elif key < current_len:
+            super().__setitem__(key, value)
+        elif key > current_len:
+            diff = key - current_len
+            for i in range(diff):
+                self.append(self.default())
+            self.append(value)
+
+    def __getitem__(self, key):
+        try:
+            value = super().__getitem__(key)
+        except IndexError:
+            value = self.default()
+            self.__setitem__(key, value)
+        return value
+

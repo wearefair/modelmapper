@@ -5,7 +5,8 @@ import pytest
 from unittest import mock
 from deepdiff import DeepDiff
 from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
-                              convert_dict_item_type, write_toml, write_settings, read_csv_gen)
+                              convert_dict_item_type, write_toml, write_settings, read_csv_gen,
+                              DefaultList)
 from modelmapper.mapper import SqlalchemyFieldType
 from fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
 from fixtures.excel_fixtures import xls_contents, xls_xml_contents, xls_xml_contents_in_json, csv_contents  # NOQA
@@ -93,3 +94,24 @@ class TestMisc:
         csv_gen = read_csv_gen(item)
         result = list(csv_gen)
         assert result == xls_xml_contents_in_json['Sheet1']
+
+    def test_default_list1(self):
+        items = DefaultList()
+        items.append(1)
+        items[2] = 3
+        assert [1, None, 3] == items
+
+    def test_default_list_none(self):
+        items = DefaultList([1, 2, 3])
+        items[6] = 'Nice, I like it.'
+        assert [1, 2, 3, None, None, None, 'Nice, I like it.'] == items
+
+    def test_default_list_string(self):
+        items = DefaultList([1, 2, 3], default='yes')
+        items[5] = 'Nice, I like it.'
+        assert [1, 2, 3, 'yes', 'yes', 'Nice, I like it.'] == items
+
+    def test_default_list_dict(self):
+        items = DefaultList([1, 2, 3], default=dict)
+        items[5]['key'] = 'Nice, I like it.'
+        assert [1, 2, 3, {}, {}, {'key': 'Nice, I like it.'}] == items

@@ -5,7 +5,7 @@ from io import StringIO
 from xml.sax import saxutils
 from xml.sax import parseString
 
-from .misc import cached_property
+from modelmapper.misc import cached_property, DefaultList
 
 
 def excel_file_to_csv_files(path, sheet_names=None):
@@ -15,7 +15,7 @@ def excel_file_to_csv_files(path, sheet_names=None):
         file_contents = the_file.read()
         results = excel_contents_to_csvs(file_contents, sheet_names=sheet_names)
         for sheet_name, csv_file in results.items():
-            result_content = results['Sheet1'].read()
+            result_content = results[sheet_name].read()
             new_file_name = f'{basename}__{sheet_name}.csv'
             new_file_name = os.path.join(dirpath, new_file_name)
             with open(new_file_name, 'w') as the_file:
@@ -88,6 +88,7 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
         self.rows = []
         self.tables = []
         self.worksheets = []
+        self.cell_index = None
 
     def characters(self, content):
         self.chars.append(content)
@@ -95,8 +96,12 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
     def startElement(self, name, atts):
         if name == "Cell":
             self.chars = []
+            try:
+                self.cell_index = int(atts.getValue(name='ss:Index')) - 1  # indexes start from 1 in xls_xml
+            except KeyError:
+                self.cell_index = None
         elif name == "Row":
-            self.cells = []
+            self.cells = DefaultList()
         elif name == "Table":
             self.rows = []
         elif name == "Worksheet":
@@ -104,7 +109,11 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
 
     def endElement(self, name):
         if name == "Cell":
-            self.cells.append(''.join(self.chars))
+            value = ''.join(self.chars)
+            if self.cell_index:
+                self.cells[self.cell_index] = value
+            else:
+                self.cells.append(value)
         elif name == "Row":
             self.rows.append(self.cells)
         elif name == "Table":
