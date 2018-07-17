@@ -89,6 +89,8 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
         self.tables = []
         self.worksheets = []
         self.cell_index = None
+        self.style_id = None
+        self.styles = {}
 
     def characters(self, content):
         self.chars.append(content)
@@ -100,16 +102,38 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
                 self.cell_index = int(atts.getValue(name='ss:Index')) - 1  # indexes start from 1 in xls_xml
             except KeyError:
                 self.cell_index = None
+            try:
+                self.style_id = atts.getValue(name='ss:StyleID')
+            except KeyError:
+                self.style_id = None
         elif name == "Row":
             self.cells = DefaultList()
         elif name == "Table":
             self.rows = []
         elif name == "Worksheet":
             self.worksheets.append(atts.getValue(name='ss:Name'))
+        elif name == "Style":
+            self.style_id = atts.getValue('ss:ID')
+        elif name == "NumberFormat":
+            try:
+                self.styles[self.style_id] = atts.getValue('ss:Format')
+            except KeyError:
+                pass
 
     def endElement(self, name):
         if name == "Cell":
             value = ''.join(self.chars)
+            if self.style_id:
+                style = self.styles[self.style_id]
+                if style == 'Percent':
+                    value = value.replace('E-2', '')
+                    try:
+                        value = str(float(format(float(value), '.15f')))
+                    except ValueError:
+                        pass
+                    value += '%'
+                elif style == 'Short Date':
+                    value = value.replace('T00:00:00.000', '')
             if self.cell_index:
                 self.cells[self.cell_index] = value
             else:

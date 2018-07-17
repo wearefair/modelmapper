@@ -6,6 +6,9 @@ def normalize_numberic_values(value, absolute=False):
         value = value.strip('()')
         value = f'-{value}'
     for i in NUMERIC_REMOVE:
-        if not(i == '-' and not absolute):
+        if i == '-':
+            if absolute:
+                value = value.lstrip('-')
+        else:
             value = value.replace(i, '')
     return value
