@@ -108,26 +108,27 @@ class Cleaner(Mapper):
 
                 if is_dollar:
                     item = item * ONE_HUNDRED
-                if is_percent:
+                if is_percent and original_content_type != 'xls':  # xls already has it divided by 100
                     item = item / ONE_HUNDRED
                 if is_integer:
                     item = int(item)
                 if is_datetime:
                     item_chars = set(item)
+                    # import pytest; pytest.set_trace()
                     if not item_chars <= self.settings.datetime_allowed_characters:
-                        if original_content_type == 'xls' and item_chars <= FLOAT_ACCEPTABLE:
-                            _format = original_content_type
-                            continue
-                        else:
-                            raise ValueError(f"Datetime value of {item} in {field_name} has characters "
-                                             "that are NOT defined in datetime_allowed_characters")
+                        raise ValueError(f"Datetime value of {item} in {field_name} has characters "
+                                         "that are NOT defined in datetime_allowed_characters")
                     msg = (f"{field_name} has invalid datetime format for {item} "
                            f"that is not in {field_info.get('datetime_formats')}")
                     try:
                         _format = datetime_formats[-1]
                         strptime(item, _format)
                     except IndexError:
-                        raise ValueError(msg) from None
+                        if original_content_type == 'xls' and item_chars <= FLOAT_ACCEPTABLE:
+                            _format = original_content_type
+                            continue
+                        else:
+                            raise ValueError(msg) from None
                     except ValueError:
                         if datetime_formats:
                             datetime_formats.pop()

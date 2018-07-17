@@ -9,6 +9,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 training_fixture1_xls_xml_path = training_fixture1_path.replace('.csv', '.xml')
+training_fixture1_xls_path = training_fixture1_path.replace('.csv', '.xls')
 
 
 @pytest.fixture
@@ -36,10 +37,22 @@ class TestCleaner:
         ('csv', training_fixture1_path, None, None),
         ('xls_xml', training_fixture1_xls_xml_path, None, None),
     ])
-    def test_clean(self, cleaner, cleaned_csv_for_import_fixture, content_type, path, content, sheet_names):
+    def test_clean_csv_and_xls_xml(self, cleaner, cleaned_csv_for_import_fixture, content_type, path, content, sheet_names):
 
         result_gen = cleaner.clean(content_type=content_type, path=path,
                                    content=content, sheet_names=sheet_names)
         result = list(result_gen)
         diff = DeepDiff(cleaned_csv_for_import_fixture, result)
         assert not diff
+
+    @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
+        ('xls', training_fixture1_xls_path, None, None),
+    ])
+    def test_clean_xls(self, cleaner, cleaned_csv_for_import_fixture, content_type, path, content, sheet_names):
+
+        result_gen = cleaner.clean(content_type=content_type, path=path,
+                                   content=content, sheet_names=sheet_names)
+        result = list(result_gen)
+        diff = DeepDiff(cleaned_csv_for_import_fixture, result)
+        for item in diff['values_changed'].keys():
+            assert item.endswith("year']")
