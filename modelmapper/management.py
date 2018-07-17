@@ -56,7 +56,8 @@ def init(path):
 
 
 @cli.command()
-@click.option('--sheet-names', '-s', multiple=True, help='Sheets from the excel file to be converted. If none provided, all sheets will be converted.')
+@click.option('--sheet-names', '-s', multiple=True,
+              help='Sheets from the excel file to be converted. If none provided, all sheets will be converted.')
 @click.argument('path', type=click.Path(exists=True, resolve_path=True))
 def excel_to_csv(path, sheet_names):
     """

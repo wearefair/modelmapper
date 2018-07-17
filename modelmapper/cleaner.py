@@ -202,31 +202,3 @@ class Cleaner(Mapper):
         for function in funcs:
             value = function(value)
         return value
-
-    #     if path:
-    #         if content_type == 'csv':
-    #             return self.get_csv_data_cleaned(path)
-    #         else:
-    #             with open(path, 'rb') as the_file:
-    #                 file_contents = the_file.read()
-    #                 results = excel_contents_to_csvs(file_contents, sheet_names=sheet_names)
-    #                 return chain.from_iterable(results.values())
-    #     elif content:
-    #         if isinstance(content, io.StringIO):
-
-
-    # dirpath, basename = os.path.split(path)
-    # basename = basename.split('.')[0]
-    #     for sheet_name, csv_file in results.items():
-    #         result_content = results['Sheet1'].read()
-    #         new_file_name = f'{basename}__{sheet_name}.csv'
-    #         new_file_name = os.path.join(dirpath, new_file_name)
-    #         with open(new_file_name, 'w') as the_file:
-    #             the_file.write(result_content)
-    #         print(f'exported {new_file_name}')
-
-
-    #     funcs = []
-    #     if isinstance(path, (bytes, str)):
-    #         if not path.endswith('.csv'):
-    #             funcs.append()
