@@ -158,18 +158,18 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
             model_file.write("".join(new_model_lines))
 
 
-def read_csv_gen(path, **kwargs):
+def read_csv_gen(path_or_stringio, **kwargs):
     """
-    Takes a path to a file or a StringIO object and creates a CSV generator
+    Takes a path_or_stringio to a file or a StringIO object and creates a CSV generator
     """
-    if isinstance(path, (str, bytes)):
-        _check_file_exists(path)
+    if isinstance(path_or_stringio, (str, bytes)):
+        _check_file_exists(path_or_stringio)
         encoding = kwargs.pop('encoding', 'utf-8-sig')
-        with open(path, 'r', encoding=encoding) as csvfile:
+        with open(path_or_stringio, 'r', encoding=encoding) as csvfile:
             for i in csv.reader(csvfile, **kwargs):
                 yield i
-    elif isinstance(path, io.StringIO):
-        for i in csv.reader(path, **kwargs):
+    elif isinstance(path_or_stringio, io.StringIO):
+        for i in csv.reader(path_or_stringio, **kwargs):
             yield i
     else:
         raise TypeError('Either a path to the file or StringIO object needs to be passed.')

@@ -126,9 +126,10 @@ class _XMLExcelHandler(saxutils.handler.ContentHandler):
             if self.style_id:
                 style = self.styles[self.style_id]
                 if style == 'Percent':
-                    value = value.replace('E-2', '')
+                    # value = value.replace('E-2', '')
                     try:
-                        value = str(float(format(float(value), '.15f')))
+                        value = float(value) * 100.0
+                        value = str(float(format(value, '.15f')))
                     except ValueError:
                         pass
                     value += '%'

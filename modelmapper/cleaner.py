@@ -18,6 +18,10 @@ strptime = datetime.datetime.strptime
 FLOAT_ACCEPTABLE = frozenset('.' + digits)
 
 
+class ParsingError(ValueError):
+    pass
+
+
 def get_file_content_bytes(path):
     with open(path, 'rb') as the_file:
         return the_file.read()
@@ -38,7 +42,7 @@ class Cleaner(Mapper):
 
         super().__init__(*args, **kwargs)
 
-    def get_csv_data_cleaned(self, path, original_content_type=None):
+    def get_csv_data_cleaned(self, path_or_content, original_content_type=None):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
@@ -46,7 +50,7 @@ class Cleaner(Mapper):
         combined_module = self._get_combined_module()
         model_info = combined_module.FIELDS
 
-        all_items = self._get_all_values_per_clean_name(path)
+        all_items = self._get_all_values_per_clean_name(path_or_content)
         for field_name, field_values in all_items.items():
             field_info = model_info[field_name]
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
@@ -166,13 +170,29 @@ class Cleaner(Mapper):
 
         xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,
                                        sheet_names=sheet_names)
-        xls_xml_contents_to_csvs = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
+        xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
                                            sheet_names=sheet_names)
 
         solutions = {
-            'csv': {'path': [self.get_csv_data_cleaned]},
-            'xls': {'path': [get_file_content_bytes, xls_contents_cleaned]},
-            'xls_xml': {'path': [get_file_content_bytes, xls_xml_contents_to_csvs]},
+            'csv': {'path': [self.get_csv_data_cleaned],
+                    'content_str': [io.StringIO, self.get_csv_data_cleaned],
+                    'content_bytes': [lambda x: x.decode('utf-8'), io.StringIO, self.get_csv_data_cleaned],
+                    'content_stringio': [self.get_csv_data_cleaned],
+                    'content_bytesio': [lambda x: x.getvalue().decode('utf-8'),
+                                        io.StringIO, self.get_csv_data_cleaned],
+                    },
+            'xls': {'path': [get_file_content_bytes, xls_contents_cleaned],
+                    'content_str': [lambda x: x.encode('utf-8'), xls_contents_cleaned],
+                    'content_bytes': [xls_contents_cleaned],
+                    'content_bytesio': [lambda x: x.getvalue(), xls_contents_cleaned],
+                    'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_contents_cleaned],
+                    },
+            'xls_xml': {'path': [get_file_content_bytes, xls_xml_contents_cleaned],
+                        'content_str': [lambda x: x.encode('utf-8'), xls_xml_contents_cleaned],
+                        'content_bytes': [xls_xml_contents_cleaned],
+                        'content_bytesio': [lambda x: x.getvalue(), xls_xml_contents_cleaned],
+                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_xml_contents_cleaned],
+                        },
         }
 
         content_type = content_type.lower()
@@ -186,20 +206,17 @@ class Cleaner(Mapper):
             value = path
         elif content:
             value = content
-            if isinstance(content, str):
-                key = 'content_str'
-            elif isinstance(content, bytes):
-                key = 'content_bytes'
-            elif isinstance(content, io.StringIO):
-                key = 'content_stringio'
-            elif isinstance(content, io.BytesIO):
-                key = 'content_bytesio'
-            else:
-                raise ValueError('Unrecognized content. It has to be either string or BytesIO or StringIO')
+            key = f'content_{content.__class__.__name__.lower()}'
         else:
             raise ValueError('Either path or content need to be passed.')
 
-        funcs = content_type_solution[key]
-        for function in funcs:
-            value = function(value)
+        try:
+            funcs = content_type_solution[key]
+        except KeyError as e:
+            raise ValueError('Unrecognized content. It has to be either bytes, string, BytesIO or StringIO')
+        try:
+            for function in funcs:
+                value = function(value)
+        except Exception as e:
+            raise ParsingError(f'Error parsing for content type of {content_type}: {e}')
         return value

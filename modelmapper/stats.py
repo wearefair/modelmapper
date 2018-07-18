@@ -477,9 +477,6 @@ class StatsCollector(object):
         results = []
         already_matched = False
         for matcher in self.matchers:
-            # if isinstance(matcher, (PositiveIntMatcher, StringMatcher)):
-            #     import pytest; pytest.set_trace()
-            #     print(matcher)
             if already_matched and isinstance(matcher, StringMatcher):
                 continue
             if matcher.match(item):
