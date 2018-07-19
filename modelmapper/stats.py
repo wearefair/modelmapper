@@ -237,7 +237,12 @@ class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
         return {'max_int': self.max_int }
 
     def is_exclusive(self, item=None):
-        return len(item) < 6
+        """
+        A number with less than 6 digits is definitely a number and does not need to be
+        checked for matching with other data types.
+        A number equal or above 6 digits could be datetime. For example 20201010 could be a date or integer.
+        """
+        return True if item is None else len(item) < 6
 
     def _get_positive_int(self, item):
         try:
