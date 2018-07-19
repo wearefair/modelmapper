@@ -12,8 +12,9 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 
-with open("requirements.txt") as reqs_file:
+with open("requirements.txt", "r") as reqs_file:
     reqs = reqs_file.readlines()
+    reqs = list(map(lambda x: x.replace('==', '>='), reqs))
 
 
 try:
