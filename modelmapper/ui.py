@@ -28,8 +28,15 @@ def get_user_input(message, validate_func, **kwargs):
         if user_input is not None:
             print(f"{user_input} is not valid for {', '.join(map(str, kwargs.values()))}")
         user_input = _get_input()
-    print(f"{user_input} works!")
+    print(f"{user_input}")
     return user_input
+
+
+def split_user_input(inp):
+    """
+    convert comma separated string into list of items
+    """
+    return list(map(lambda x: x.strip(), inp.split(',')))
 
 
 YES_NO_CHOICES = {

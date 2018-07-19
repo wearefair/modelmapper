@@ -147,7 +147,6 @@ class NullMatcher(InMatcher):
         :param null_values:
             List of values that should be considered nulls
         """
-        null_values = null_values or ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]
         super().__init__(candidate_values=null_values)
 
     def is_exclusive(self, item=None):
@@ -173,7 +172,6 @@ class BooleanMatcher(InMatcher):
         :param boolean_values:
             List of values that should be considered booleans
         """
-        boolean_values = boolean_values or ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
         super().__init__(candidate_values=boolean_values)
 
 
@@ -410,8 +408,8 @@ def matchers_from_settings(settings=None):
     Creates a default set of matchers from the settings object
     """
     datetime_formats = settings.datetime_formats if settings else {"%m/%d/%y", "%m/%d/%Y", "%Y%m%d", "%Y-%m-%d"}
-    null_values = settings.null_values if settings else None
-    boolean_values = settings.booleans if settings else None
+    null_values = settings.null_values if settings else ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]  # NOQA
+    boolean_values = settings.booleans if settings else ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
     return [
         NullMatcher(null_values=null_values),
         BooleanMatcher(boolean_values=boolean_values),
