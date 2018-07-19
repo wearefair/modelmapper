@@ -1,19 +1,20 @@
 import enum
 import os
+
 import sys
 import datetime
 import logging
 import importlib
 from copy import deepcopy
 from collections import defaultdict
+
 from decimal import Decimal
 # We are using both the new style and old style of named tuple
 from typing import NamedTuple
 from collections import namedtuple, Counter
 from tabulate import tabulate
 
-from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES
-from modelmapper.normalization import normalize_numberic_values
+from modelmapper.ui import get_user_choice, get_user_input
 from modelmapper.misc import (read_csv_gen, load_toml, write_toml, write_settings,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
@@ -154,21 +155,6 @@ def _is_valid_dateformat(user_input, item):
     return result
 
 
-def _is_valid_path(user_input, setup_dir):
-    full_path = os.path.join(setup_dir, user_input)
-    return os.path.exists(full_path)
-
-
-def _validate_file_has_start_and_end_lines(user_input, path, identifier):
-    try:
-        update_file_chunk_content(path=path, code=[], identifier=identifier, check_only=True)
-    except ValueError as e:
-        print(e)
-        return False
-    else:
-        return True
-
-
 OVERRIDES_FILE_NAME = "{}_overrides.toml"
 COMBINED_FILE_NAME = "{}_combined.py"
 
@@ -271,10 +257,12 @@ class Mapper:
             if self._does_line_include_data(line):
                 for i, v in enumerate(line):
                     try:
-                        result[clean_names[i]].append(v)
+                        field_name = clean_names[i]
                     except IndexError:
-                        raise ValueError("Your csv might have new lines in the field names. "
+                        raise ValueError("Your data might have new lines in the field names. "
                                          "Please fix that and try again.")
+                    else:
+                        result[field_name].append(v)
         return result
 
     def _get_stats(self, field_name, items):
@@ -609,132 +597,3 @@ class Mapper:
                 raise
             else:
                 print(f'{e.__class__}: {e}')
-
-    def get_csv_data_cleaned(self, path):
-        combined_module = self._get_combined_module()
-        model_info = combined_module.FIELDS
-
-        all_items = self._get_all_values_per_clean_name(path)
-        for field_name, field_values in all_items.items():
-            field_info = model_info[field_name]
-            self.get_field_values_cleaned_for_importing(field_name, field_info, field_values)
-
-        # transposing
-        all_lines_cleaned = zip(*all_items.values())
-
-        for i in all_lines_cleaned:
-            yield dict(zip(all_items.keys(), i))
-
-    def get_field_values_cleaned_for_importing(self, field_name, field_info, field_values):
-        is_nullable = field_info.get('is_nullable', False)
-        is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
-        is_dollar = field_info.get('is_dollar', False)
-        is_integer = field_info['field_db_sqlalchemy_type'] in INTEGER_SQLALCHEMY_TYPES
-        is_percent = field_info.get('is_percent', False)
-        is_boolean = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Boolean
-        is_datetime = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.DateTime
-        is_string = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.String
-        datetime_formats = list(field_info.get('datetime_formats', []))
-
-        max_string_len = field_info.get('args', 255) if is_string else 0
-
-        def _mark_nulls(item):
-            return None if item in self.settings.null_values else item
-
-        def _mark_booleans(item):
-            if item in self.settings.boolean_true:
-                result = True
-            elif item in self.settings.boolean_false:
-                result = False
-            else:
-                raise ValueError(f"There is a value of {item} in {field_name} "
-                                 "which is not a recognized Boolean or Null value.")
-            return result
-
-        for i, item in enumerate(field_values):
-            original_item = item
-            item = item.strip().lower()
-            if is_string:
-                if len(item) > max_string_len:
-                    raise ValueError(f'There is a value that is longer than {max_string_len} for {field_name}: {item}')
-
-            if is_integer or is_decimal:
-                item = normalize_numberic_values(item)
-
-            if is_nullable:
-                item = _mark_nulls(item)
-
-            if item is not None:
-                if is_boolean:
-                    item = _mark_booleans(item)
-
-                if is_integer or is_decimal or is_dollar or is_percent:
-                    try:
-                        item = Decimal(item)
-                    except Exception as e:
-                        raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
-
-                if is_dollar:
-                    item = item * ONE_HUNDRED
-                if is_percent:
-                    item = item / ONE_HUNDRED
-                if is_integer:
-                    item = int(item)
-                if is_datetime:
-                    if not set(item) <= self.settings.datetime_allowed_characters:
-                        raise ValueError(f"Datetime value of {item} in {field_name} has characters "
-                                         "that are NOT defined in datetime_allowed_characters")
-                    msg = (f"{field_name} has invalid datetime format for {item} "
-                           f"that is not in {field_info.get('datetime_formats')}")
-                    try:
-                        _format = datetime_formats[-1]
-                        datetime.datetime.strptime(item, _format)
-                    except IndexError:
-                        raise ValueError(msg) from None
-                    except ValueError:
-                        if datetime_formats:
-                            datetime_formats.pop()
-                        else:
-                            raise ValueError(msg) from None
-                if is_string:
-                    item = original_item
-
-            field_values[i] = item
-
-        if is_datetime:
-            field_values[:] = map(lambda x: None if x is None else datetime.datetime.strptime(x, _format), field_values)
-        return field_values
-
-
-def initialize(path):
-    """
-    Initialize a ModelMapper setup for a model
-    """
-    identifier = os.path.basename(path)
-    setup_dir = os.path.dirname(path)
-    setup_path = os.path.join(setup_dir, f'{identifier}_setup.toml')
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    template_setup_path = os.path.join(current_dir, '../modelmapper/templates/setup_template.toml')
-    settings = load_toml(template_setup_path)['settings']
-    overrides_file_name = OVERRIDES_FILE_NAME.format(identifier)
-    overrides_path = os.path.join(setup_dir, overrides_file_name)
-    if os.path.exists(overrides_path):
-        get_user_choice(f'{overrides_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
-    with open(overrides_path, 'w') as the_file:
-        the_file.write('# Overrides filse. You can add your overrides for any fields here.')
-    output_model_file = get_user_input('Please provide the relative path to the existing ORM model file.',
-                                       validate_func=_is_valid_path, setup_dir=setup_dir)
-    settings['output_model_file'] = output_model_file
-    output_model_path = os.path.join(setup_dir, output_model_file)
-    if not _validate_file_has_start_and_end_lines(user_input=None, path=output_model_path, identifier=identifier):
-        get_user_input(f'Please add the lines in a proper place in {output_model_file} code and enter continue',
-                       _validate_file_has_start_and_end_lines, path=output_model_path, identifier=identifier)
-
-    if os.path.exists(setup_path):
-        get_user_choice(f'{setup_path} already exists. Do you want to overwrite it?', choices=YES_NO_CHOICES)
-
-    write_settings(setup_path, settings)
-    print(f'{setup_path} is written. Please add "the relative path to the training CSV files"'
-          'in your settings and run modelmapper')
-    print('Please verify the generated settings and provide a list of relative paths for training'
-          'csvs in the settings file.')

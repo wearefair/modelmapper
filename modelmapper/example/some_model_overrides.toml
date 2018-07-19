@@ -1,4 +1,4 @@
 # ADD FIELD OVERRIDES HERE
 [year]
-field_db_str = "String(4)"
+field_db_str = "String(6)"
 is_nullable = false

@@ -18,8 +18,8 @@ def default_collector():
      ),
     # Test that boolean can be nullable
     (['y', 'y', 'y', 'n', '', 'y'],
-     FieldStats(counter=Counter(HasNull=1, HasBoolean=5, HasString=5),
-                max_string_len=1, len=6),
+     FieldStats(counter=Counter(HasNull=1, HasBoolean=5),
+                len=6),
      ),
     # Test that boolean/int mix can be nullable
     (['1', '1', '0', 'null', '0', ''],
@@ -28,13 +28,13 @@ def default_collector():
      ),
     # Test that boolean can be considered string
     (['1', '0', 'F', 'True', 'na'],
-     FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=2, HasInt=2),
-                max_int=1, max_string_len=4, len=5),
+     FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasInt=2),
+                max_int=1, len=5),
      ),
     # Test that boolean/null/string mix is possible
     (['1', '0', 'F', 'True', 'na', 'no!'],
-     FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=3, HasInt=2),
-                max_int=1, max_string_len=4, len=6),
+     FieldStats(counter=Counter(HasBoolean=4, HasNull=1, HasString=1, HasInt=2),
+                max_int=1, max_string_len=3, len=6),
      ),
     # Test that with mostly bools, we'll count more ints if one is included
     (['1', '1', '0', '0', '20'],
@@ -65,6 +65,14 @@ def default_collector():
      FieldStats(counter=Counter(HasString=1, HasDateTime=3, HasNull=2),
                 datetime_formats={'%m/%d/%y'}, max_string_len=13, len=6),
      ),
+    (['2018-05-05', '2018-05-05', 'Nan', '2018-05-07'],
+     FieldStats(counter=Counter(HasDateTime=3, HasNull=1),
+                datetime_formats={'%Y-%m-%d'}, len=4),
+     ),
+    (['20180505', '20180505', 'Nan', '20180507'],
+     FieldStats(counter=Counter(HasDateTime=3, HasNull=1, HasInt=3),
+                datetime_formats={'%Y%m%d'}, max_int=20180507, len=4),
+     ),
     # Test percentage/int matcher
     (['1%', '2%', '0%', '0%', '20%'],
      FieldStats(counter=Counter(HasPercent=5, HasInt=5), max_int=20, len=5),
@@ -92,6 +100,14 @@ def default_collector():
     (['$0.00', '($12,000.00)', '$7,765.00'],
      FieldStats(counter=Counter({'HasDollar': 3, 'HasDecimal': 3}),
                 max_pre_decimal=5, max_decimal_scale=2, len=3)
+     ),
+    (["$15,688 ", "$12,785 ", "$8,655 ", "$13,700 ", "$16,313 "],
+     FieldStats(counter=Counter({'HasDollar': 5, 'HasInt': 5}),
+                max_int=16313, len=5)
+     ),
+    (["15688 ", "12785 ", "8655 ", "13700 ", "16313 "],
+     FieldStats(counter=Counter({'HasInt': 5}),
+                max_int=16313, len=5)
      ),
     (['1', '1', '0', '0', '(20)'],
      FieldStats(counter=Counter(HasBoolean=4, HasInt=5),

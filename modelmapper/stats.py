@@ -50,7 +50,7 @@ class TypeMatcher:
     def match(self, item):
         return self._match(self.__normalize(item))
 
-    def is_exclusive(self):
+    def is_exclusive(self, item=None):
         """
         Return True if a match of this type should be the _only_ reported type for a field
         """
@@ -147,10 +147,9 @@ class NullMatcher(InMatcher):
         :param null_values:
             List of values that should be considered nulls
         """
-        null_values = null_values or ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]
         super().__init__(candidate_values=null_values)
 
-    def is_exclusive(self):
+    def is_exclusive(self, item=None):
         return True
 
 
@@ -173,7 +172,6 @@ class BooleanMatcher(InMatcher):
         :param boolean_values:
             List of values that should be considered booleans
         """
-        boolean_values = boolean_values or ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
         super().__init__(candidate_values=boolean_values)
 
 
@@ -238,8 +236,13 @@ class PositiveIntMatcher(TypeMatcher, TypeAccumulator):
     def collect(self):
         return {'max_int': self.max_int }
 
-    def is_exclusive(self):
-        return True
+    def is_exclusive(self, item=None):
+        """
+        A number with less than 6 digits is definitely a number and does not need to be
+        checked for matching with other data types.
+        A number equal or above 6 digits could be datetime. For example 20201010 could be a date or integer.
+        """
+        return True if item is None else len(item) < 6
 
     def _get_positive_int(self, item):
         try:
@@ -287,7 +290,7 @@ class PositiveDecimalMatcher(TypeMatcher, TypeAccumulator):
             'max_decimal_scale': self.max_scale
         }
 
-    def is_exclusive(self):
+    def is_exclusive(self, item=None):
         return True
 
     def _get_decimal_places(self, value):
@@ -321,7 +324,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
     value_type = HasDateTime
 
     def __init__(self, datetime_formats=None):
-        self.datetime_formats = datetime_formats or set(["%m/%d/%y", "%m/%d/%Y", "%Y%m%d"])
+        self.datetime_formats = datetime_formats
         self.reset()
 
     def reset(self):
@@ -363,7 +366,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
     def collect(self):
         return {'datetime_formats': self.candidate_formats} if self.has_matched_before else {}
 
-    def is_exclusive(self):
+    def is_exclusive(self, item=None):
         return True
 
     def _get_format_data(self, item):
@@ -409,9 +412,9 @@ def matchers_from_settings(settings=None):
     """
     Creates a default set of matchers from the settings object
     """
-    datetime_formats = settings.datetime_formats if settings else None
-    null_values = settings.null_values if settings else None
-    boolean_values = settings.booleans if settings else None
+    datetime_formats = settings.datetime_formats if settings else {"%m/%d/%y", "%m/%d/%Y", "%Y%m%d", "%Y-%m-%d"}
+    null_values = settings.null_values if settings else ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]  # NOQA
+    boolean_values = settings.booleans if settings else ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
     return [
         NullMatcher(null_values=null_values),
         BooleanMatcher(boolean_values=boolean_values),
@@ -473,14 +476,20 @@ class StatsCollector(object):
         :param settings:
             Settings object
         """
+        item = item.strip()
         results = []
+        already_matched = False
         for matcher in self.matchers:
-            if not matcher.match(item):
+            if already_matched and isinstance(matcher, StringMatcher):
+                continue
+            if matcher.match(item):
+                already_matched = True
+            else:
                 continue
             if isinstance(matcher, TypeAccumulator):
                 matcher.inspect(field_name, item)
             results.append(matcher.value_type)
-            if matcher.is_exclusive():
+            if matcher.is_exclusive(item):
                 break
 
         if not results:

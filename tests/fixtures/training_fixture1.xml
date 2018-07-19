@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Microsoft Office User</Author>
+  <LastAuthor>Microsoft Office User</LastAuthor>
+  <Created>2018-07-14T17:36:07Z</Created>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>14000</WindowHeight>
+  <WindowWidth>21620</WindowWidth>
+  <WindowTopX>10420</WindowTopX>
+  <WindowTopY>6480</WindowTopY>
+  <ProtectStructure>False</ProtectStructure>
+  <ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="12" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="s62">
+   <NumberFormat ss:Format="&quot;$&quot;#,##0_);[Red]\(&quot;$&quot;#,##0\)"/>
+  </Style>
+  <Style ss:ID="s63">
+   <NumberFormat ss:Format="Short Date"/>
+  </Style>
+  <Style ss:ID="s64">
+   <NumberFormat ss:Format="Percent"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="training_fixture1">
+  <Table ss:ExpandedColumnCount="8" ss:ExpandedRowCount="6" x:FullColumns="1"
+   x:FullRows="1" ss:DefaultColumnWidth="65" ss:DefaultRowHeight="16">
+   <Row>
+    <Cell><Data ss:Type="String">Casualty (Y/N)</Data></Cell>
+    <Cell><Data ss:Type="String">Value (current)</Data></Cell>
+    <Cell><Data ss:Type="String">Last Payment Date</Data></Cell>
+    <Cell><Data ss:Type="String">model_year</Data></Cell>
+    <Cell><Data ss:Type="String">score</Data></Cell>
+    <Cell><Data ss:Type="String">slope</Data></Cell>
+    <Cell><Data ss:Type="String">available</Data></Cell>
+    <Cell><Data ss:Type="String">make</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">N</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">15688</Data></Cell>
+    <Cell ss:StyleID="s63"><Data ss:Type="DateTime">2018-05-05T00:00:00.000</Data></Cell>
+    <Cell><Data ss:Type="Number">2015</Data></Cell>
+    <Cell><Data ss:Type="Number">233</Data></Cell>
+    <Cell ss:StyleID="s64"><Data ss:Type="Number">-2.1399999999999999E-2</Data></Cell>
+    <Cell><Data ss:Type="Boolean">0</Data></Cell>
+    <Cell><Data ss:Type="String">Cadillac</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">N</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">12785</Data></Cell>
+    <Cell ss:StyleID="s63"><Data ss:Type="DateTime">2018-05-05T00:00:00.000</Data></Cell>
+    <Cell><Data ss:Type="Number">2014</Data></Cell>
+    <Cell><Data ss:Type="Number">1000</Data></Cell>
+    <Cell ss:StyleID="s64"><Data ss:Type="Number">-1.9099999999999999E-2</Data></Cell>
+    <Cell><Data ss:Type="Boolean">1</Data></Cell>
+    <Cell><Data ss:Type="String">Chrysler</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">N</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">8655</Data></Cell>
+    <Cell ss:StyleID="s63"><Data ss:Type="DateTime">2018-05-07T00:00:00.000</Data></Cell>
+    <Cell><Data ss:Type="Number">2017</Data></Cell>
+    <Cell ss:Index="6" ss:StyleID="s64"><Data ss:Type="Number">-2.4799999999999999E-2</Data></Cell>
+    <Cell ss:Index="8"><Data ss:Type="String">Kia</Data></Cell>
+   </Row>
+   <Row>
+    <Cell ss:Index="2" ss:StyleID="s62"><Data ss:Type="Number">13700</Data></Cell>
+    <Cell><Data ss:Type="String">Nan</Data></Cell>
+    <Cell><Data ss:Type="Number">2017</Data></Cell>
+    <Cell><Data ss:Type="Number">100</Data></Cell>
+    <Cell ss:StyleID="s64"><Data ss:Type="Number">-1.9E-2</Data></Cell>
+    <Cell ss:Index="8"><Data ss:Type="String">Ford</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">N</Data></Cell>
+    <Cell ss:StyleID="s62"><Data ss:Type="Number">16313</Data></Cell>
+    <Cell ss:StyleID="s63"><Data ss:Type="DateTime">2018-05-07T00:00:00.000</Data></Cell>
+    <Cell><Data ss:Type="Number">2014</Data></Cell>
+    <Cell><Data ss:Type="Number">200</Data></Cell>
+    <Cell ss:StyleID="s64"><Data ss:Type="Number">-1.9199999999999998E-2</Data></Cell>
+    <Cell ss:Index="8"><Data ss:Type="String">BMW</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <Selected/>
+   <ProtectObjects>False</ProtectObjects>
+   <ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>

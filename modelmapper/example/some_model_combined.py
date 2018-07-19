@@ -7,7 +7,7 @@ FIELDS = {   'available': {   'field_db_sqlalchemy_type': SqlalchemyFieldType.Bo
                      'is_nullable': True},
     'casualty': {   'field_db_sqlalchemy_type': SqlalchemyFieldType.Boolean,
                     'is_nullable': True},
-    'last_payment_date': {   'datetime_formats': {'%m/%d/%y'},
+    'last_payment_date': {   'datetime_formats': {'%m/%d/%y', '%Y-%m-%d'},
                              'field_db_sqlalchemy_type': SqlalchemyFieldType.DateTime,
                              'is_nullable': True},
     'make': {   'args': 40,
@@ -22,6 +22,6 @@ FIELDS = {   'available': {   'field_db_sqlalchemy_type': SqlalchemyFieldType.Bo
     'value_current': {   'field_db_sqlalchemy_type': SqlalchemyFieldType.Integer,
                          'is_dollar': True,
                          'is_nullable': True},
-    'year': {   'args': 4,
+    'year': {   'args': 6,
                 'field_db_sqlalchemy_type': SqlalchemyFieldType.String,
                 'is_nullable': False}}

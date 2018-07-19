@@ -1,4 +1,5 @@
 import csv
+import io
 import os
 import enum
 import logging
@@ -157,12 +158,21 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
             model_file.write("".join(new_model_lines))
 
 
-def read_csv_gen(path, **kwargs):
-    _check_file_exists(path)
-    encoding = kwargs.pop('encoding', 'utf-8-sig')
-    with open(path, 'r', encoding=encoding) as csvfile:
-        for i in csv.reader(csvfile, **kwargs):
+def read_csv_gen(path_or_stringio, **kwargs):
+    """
+    Takes a path_or_stringio to a file or a StringIO object and creates a CSV generator
+    """
+    if isinstance(path_or_stringio, (str, bytes)):
+        _check_file_exists(path_or_stringio)
+        encoding = kwargs.pop('encoding', 'utf-8-sig')
+        with open(path_or_stringio, 'r', encoding=encoding) as csvfile:
+            for i in csv.reader(csvfile, **kwargs):
+                yield i
+    elif isinstance(path_or_stringio, io.StringIO):
+        for i in csv.reader(path_or_stringio, **kwargs):
             yield i
+    else:
+        raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 
 
 def named_tuple_to_compact_dict(named_tuple_obj, include_enums=False):
@@ -212,3 +222,82 @@ def get_combined_dict(comparison_func, *dicts):
             else:
                 result[k] = v
     return result
+
+
+def _validate_file_has_start_and_end_lines(user_input, path, identifier):
+    try:
+        update_file_chunk_content(path=path, code=[], identifier=identifier, check_only=True)
+    except ValueError as e:
+        print(e)
+        return False
+    else:
+        return True
+
+
+class cached_property:  # NOQA
+    """
+    Decorator that converts a method with a single self argument into a
+    property cached on the instance.
+    """
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, instance, type=None):
+        if instance is None:
+            return self
+        res = instance.__dict__[self.func.__name__] = self.func(instance)
+        return res
+
+
+class DefaultList(list):
+    """
+    List with default value.
+    It lets you set an index that bigger than the list's current length.
+    Kind of how shitty Javascript arrays work. We need it to deal with Excel files.
+
+    aa = DefaultList()
+    >>> aa.append(1)
+    >>> aa[2] = 3
+    >>> print(aa)
+    [1, None, 3]
+
+    >>> aa = DefaultList([1, 2, 3])
+    >>> aa[6] = 'Nice, I like it.'
+    >>> print(aa)
+    [1, 2, 3, None, None, None, 'Nice, I like it.']
+
+    >>> aa = DefaultList([1, 2, 3], default='yes')
+    >>> aa[5] = 'Nice, I like it.'
+    >>> print(aa)
+    [1, 2, 3, 'yes', 'yes', 'Nice, I like it.']
+
+    >>> items = DefaultList([1, 2, 3], default=dict)
+    >>> items[5]['key'] = 'Nice, I like it.'
+    >>> print(items)
+    [1, 2, 3, {}, {}, {'key': 'Nice, I like it.'}]
+    """
+    def __init__(self, *args, **kwargs):
+        default = kwargs.pop('default', None)
+        self.default = default if callable(default) else lambda: default
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        current_len = len(self)
+        if key == current_len:
+            self.append(value)
+        elif key < current_len:
+            super().__setitem__(key, value)
+        elif key > current_len:
+            diff = key - current_len
+            for i in range(diff):
+                self.append(self.default())
+            self.append(value)
+
+    def __getitem__(self, key):
+        try:
+            value = super().__getitem__(key)
+        except IndexError:
+            value = self.default()
+            self.__setitem__(key, value)
+        return value
+

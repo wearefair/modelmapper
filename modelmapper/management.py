@@ -1,5 +1,6 @@
 import click
 from modelmapper import Mapper, initialize
+from .excel import excel_file_to_csv_files
 
 
 @click.group()
@@ -52,3 +53,16 @@ def init(path):
     """
     click.echo(f'Initializing')
     initialize(path)
+
+
+@cli.command()
+@click.option('--sheet-names', '-s', multiple=True,
+              help='Sheets from the excel file to be converted. If none provided, all sheets will be converted.')
+@click.argument('path', type=click.Path(exists=True, resolve_path=True))
+def excel_to_csv(path, sheet_names):
+    """
+    In addition to analyzing the files based on the setup_toml, go ahead and generate the ORM models and related files.
+    """
+    click.echo(f'Converting {path} to csvs.')
+    sheet_names = sheet_names if sheet_names else None
+    excel_file_to_csv_files(path, sheet_names=sheet_names)
