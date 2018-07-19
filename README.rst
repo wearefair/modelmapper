@@ -1,5 +1,7 @@
-Model Mapper 0.1.2
+Model Mapper 0.3.0
 ==================
+
+|CircleCI|
 
 Deterministic Data Driven Schema Modeling
 -----------------------------------------
@@ -167,3 +169,6 @@ is to help the developer make the right choices in automatic fashion. It
 has no need to even think about SQL injection. You have to use your
 ORM’s recommended methods to escape the data before putting it into your
 database.
+
+.. |CircleCI| image:: https://circleci.com/gh/wearefair/modelmapper.svg?style=svg
+   :target: https://circleci.com/gh/wearefair/modelmapper
