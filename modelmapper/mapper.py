@@ -34,8 +34,6 @@ from modelmapper.types import (
     HasBoolean,
 )
 
-logger = logging.getLogger(__name__)
-
 SQLALCHEMY_ORM = 'SQLALCHEMY_ORM'
 
 ONE_HUNDRED = Decimal('100')
@@ -161,6 +159,8 @@ COMBINED_FILE_NAME = "{}_combined.py"
 
 class Mapper:
 
+    logger = logging.getLogger(__name__)
+
     def __init__(self, setup_path, debug=False):
         if not setup_path.endswith('_setup.toml'):
             raise ValueError('The path needs to end with _setup.toml')
@@ -170,7 +170,8 @@ class Mapper:
         sys.path.append(self.setup_dir)
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
-                          'ignore_lines_that_include_only_subset_of', ]
+                          'ignore_lines_that_include_only_subset_of',
+                          'ignore_fields_in_signature_calculation',]
         self._original_settings = load_toml(setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
@@ -407,9 +408,9 @@ class Mapper:
             self._validate_decision(field_name, field_result=field_result, stats=stats)
             return field_result
 
-        logger.error(f'Unable to understand the field type from the data in {field_name}')
-        logger.error("Please train the system for that field with a different dataset "
-                     "or manually define an override in the output later.")
+        self.logger.error(f'Unable to understand the field type from the data in {field_name}')
+        self.logger.error("Please train the system for that field with a different dataset "
+                          "or manually define an override in the output later.")
         self.failed_to_infer_fields.add(field_name)
         return None
 
