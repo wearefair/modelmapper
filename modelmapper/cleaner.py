@@ -9,8 +9,9 @@ from functools import partial
 from decimal import Decimal
 from string import digits
 from xlrd import xldate_as_datetime
+from modelmapper.base import Base
 from modelmapper.normalization import normalize_numberic_values
-from modelmapper.mapper import Mapper, ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
+from modelmapper.mapper import ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
 from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs
 
 strptime = datetime.datetime.strptime
@@ -36,7 +37,7 @@ def get_file_content_string(path):
         return the_file.read()
 
 
-class Cleaner(Mapper):
+class Cleaner(Base):
 
     def __init__(self, *args, **kwargs):
         # setting the XLS date mode which is only used when parsing old Excel XLS files.

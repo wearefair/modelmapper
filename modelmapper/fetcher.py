@@ -1,11 +1,4 @@
 try:
-    import boto3
-except ImportError:
-    class boto3:
-        def client(self, *args, **kwargs):
-            raise ImportError('Please install Boto3')
-
-try:
     import mmh3
 except ImportError:
     class mmh3:
@@ -17,11 +10,13 @@ import datetime
 import logging
 
 from collections import Mapping
-from botocore.client import Config
 
+
+from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
 from modelmapper.slack import slack
 from modelmapper.misc import generator_chunker, generator_updater
+from modelmapper.s3 import S3Mixin
 
 try:
     from sqlalchemy.dialects.postgresql import insert
@@ -30,7 +25,7 @@ except ImportError:
         raise ImportError('Please install SQLAlchemy')
 
 
-class Fetcher(Cleaner):
+class Fetcher(Base):
     """
     Subclass this for your data processing and define the BUCKET_NAME, RAW_KEY_MODEL and RECORDS_MODEL.
 
@@ -39,7 +34,7 @@ class Fetcher(Cleaner):
     BUCKET_NAME = None
     RAW_KEY_MODEL = None
     RECORDS_MODEL = None
-    S3KEY_DATETIME_FORMAT = '%Y/%m/%Y_%m_%d__%H_%M_%S.gzip'
+    BACKUP_KEY_DATETIME_FORMAT = '%Y/%m/%Y_%m_%d__%H_%M_%S.gzip'
     SQL_CHUNK_ROWS = 300
     logger = logging.getLogger(__name__)
 
@@ -47,6 +42,7 @@ class Fetcher(Cleaner):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
         super().__init__(*args, **kwargs)
+        self.cleaner = Cleaner(*args, **kwargs)
 
     def get_client_data(self):
         """
@@ -54,7 +50,7 @@ class Fetcher(Cleaner):
         """
         raise NotImplementedError('Please implement the get_client_data in your subclass.')
 
-    def sentry_error(self, e):
+    def report_exception(self, e):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
@@ -68,30 +64,13 @@ class Fetcher(Cleaner):
         row_bytes = b','.join([str(v).encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation])  # NOQA
         return self.get_hash_of_bytes(row_bytes)
 
-    def _verify_access_to_s3_bucket(self):
-
-        config = Config(connect_timeout=.5, retries={'max_attempts': 1})
-
-        s3_client = boto3.client('s3', config=config)
-        s3_client.list_objects_v2(Bucket=self.BUCKET_NAME, MaxKeys=1)
-
-    def get_file_from_s3(self, s3key):
-        body = None
-        s3_client = boto3.client('s3')
-        s3fileobj = s3_client.get_object(Bucket=self.BUCKET_NAME, Key=s3key)
-        if 'Body' in s3fileobj:
-            body = s3fileobj['Body'].read()
-            signature = self.get_hash_of_bytes(body)
-            body = body.decode('utf-8')
-        return body, signature
-
     def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
             msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e)
         except Exception as e:
             pass
-        self.slack()
+        self.slack(msg)
 
     def slack(self, text):
         return slack(text,
@@ -111,18 +90,14 @@ class Fetcher(Cleaner):
             raise TypeError(f'Data format of {data.JOB_NAME} failed to turn into bytes for compression')
         return data
 
-    def put_file_on_s3(self, content, key, metadata=None):
-        s3_client = boto3.client('s3')
-        self.logger.info('Putting {} on s3.'.format(key))
-        s3_client.put_object(ACL='bucket-owner-full-control', Bucket=self.BUCKET_NAME, Key=key,
-                             Metadata=metadata,
-                             Body=content)
-
     def encrypt_data(self, data):
         raise NotImplementedError('Please implement encrypt_data method')
 
+    def backup_data(self, content, key, metadata):
+        raise NotImplementedError('Please implement backup_data method')
+
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
-        key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.S3KEY_DATETIME_FORMAT)
+        key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
         signature = mmh3.hash(data_raw_bytes)
         raw_key_id = self._create_raw_key(session, key, signature)
         data_to_dump = {"data_raw_bytes": data_raw_bytes, "raw_key_id": raw_key_id}
@@ -134,7 +109,7 @@ class Fetcher(Cleaner):
             data_compressed = self.encrypt_data(data_compressed)
         self.logger.info(f'Backing up the data into s3 bucket: {key}')
         metadata = {'compression': 'gzip'}
-        self.put_file_on_s3(content=data_compressed, key=key, metadata=metadata)
+        self.backup_data(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
 
     def _create_raw_key(self, session, key, signature):
@@ -190,12 +165,15 @@ class Fetcher(Cleaner):
             if row_count:
                 msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
             else:
-                msg = f'{self.JOB_NAME}: No new data to be put in the database.'
+                msg = f'{self.JOB_NAME}: There is no new data to be put in the database.'
             self.logger.info(msg)
             session.commit()
 
     def encrypt_row_fields(self, cleaned_data_gen):
         raise NotImplementedError('Please implement encrypt_row_fields')
+
+    def verify_access_to_backup_source(self):
+        raise NotImplementedError('Please implement verify_access_to_backup_source')
 
     def do_fetch(self, session, ping_slack=False, path=None, content=None, content_type=None,
                  sheet_names=None, use_client=True, backup_data=True):
@@ -213,7 +191,7 @@ class Fetcher(Cleaner):
                 raise err
 
         if backup_data:
-            self._verify_access_to_s3_bucket()
+            self.verify_access_to_backup_source()
 
         self.logger.info(f'Starting the {self.JOB_NAME} ...')
 
@@ -226,8 +204,8 @@ class Fetcher(Cleaner):
         else:
             raw_key_id = self._create_raw_key(session, key=path, signature=None)
 
-        cleaned_data_gen = self.clean(content_type=content_type, path=path,
-                                      content=content, sheet_names=sheet_names)
+        cleaned_data_gen = self.cleaner.clean(content_type=content_type, path=path,
+                                              content=content, sheet_names=sheet_names)
 
         if self.settings.fields_to_be_encrypted:
             cleaned_data_gen = self.encrypt_row_fields(cleaned_data_gen)
@@ -242,17 +220,20 @@ class Fetcher(Cleaner):
                 self.do_fetch(session, ping_slack=ping_slack, path=path, content=content, content_type=content_type,
                               sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
         except Exception as e:
-            self.sentry_error(e)
+            self.report_exception(e)
             self.logger.exception(str(e))
             if ping_slack:
                 self.report_error_to_slack(e)
 
 
-class PostgresFetcher(Fetcher):
+class PostgresFetcher(Fetcher, S3Mixin):
     """
-    Postgres Specific Fetcher
+    Postgres Specific Fetcher that backs up raw data into S3.
     Handles Bulk inserts and ignores when there were errors and continues
     """
+
+    def backup_data(self, content, key, metadata):
+        self.put_file_on_s3(content=content, key=key, metadata=metadata)
 
     def insert_chunk_of_data_to_db(self, session, table, chunk):
         new_chunk = list(self.add_row_signature(chunk)) if self.settings.ignore_duplicate_rows_when_importing else list(chunk)  # NOQA

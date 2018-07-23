@@ -92,7 +92,7 @@ class BlahFetcher(PostgresFetcher):
         blah_client = BlahClient()
         return blah_client.get_data()  # returns raw bytes
 
-    def sentry_error(self, e):
+    def report_exception(self, e):
         errors.error()
 
     def get_session(self):

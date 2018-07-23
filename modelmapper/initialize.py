@@ -1,7 +1,7 @@
 import os
 from modelmapper.ui import get_user_choice, get_user_input, YES_NO_CHOICES, split_user_input
 from modelmapper.misc import _validate_file_has_start_and_end_lines, load_toml, write_settings
-from modelmapper.mapper import OVERRIDES_FILE_NAME
+from modelmapper.base import OVERRIDES_FILE_NAME
 
 TRAINING_CSV_MSG = """
 Please provide the relative path to the training csv files.
