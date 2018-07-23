@@ -171,7 +171,7 @@ class Mapper:
         clean_later = ['field_name_full_conversion']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
-                          'ignore_fields_in_signature_calculation',]
+                          'ignore_fields_in_signature_calculation', ]
         self._original_settings = load_toml(setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
