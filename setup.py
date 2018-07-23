@@ -43,7 +43,7 @@ setup(
     dependency_links=[],
     extras={
         'fetcher': fetcher_reqs
-    }
+    },
     packages=find_packages(exclude=('tests', 'docs')),
     include_package_data=True,
     scripts=[],
