@@ -17,6 +17,10 @@ strptime = datetime.datetime.strptime
 
 FLOAT_ACCEPTABLE = frozenset('.' + digits)
 
+FIELD_NAME_NOT_FOUND_MSG = ('{} is not found in the combined model file.'
+                            'Either there are new columns that the model needs to be trained with'
+                            'or you are running the setup for another model.')
+
 
 class ParsingError(ValueError):
     pass
@@ -52,7 +56,10 @@ class Cleaner(Mapper):
 
         all_items = self._get_all_values_per_clean_name(path_or_content)
         for field_name, field_values in all_items.items():
-            field_info = model_info[field_name]
+            try:
+                field_info = model_info[field_name]
+            except KeyError:
+                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
 
         # transposing

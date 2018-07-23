@@ -39,7 +39,7 @@ class Fetcher(Cleaner):
     BUCKET_NAME = None
     RAW_KEY_MODEL = None
     RECORDS_MODEL = None
-    S3KEY_DATETIME_FORMAT = '%Y/%m/autoims_raw_%Y_%m_%d__%H_%M_%S.gzip'
+    S3KEY_DATETIME_FORMAT = '%Y/%m/%Y_%m_%d__%H_%M_%S.gzip'
     SQL_CHUNK_ROWS = 300
     logger = logging.getLogger(__name__)
 
@@ -68,12 +68,12 @@ class Fetcher(Cleaner):
         row_bytes = b','.join([str(v).encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation])  # NOQA
         return self.get_hash_of_bytes(row_bytes)
 
-    def _verify_access_to_s3_bucket(bucket=BUCKET_NAME):
+    def _verify_access_to_s3_bucket(self):
 
         config = Config(connect_timeout=.5, retries={'max_attempts': 1})
 
         s3_client = boto3.client('s3', config=config)
-        s3_client.list_objects_v2(Bucket=bucket, MaxKeys=1)
+        s3_client.list_objects_v2(Bucket=self.BUCKET_NAME, MaxKeys=1)
 
     def get_file_from_s3(self, s3key):
         body = None
@@ -118,6 +118,9 @@ class Fetcher(Cleaner):
                              Metadata=metadata,
                              Body=content)
 
+    def encrypt_data(self, data):
+        raise NotImplementedError('Please implement encrypt_data method')
+
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.S3KEY_DATETIME_FORMAT)
         signature = mmh3.hash(data_raw_bytes)
@@ -127,6 +130,8 @@ class Fetcher(Cleaner):
         with open(f'{self.DUMP_FILEPATH}.json', 'wb') as dump_file:
             dump_file.write(data_json)
         data_compressed = self._compress(data_raw_bytes)
+        if self.settings.encrypt_raw_data_during_backup:
+            data_compressed = self.encrypt_data(data_compressed)
         self.logger.info(f'Backing up the data into s3 bucket: {key}')
         metadata = {'compression': 'gzip'}
         self.put_file_on_s3(content=data_compressed, key=key, metadata=metadata)
@@ -189,6 +194,9 @@ class Fetcher(Cleaner):
             self.logger.info(msg)
             session.commit()
 
+    def encrypt_row_fields(self, cleaned_data_gen):
+        raise NotImplementedError('Please implement encrypt_row_fields')
+
     def do_fetch(self, session, ping_slack=False, path=None, content=None, content_type=None,
                  sheet_names=None, use_client=True, backup_data=True):
         invalid_choices = [
@@ -220,6 +228,9 @@ class Fetcher(Cleaner):
 
         cleaned_data_gen = self.clean(content_type=content_type, path=path,
                                       content=content, sheet_names=sheet_names)
+
+        if self.settings.fields_to_be_encrypted:
+            cleaned_data_gen = self.encrypt_row_fields(cleaned_data_gen)
 
         row_metadata = {'raw_key_id': raw_key_id}
         self.insert_row_data_to_db(session, data_gen=cleaned_data_gen, row_metadata=row_metadata)

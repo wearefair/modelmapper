@@ -168,14 +168,14 @@ class Mapper:
         self.setup_path = setup_path
         self.setup_dir = os.path.dirname(setup_path)
         sys.path.append(self.setup_dir)
-        clean_later = ['field_name_full_conversion']
+        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
                           'ignore_fields_in_signature_calculation', ]
         self._original_settings = load_toml(setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
-            self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
+            self._clean_settings_item(item)
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
         slack_http_endpoint = self.settings['slack_http_endpoint']
@@ -209,6 +209,17 @@ class Mapper:
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
         return item.strip('_')
+
+    def _clean_settings_item(self, item):
+        try:
+            first_value = self.settings[item][0]
+        except IndexError:
+            pass
+        else:
+            if isinstance(first_value, list):
+                self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
+            else:
+                self.settings[item] = list(map(self._clean_it, self.settings[item]))
 
     def _get_clean_field_name(self, name):
         item = self._clean_it(name)
