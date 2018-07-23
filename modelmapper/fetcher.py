@@ -1,5 +1,17 @@
-import boto3
-import mmh3
+try:
+    import boto3
+except ImportError:
+    class boto3:
+        def client(self, *args, **kwargs):
+            raise ImportError('Please install Boto3')
+
+try:
+    import mmh3
+except ImportError:
+    class mmh3:
+        def hash(self, *args, **kwargs):
+            raise ImportError('Please install mmh3')
+
 import gzip
 import datetime
 import logging

@@ -49,6 +49,7 @@ class Cleaner(Mapper):
         """
         combined_module = self._get_combined_module()
         model_info = combined_module.FIELDS
+        import ipdb; ipdb.set_trace()
 
         all_items = self._get_all_values_per_clean_name(path_or_content)
         for field_name, field_values in all_items.items():
