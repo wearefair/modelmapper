@@ -20,7 +20,7 @@ ignore_fields_in_signature_calculation = []
 ignore_duplicate_rows_when_importing = true
 slack_username = ''
 slack_channel = ''
-slack_slack_http_endpoint = ''
+slack_http_endpoint = ''
 slack_handle_to_ping = ''
 
 [settings.max_int]

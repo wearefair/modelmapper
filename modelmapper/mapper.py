@@ -178,6 +178,9 @@ class Mapper:
             self.settings[item] = [[self._clean_it(i), self._clean_it(j)] for i, j in self.settings[item]]
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
+        slack_http_endpoint = self.settings['slack_http_endpoint']
+        slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
+        self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
         self.settings['combined_file_name'] = COMBINED_FILE_NAME.format(identifier)
