@@ -9,5 +9,5 @@ from modelmapper.mapper import Mapper, SqlalchemyFieldType
 from modelmapper.ui import get_user_choice, get_user_input
 from modelmapper.cleaner import Cleaner
 from modelmapper.initialize import initialize
-from modelmapper.fetcher import Fetcher
+from modelmapper.fetcher import Fetcher, PostgresFetcher
 

@@ -11,6 +11,12 @@ from modelmapper.cleaner import Cleaner
 from modelmapper.slack import slack
 from modelmapper.misc import generator_chunker, generator_updater
 
+try:
+    from sqlalchemy.dialects.postgresql import insert
+except ImportError:
+    def insert(table):
+        raise ImportError('Please install SQLAlchemy')
+
 
 class Fetcher(Cleaner):
     """
@@ -93,30 +99,30 @@ class Fetcher(Cleaner):
             raise TypeError(f'Data format of {data.JOB_NAME} failed to turn into bytes for compression')
         return data
 
-    def _put_file_on_s3(self, content, s3key, metadata=None):
+    def put_file_on_s3(self, content, key, metadata=None):
         s3_client = boto3.client('s3')
-        self.logger.info('Putting {} on s3.'.format(s3key))
-        s3_client.put_object(ACL='bucket-owner-full-control', Bucket=self.BUCKET_NAME, Key=s3key,
+        self.logger.info('Putting {} on s3.'.format(key))
+        s3_client.put_object(ACL='bucket-owner-full-control', Bucket=self.BUCKET_NAME, Key=key,
                              Metadata=metadata,
                              Body=content)
 
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
-        s3key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.S3KEY_DATETIME_FORMAT)
+        key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.S3KEY_DATETIME_FORMAT)
         signature = mmh3.hash(data_raw_bytes)
-        raw_key_id = self._create_raw_key(s3key, signature)
+        raw_key_id = self._create_raw_key(session, key, signature)
         data_to_dump = {"data_raw_bytes": data_raw_bytes, "raw_key_id": raw_key_id}
         data_json = json.dumps(data_to_dump, indent=2).encode('utf-8')
         with open(f'{self.DUMP_FILEPATH}.json', 'wb') as dump_file:
             dump_file.write(data_json)
         data_compressed = self._compress(data_raw_bytes)
-        self.logger.info(f'Backing up the data into s3 bucket: {s3key}')
+        self.logger.info(f'Backing up the data into s3 bucket: {key}')
         metadata = {'compression': 'gzip'}
-        self._put_file_on_s3(content=data_compressed, s3key=s3key, metadata=metadata)
+        self.put_file_on_s3(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
 
-    def _create_raw_key(self, session, s3key, signature):
+    def _create_raw_key(self, session, key, signature):
         try:
-            raw_key = self.RAW_KEY_MODEL(s3key=s3key, signature=signature)
+            raw_key = self.RAW_KEY_MODEL(key=key, signature=signature)
             session.add(raw_key)
             session.commit()
         except Exception as e:
@@ -198,7 +204,7 @@ class Fetcher(Cleaner):
             content = content.encode('utf-8') if isinstance(content, str) else content
             raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
         else:
-            raw_key_id = None
+            raw_key_id = self._create_raw_key(session, key=path, signature=None)
 
         cleaned_data_gen = self.clean(content_type=content_type, path=path,
                                       content=content, sheet_names=sheet_names)
@@ -217,3 +223,17 @@ class Fetcher(Cleaner):
             self.logger.exception(str(e))
             if ping_slack:
                 self.report_error_to_slack(e)
+
+
+class PostgresFetcher(Fetcher):
+    """
+    Postgres Specific Fetcher
+    Handles Bulk inserts and ignores when there were errors and continues
+    """
+
+    def insert_chunk_of_data_to_db(self, session, table, chunk):
+        new_chunk = list(self.add_row_signature(chunk)) if self.settings.ignore_duplicate_rows_when_importing else list(chunk)  # NOQA
+        insrt_stmnt = insert(table).values(new_chunk)
+        do_nothing_stmt = insrt_stmnt.on_conflict_do_nothing()
+        results = session.execute(do_nothing_stmt)
+        return results.rowcount
