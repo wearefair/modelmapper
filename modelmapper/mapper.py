@@ -3,20 +3,14 @@ import os
 
 import sys
 import datetime
-import logging
-import importlib
-from copy import deepcopy
-from collections import defaultdict
 
 from decimal import Decimal
-# We are using both the new style and old style of named tuple
 from typing import NamedTuple
-from collections import namedtuple, Counter
 from tabulate import tabulate
 
 from modelmapper.base import Base
 from modelmapper.ui import get_user_choice, get_user_input
-from modelmapper.misc import (read_csv_gen, load_toml, write_toml, write_settings,
+from modelmapper.misc import (load_toml, write_toml, write_settings,
                               named_tuple_to_compact_dict, escape_word, get_combined_dict,
                               write_full_python_file, update_file_chunk_content)
 
