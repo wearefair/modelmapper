@@ -1,5 +1,5 @@
 # flake8: noqa
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 import sys
 pyversion = float(sys.version[:3])
 if pyversion < 3.6:
@@ -9,4 +9,5 @@ from modelmapper.mapper import Mapper, SqlalchemyFieldType
 from modelmapper.ui import get_user_choice, get_user_input
 from modelmapper.cleaner import Cleaner
 from modelmapper.initialize import initialize
+from modelmapper.fetcher import Fetcher, PostgresFetcher
 

@@ -301,3 +301,27 @@ class DefaultList(list):
             self.__setitem__(key, value)
         return value
 
+
+def generator_chunker(gen, chunk_size):
+    """
+    Get a chunk of a generator
+    """
+    try:
+        while True:
+            chunk = []
+            while len(chunk) < chunk_size:
+                chunk.append(next(gen))
+            yield chunk
+    except StopIteration:
+        yield chunk
+
+
+
+def generator_updater(data_gen, **kwargs):
+    """
+    Update each item in a generator with kwargs.
+    Expects the generator to be yielding dictionaries.
+    """
+    for item in data_gen:
+        item.update(**kwargs)
+        yield item

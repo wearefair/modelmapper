@@ -9,13 +9,18 @@ from functools import partial
 from decimal import Decimal
 from string import digits
 from xlrd import xldate_as_datetime
+from modelmapper.base import Base
 from modelmapper.normalization import normalize_numberic_values
-from modelmapper.mapper import Mapper, ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
+from modelmapper.mapper import ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
 from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs
 
 strptime = datetime.datetime.strptime
 
 FLOAT_ACCEPTABLE = frozenset('.' + digits)
+
+FIELD_NAME_NOT_FOUND_MSG = ('{} is not found in the combined model file.'
+                            'Either there are new columns that the model needs to be trained with'
+                            'or you are running the setup for another model.')
 
 
 class ParsingError(ValueError):
@@ -32,7 +37,7 @@ def get_file_content_string(path):
         return the_file.read()
 
 
-class Cleaner(Mapper):
+class Cleaner(Base):
 
     def __init__(self, *args, **kwargs):
         # setting the XLS date mode which is only used when parsing old Excel XLS files.
@@ -52,7 +57,10 @@ class Cleaner(Mapper):
 
         all_items = self._get_all_values_per_clean_name(path_or_content)
         for field_name, field_values in all_items.items():
-            field_info = model_info[field_name]
+            try:
+                field_info = model_info[field_name]
+            except KeyError:
+                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
 
         # transposing

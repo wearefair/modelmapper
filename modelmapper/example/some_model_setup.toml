@@ -16,6 +16,14 @@ string_fields_can_be_nullable = false
 training_csvs = ['../../tests/fixtures/training_fixture1.csv', '../../tests/fixtures/training_fixture1_to_xml_back_to_csv.csv']
 output_model_file = 'sample_model.py'
 ignore_lines_that_include_only_subset_of = ["", "-"]
+ignore_fields_in_signature_calculation = ["id", "raw_key_id"]
+ignore_duplicate_rows_when_importing = true
+encrypt_raw_data_during_backup = true
+fields_to_be_encrypted = []
+slack_username = ""
+slack_channel = ""
+slack_http_endpoint = ""
+slack_handle_to_ping = ""
 
 [settings.max_int]
 32767 = "SmallInteger"

@@ -71,11 +71,33 @@ Note: ModelMapper requires Python 3.6 or higher.
 
 8. Migrate the database
 
-9. Import the data via modelmapper: Initiate the Mapper with the path to your setup TOML file and read clean the CSVs via get_csv_data_cleaned function.
+9. You have new fields in the CSV or something changed? DO NOT MODIFY THE GENERATED MODELS DIRECTLY. Instead, add this csv to the list of training csvs in your settings TOML file. Re-train the system. Use git diff to see what has been changed.
 
-10. It is left up to the user how to insert the cleaned data it into the database.
+10. Subclass the PostgresFetcher or Fetcher to create your own Fetcher class in order to import the data
 
-11. You have new fields in the CSV or something changed? DO NOT MODIFY THE GENERATED MODELS DIRECTLY. Instead, add this csv to the list of training csvs in your settings TOML file. Re-train the system. Use git diff to see what has been changed.
+
+# Fetcher
+
+In order to use the fetcher, make sure you have installed its requirements by doing `pip install modelmapper[fetcher]`
+Use the Fetcher to import data easily. The Fetcher will take care of cleaning your data and properly importing it into the database.
+
+Example:
+
+```py
+class BlahFetcher(PostgresFetcher):
+
+    BUCKET_NAME = 'blah_raw'
+
+    def get_client_data(self):
+        blah_client = BlahClient()
+        return blah_client.get_data()  # returns raw bytes
+
+    def report_exception(self, e):
+        errors.error()
+
+    def get_session(self):
+        return db.get_session()
+```
 
 # Settings
 

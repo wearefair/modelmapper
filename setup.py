@@ -12,10 +12,15 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 
-with open("requirements.txt", "r") as reqs_file:
-    reqs = reqs_file.readlines()
-    reqs = list(map(lambda x: x.replace('==', '>='), reqs))
+def get_reqs(filename):
+    with open(filename, "r") as reqs_file:
+        reqs = reqs_file.readlines()
+        reqs = list(map(lambda x: x.replace('==', '>='), reqs))
+    return reqs
 
+
+reqs = get_reqs("requirements.txt")
+fetcher_reqs = get_reqs("requirements-fetcher.txt")
 
 try:
     with open('README.rst') as file:
@@ -36,6 +41,9 @@ setup(
     version=verstr,
     install_requires=reqs,
     dependency_links=[],
+    extras={
+        'fetcher': fetcher_reqs
+    },
     packages=find_packages(exclude=('tests', 'docs')),
     include_package_data=True,
     scripts=[],

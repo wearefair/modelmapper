@@ -1,0 +1,5 @@
+-r requirements.txt
+mmh3==2.5.1
+requests==2.18.4
+SQLAlchemy==1.2.6
+boto3==1.7.11

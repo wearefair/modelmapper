@@ -6,7 +6,7 @@ from unittest import mock
 from deepdiff import DeepDiff
 from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
                               convert_dict_item_type, write_toml, write_settings, read_csv_gen,
-                              DefaultList)
+                              DefaultList, generator_chunker, generator_updater)
 from modelmapper.mapper import SqlalchemyFieldType
 from fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
 from fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2  # NOQA
@@ -115,3 +115,32 @@ class TestMisc:
         items = DefaultList([1, 2, 3], default=dict)
         items[5]['key'] = 'Nice, I like it.'
         assert [1, 2, 3, {}, {}, {'key': 'Nice, I like it.'}] == items
+
+    @pytest.mark.parametrize("gen, chunk_size, expected", [
+        (
+            (i for i in range(10)),
+            3,
+            [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
+        ),
+        (
+            (i for i in range(5)),
+            6,
+            [[0, 1, 2, 3, 4]]
+        ),
+    ])
+    def test_generator_chunker(self, gen, chunk_size, expected):
+        result = generator_chunker(gen, chunk_size)
+        result_list = list(result)
+        assert expected == result_list
+
+    @pytest.mark.parametrize("gen, update, expected", [
+        (
+            ({i: i} for i in range(2)),
+            {'a': 'b'},
+            [{0: 0, 'a': 'b'}, {1: 1, 'a': 'b'}]
+        ),
+    ])
+    def test_generator_updater(self, gen, update, expected):
+        result = generator_updater(gen, **update)
+        result_list = list(result)
+        assert expected == result_list
