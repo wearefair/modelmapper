@@ -81,6 +81,7 @@ class Cleaner(Base):
         datetime_formats = list(field_info.get('datetime_formats', []))
 
         max_string_len = field_info.get('args', 255) if is_string else 0
+        max_string_len_padded = min(max_string_len + self.settings.add_to_string_length, 255)
 
         def _mark_nulls(item):
             return None if item in self.settings.null_values else item
@@ -99,8 +100,9 @@ class Cleaner(Base):
             original_item = item
             item = item.strip().lower()
             if is_string:
-                if len(item) > max_string_len:
-                    raise ValueError(f'There is a value that is longer than {max_string_len} for {field_name}: {item}')
+                if len(item) > max_string_len_padded:
+                    msg = f'There is a value that is longer than {max_string_len_padded} for {field_name}: {item}'
+                    raise ValueError(msg)
 
             if is_integer or is_decimal:
                 item = normalize_numberic_values(item)

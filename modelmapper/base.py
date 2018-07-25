@@ -17,19 +17,22 @@ COMBINED_FILE_NAME = "{}_combined.py"
 class Base:
 
     logger = logging.getLogger(__name__)
+    SETUP_PATH = None
 
-    def __init__(self, setup_path, debug=False):
-        if not setup_path.endswith('_setup.toml'):
+    def __init__(self, setup_path=None, debug=False):
+        self.setup_path = setup_path or getattr(self, 'SETUP_PATH', None)
+        if self.setup_path is None:
+            raise ValueError('setup_path needs to be passed to init or SETUP_PATH needs to be a class attribute.')
+        if not self.setup_path.endswith('_setup.toml'):
             raise ValueError('The path needs to end with _setup.toml')
         self.debug = debug
-        self.setup_path = setup_path
-        self.setup_dir = os.path.dirname(setup_path)
+        self.setup_dir = os.path.dirname(self.setup_path)
         sys.path.append(self.setup_dir)
         clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
                           'ignore_fields_in_signature_calculation', ]
-        self._original_settings = load_toml(setup_path)['settings']
+        self._original_settings = load_toml(self.setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
             self._clean_settings_item(item)
@@ -38,7 +41,7 @@ class Base:
         slack_http_endpoint = self.settings['slack_http_endpoint']
         slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
         self.settings['slack_http_endpoint'] = slack_http_endpoint
-        self.settings['identifier'] = identifier = os.path.basename(setup_path).replace('_setup.toml', '')
+        self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
         self.settings['combined_file_name'] = COMBINED_FILE_NAME.format(identifier)
         self.settings['booleans'] = self.settings['boolean_true'] | self.settings['boolean_false']

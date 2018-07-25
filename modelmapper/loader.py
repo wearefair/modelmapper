@@ -8,6 +8,7 @@ except ImportError:
 import gzip
 import datetime
 import logging
+import pickle
 
 from collections import Mapping
 
@@ -25,7 +26,7 @@ except ImportError:
         raise ImportError('Please install SQLAlchemy')
 
 
-class Fetcher(Base):
+class Loader(Base):
     """
     Subclass this for your data processing and define the BUCKET_NAME, RAW_KEY_MODEL and RECORDS_MODEL.
 
@@ -42,6 +43,7 @@ class Fetcher(Base):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
         super().__init__(*args, **kwargs)
+        kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
 
     def get_client_data(self):
@@ -100,10 +102,6 @@ class Fetcher(Base):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
         signature = mmh3.hash(data_raw_bytes)
         raw_key_id = self._create_raw_key(session, key, signature)
-        data_to_dump = {"data_raw_bytes": data_raw_bytes, "raw_key_id": raw_key_id}
-        data_json = json.dumps(data_to_dump, indent=2).encode('utf-8')
-        with open(f'{self.DUMP_FILEPATH}.json', 'wb') as dump_file:
-            dump_file.write(data_json)
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
             data_compressed = self.encrypt_data(data_compressed)
@@ -111,6 +109,14 @@ class Fetcher(Base):
         metadata = {'compression': 'gzip'}
         self.backup_data(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
+
+    def _dump_state_after_client_response(self, data):
+        with open(f'{self.DUMP_FILEPATH}.pickle', "wb") as the_file:
+            pickle.dump(data, the_file)
+
+    def _load_state_after_client_response(self):
+        with open(f'{self.DUMP_FILEPATH}.pickle', "rb") as the_file:
+            return pickle.load(the_file)
 
     def _create_raw_key(self, session, key, signature):
         try:
@@ -175,7 +181,7 @@ class Fetcher(Base):
     def verify_access_to_backup_source(self):
         raise NotImplementedError('Please implement verify_access_to_backup_source')
 
-    def do_fetch(self, session, ping_slack=False, path=None, content=None, content_type=None,
+    def do_fetch(self, session, path=None, content=None, content_type=None,
                  sheet_names=None, use_client=True, backup_data=True):
         invalid_choices = [
             (path is None and content is None and not use_client,
@@ -204,31 +210,48 @@ class Fetcher(Base):
         else:
             raw_key_id = self._create_raw_key(session, key=path, signature=None)
 
-        cleaned_data_gen = self.cleaner.clean(content_type=content_type, path=path,
-                                              content=content, sheet_names=sheet_names)
+        data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
+                "path": path, "sheet_names": sheet_names}
+        self._dump_state_after_client_response(data)
+        return data
+
+    def do_load(self, session, data):
+
+        cleaned_data_gen = self.cleaner.clean(content_type=data['content_type'], path=data['path'],
+                                              content=data['content'], sheet_names=data['sheet_names'])
 
         if self.settings.fields_to_be_encrypted:
             cleaned_data_gen = self.encrypt_row_fields(cleaned_data_gen)
 
-        row_metadata = {'raw_key_id': raw_key_id}
+        row_metadata = {'raw_key_id': data['raw_key_id']}
         self.insert_row_data_to_db(session, data_gen=cleaned_data_gen, row_metadata=row_metadata)
 
-    def fetch(self, ping_slack=False, path=None, content=None, content_type=None,
-              sheet_names=None, use_client=True, backup_data=True):
+    def load(self, ping_slack=False, path=None, content=None, content_type=None,
+             sheet_names=None, use_client=True, backup_data=True):
         try:
             with self.get_session() as session:
-                self.do_fetch(session, ping_slack=ping_slack, path=path, content=content, content_type=content_type,
-                              sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
+                data = self.do_fetch(session, path=path, content=content, content_type=content_type,
+                                     sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
+                self.do_load(session, data)
         except Exception as e:
             self.report_exception(e)
             self.logger.exception(str(e))
             if ping_slack:
                 self.report_error_to_slack(e)
 
+    def reload(self):
+        """
+        Reload from pickle dump of the last run of the client.
+        Meant for local usage only.
+        """
+        data = self._load_state_after_client_response()
+        with self.get_session() as session:
+            self.do_load(session, data)
 
-class PostgresFetcher(Fetcher, S3Mixin):
+
+class PostgresLoader(Loader, S3Mixin):
     """
-    Postgres Specific Fetcher that backs up raw data into S3.
+    Postgres Specific Loader that backs up raw data into S3.
     Handles Bulk inserts and ignores when there were errors and continues
     """
 

@@ -20,7 +20,7 @@ def get_reqs(filename):
 
 
 reqs = get_reqs("requirements.txt")
-fetcher_reqs = get_reqs("requirements-fetcher.txt")
+loader_reqs = get_reqs("requirements-loader.txt")
 
 try:
     with open('README.rst') as file:
@@ -42,7 +42,7 @@ setup(
     install_requires=reqs,
     dependency_links=[],
     extras={
-        'fetcher': fetcher_reqs
+        'loader': loader_reqs
     },
     packages=find_packages(exclude=('tests', 'docs')),
     include_package_data=True,

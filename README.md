@@ -73,18 +73,18 @@ Note: ModelMapper requires Python 3.6 or higher.
 
 9. You have new fields in the CSV or something changed? DO NOT MODIFY THE GENERATED MODELS DIRECTLY. Instead, add this csv to the list of training csvs in your settings TOML file. Re-train the system. Use git diff to see what has been changed.
 
-10. Subclass the PostgresFetcher or Fetcher to create your own Fetcher class in order to import the data
+10. Subclass the PostgresLoader or Loader to create your own Loader class in order to import the data
 
 
-# Fetcher
+# Loader
 
-In order to use the fetcher, make sure you have installed its requirements by doing `pip install modelmapper[fetcher]`
-Use the Fetcher to import data easily. The Fetcher will take care of cleaning your data and properly importing it into the database.
+In order to use the loader, make sure you have installed its requirements by doing `pip install modelmapper[loader]`
+Use the Loader to import data easily. The Loader will take care of cleaning your data and properly importing it into the database.
 
 Example:
 
 ```py
-class BlahFetcher(PostgresFetcher):
+class BlahLoader(PostgresLoader):
 
     BUCKET_NAME = 'blah_raw'
 
