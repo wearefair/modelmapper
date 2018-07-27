@@ -166,7 +166,7 @@ class Loader(Base):
                 if chunk_rows_inserted:
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')
         except Exception as e:
-            self.logger.exception(f'Error when inserting row into -: {e}')
+            self.logger.exception(f'Error when inserting row into {table}: {e}')
             try:
                 session.rollback()
             except Exception as e2:
