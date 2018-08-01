@@ -78,6 +78,7 @@ class Cleaner(Base):
         is_boolean = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Boolean
         is_datetime = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.DateTime
         is_string = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.String
+        is_excel = original_content_type == 'xlsx' or original_content_type == 'xls'
         datetime_formats = list(field_info.get('datetime_formats', []))
 
         max_string_len = field_info.get('args', 255) if is_string else 0
@@ -122,7 +123,7 @@ class Cleaner(Base):
 
                 if is_dollar:
                     item = item * ONE_HUNDRED
-                if is_percent and (original_content_type != 'xls' and original_content_type != 'xlsx'):  # xls already has it divided by 100
+                if is_percent and not is_excel:  # xls already has it divided by 100
                     item = item / ONE_HUNDRED
                 if is_integer:
                     item = int(item)
@@ -138,9 +139,8 @@ class Cleaner(Base):
                         _format = datetime_formats[-1]
                         strptime(item, _format)
                     except IndexError:
-                        if (original_content_type == 'xls' or original_content_type == 'xlsx') and item_chars <= FLOAT_ACCEPTABLE:
-                            _format = original_content_type
-                            continue
+                        if is_excel and item_chars <= FLOAT_ACCEPTABLE:
+                            pass
                         else:
                             raise ValueError(msg) from None
                     except ValueError:
@@ -154,7 +154,7 @@ class Cleaner(Base):
             field_values[i] = item
 
         if is_datetime:
-            if _format == 'xls' or _format == 'xlsx':
+            if is_excel:
                 def xls_date(x):
                     return xldate_as_datetime(float(x), self.xls_date_mode)
                 field_values[:] = map(lambda x: None if x is None else xls_date(x), field_values)
@@ -182,8 +182,9 @@ class Cleaner(Base):
                                        sheet_names=sheet_names)
         xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
                                            sheet_names=sheet_names)
+        xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs,
+                                        sheet_names=sheet_names)
 
-        xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs, sheet_names=sheet_names)
         solutions = {
             'csv': {'path': [self.get_csv_data_cleaned],
                     'content_str': [io.StringIO, self.get_csv_data_cleaned],

@@ -14,6 +14,7 @@ training_fixture1_xls_xml_path = training_fixture1_path.replace('.csv', '.xml')
 training_fixture1_xls_path = training_fixture1_path.replace('.csv', '.xls')
 training_fixture1_xlsx_path = training_fixture1_path.replace('.csv', '.xlsx')
 training_fixture1_with_2_sheets_path = os.path.join(current_dir, 'fixtures/training_fixture1_with_2_sheets.xml')
+training_fixture1_xlsx_with_2_sheets_path = training_fixture1_with_2_sheets_path.replace('xml', 'xlsx')
 
 with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
     training_fixture1_content_str = the_file.read()
@@ -66,10 +67,10 @@ class TestCleaner:
 
     @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
         ('xls', training_fixture1_xls_path, None, None),
-        ('xlsx', training_fixture1_xlsx_path, None, None)
+        ('xlsx', training_fixture1_xlsx_path, None, None),
     ])
-    def test_clean_xls(self, cleaner, cleaned_csv_for_import_fixture, content_type,
-                       path, content, sheet_names):
+    def test_clean_excel(self, cleaner, cleaned_csv_for_import_fixture, content_type,
+                         path, content, sheet_names):
 
         result_gen = cleaner.clean(content_type=content_type, path=path,
                                    content=content, sheet_names=sheet_names)
@@ -79,13 +80,14 @@ class TestCleaner:
             assert item.endswith("year']")
 
     @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
-        ('xls_xml', training_fixture1_with_2_sheets_path, None, None),
+        ('xlsx', training_fixture1_xlsx_with_2_sheets_path, None, None),
     ])
-    def test_clean_xls_xml_multiple_sheets(self, cleaner, cleaned_csv_with_2_sheets_combined_for_import_fixture,
-                                           content_type, path, content, sheet_names):
+    def test_clean_xlsx_multiple_sheets(self, cleaner, cleaned_csv_with_2_sheets_combined_for_import_fixture,
+                                        content_type, path, content, sheet_names):
 
         result_gen = cleaner.clean(content_type=content_type, path=path,
                                    content=content, sheet_names=sheet_names)
-        result = list(result_gen)
-        diff = DeepDiff(cleaned_csv_with_2_sheets_combined_for_import_fixture, result)
-        assert not diff
+        results = list(result_gen)
+        diff = DeepDiff(cleaned_csv_with_2_sheets_combined_for_import_fixture, results)
+        for item in diff['values_changed'].keys():
+            assert item.endswith("year']")
