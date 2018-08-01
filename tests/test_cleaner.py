@@ -75,7 +75,6 @@ class TestCleaner:
                                    content=content, sheet_names=sheet_names)
         result = list(result_gen)
         diff = DeepDiff(cleaned_csv_for_import_fixture, result)
-        print(diff['values_changed'])
         for item in diff['values_changed'].keys():
             assert item.endswith("year']")
 
