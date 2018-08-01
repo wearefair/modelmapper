@@ -12,6 +12,7 @@ example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_mode
 training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.csv')
 training_fixture1_xls_xml_path = training_fixture1_path.replace('.csv', '.xml')
 training_fixture1_xls_path = training_fixture1_path.replace('.csv', '.xls')
+training_fixture1_xlsx_path = training_fixture1_path.replace('.csv', '.xlsx')
 training_fixture1_with_2_sheets_path = os.path.join(current_dir, 'fixtures/training_fixture1_with_2_sheets.xml')
 
 with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
@@ -65,6 +66,7 @@ class TestCleaner:
 
     @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
         ('xls', training_fixture1_xls_path, None, None),
+        ('xlsx', training_fixture1_xlsx_path, None, None)
     ])
     def test_clean_xls(self, cleaner, cleaned_csv_for_import_fixture, content_type,
                        path, content, sheet_names):
@@ -73,6 +75,7 @@ class TestCleaner:
                                    content=content, sheet_names=sheet_names)
         result = list(result_gen)
         diff = DeepDiff(cleaned_csv_for_import_fixture, result)
+        print(diff['values_changed'])
         for item in diff['values_changed'].keys():
             assert item.endswith("year']")
 

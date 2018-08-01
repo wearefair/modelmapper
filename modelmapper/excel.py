@@ -58,6 +58,11 @@ def _xls_contents_to_csvs(file_contents, sheet_names=None):
     return result
 
 
+def _xlsx_contents_to_csvs(file_contents, sheet_names=None):
+    """Rigt now this is just a wrapper until a real difference is discovered."""
+    return _xls_contents_to_csvs(file_contents=file_contents, sheet_names=sheet_names)
+
+
 def _xls_xml_contents_to_csvs(file_contents, sheet_names=None):
     data = _xls_xml_contents_to_dict(file_contents)
     sheet_names = data.keys() if sheet_names is None else sheet_names

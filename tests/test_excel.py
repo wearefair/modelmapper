@@ -3,12 +3,13 @@ import pytest
 from deepdiff import DeepDiff
 from modelmapper.excel import (_xls_contents_to_csvs, _xls_xml_contents_to_dict,
                                _xls_xml_contents_to_csvs, excel_contents_to_csvs,
-                               excel_file_to_csv_files)
+                               _xlsx_contents_to_csvs, excel_file_to_csv_files)
 
 from fixtures.excel_fixtures import (xls_contents2, xls_xml_contents1, xls_xml_contents2,  # NOQA
                                      xls_xml_contents_in_json1, xls_xml_contents_in_json2, csv_contents2,
                                      xls_xml_contents1_with_2_sheets, csv_contents1_other_sheet,
-                                     csv_contents1, csv_contents1_reformatted)
+                                     csv_contents1, csv_contents1_reformatted,
+                                     xlsx_contents1_with_2_sheets, xlsx_contents2)
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,29 +17,29 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 class TestExcel:
 
-    def test_xls_contents_to_csvs(self, xls_contents2, csv_contents2):  # NOQA
-        results = _xls_contents_to_csvs(xls_contents2)
+    @pytest.mark.parametrize('contents, content_transform', [ # NOQA
+        (xls_contents2(), _xls_contents_to_csvs),
+        (xls_xml_contents2(), _xls_xml_contents_to_csvs),
+        (xlsx_contents2(), _xlsx_contents_to_csvs),
+    ])
+    def test_contents_csvs(self, contents, content_transform, csv_contents2):
+        results = content_transform(contents)
         assert 'Sheet1' in results
         result_content = results['Sheet1'].read()
         assert result_content == csv_contents2
 
-    def test_xls_xml_contents_to_csvs(self, xls_xml_contents2, csv_contents2):  # NOQA
-        results = _xls_xml_contents_to_csvs(xls_xml_contents2)
-        assert 'Sheet1' in results
-        result_content = results['Sheet1'].read()
-        assert result_content == csv_contents2
-
-    def test_xls_xml_contents_to_lists1(self, xls_xml_contents1, xls_xml_contents_in_json1):  # NOQA
-        results = _xls_xml_contents_to_dict(xls_xml_contents1)
-        assert results == xls_xml_contents_in_json1
-
-    def test_xls_xml_contents_to_lists2(self, xls_xml_contents2, xls_xml_contents_in_json2):  # NOQA
-        results = _xls_xml_contents_to_dict(xls_xml_contents2)
-        assert results == xls_xml_contents_in_json2
+    @pytest.mark.parametrize('contents, expected', [
+        (xls_xml_contents1(), xls_xml_contents_in_json1()),
+        (xls_xml_contents2(), xls_xml_contents_in_json2()),
+    ])
+    def test_xls_xml_contents_to_list(self, contents, expected):
+        results = _xls_xml_contents_to_dict(contents)
+        assert results == expected
 
     @pytest.mark.parametrize("contents", [  # NOQA
         xls_contents2(),
         xls_xml_contents2(),
+        xlsx_contents2(),
     ])
     def test_excel_contents_to_csvs(self, contents, csv_contents2):
         results = excel_contents_to_csvs(contents)
@@ -59,10 +60,14 @@ class TestExcel:
         result_content = results['training_fixture1'].read()
         assert result_content == csv_contents1_reformatted
 
-    def test_excel_file_to_csv_files(self):
+    @pytest.mark.parametrize('file_type', [
+        'xls',
+        'xlsx'
+    ])
+    def test_excel_file_to_csv_files(self, file_type):
         output_csv_path = None
         try:
-            path = os.path.join(current_dir, 'fixtures/training_fixture2.xls')
+            path = os.path.join(current_dir, 'fixtures/training_fixture2.{}'.format(file_type))
             excel_file_to_csv_files(path=path)
             output_csv_path = os.path.join(current_dir, 'fixtures/training_fixture2__Sheet1.csv')
             assert os.path.exists(output_csv_path)
