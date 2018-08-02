@@ -1,4 +1,4 @@
-# Model Mapper 0.3.0
+# Model Mapper 0.4.5
 
 [![CircleCI](https://circleci.com/gh/wearefair/modelmapper.svg?style=svg)](https://circleci.com/gh/wearefair/modelmapper)
 
