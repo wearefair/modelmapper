@@ -12,7 +12,7 @@ from xlrd import xldate_as_datetime
 from modelmapper.base import Base
 from modelmapper.normalization import normalize_numberic_values
 from modelmapper.mapper import ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
-from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs
+from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs, _xlsx_contents_to_csvs
 
 strptime = datetime.datetime.strptime
 
@@ -78,6 +78,7 @@ class Cleaner(Base):
         is_boolean = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Boolean
         is_datetime = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.DateTime
         is_string = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.String
+        is_excel = original_content_type == 'xlsx' or original_content_type == 'xls'
         datetime_formats = list(field_info.get('datetime_formats', []))
 
         max_string_len = field_info.get('args', 255) if is_string else 0
@@ -122,7 +123,7 @@ class Cleaner(Base):
 
                 if is_dollar:
                     item = item * ONE_HUNDRED
-                if is_percent and original_content_type != 'xls':  # xls already has it divided by 100
+                if is_percent and not is_excel:  # xls already has it divided by 100
                     item = item / ONE_HUNDRED
                 if is_integer:
                     item = int(item)
@@ -138,9 +139,8 @@ class Cleaner(Base):
                         _format = datetime_formats[-1]
                         strptime(item, _format)
                     except IndexError:
-                        if original_content_type == 'xls' and item_chars <= FLOAT_ACCEPTABLE:
-                            _format = original_content_type
-                            continue
+                        if is_excel and item_chars <= FLOAT_ACCEPTABLE:
+                            pass
                         else:
                             raise ValueError(msg) from None
                     except ValueError:
@@ -154,7 +154,7 @@ class Cleaner(Base):
             field_values[i] = item
 
         if is_datetime:
-            if _format == 'xls':
+            if is_excel:
                 def xls_date(x):
                     return xldate_as_datetime(float(x), self.xls_date_mode)
                 field_values[:] = map(lambda x: None if x is None else xls_date(x), field_values)
@@ -165,7 +165,7 @@ class Cleaner(Base):
     def clean(self, content_type, path=None, content=None, sheet_names=None):
         """
         Clean the data for importing into database.
-        content_type: Options: csv, xls, xls_xml
+        content_type: Options: csv, xls, xls_xml, xlsx
         path: (optional) The path to the file to open
         content: (optional) The content to be read. The content can be bytes, string, BytesIO or StringIO
         sheet_names: (optional) The sheet names from the Excel file to be considered.
@@ -182,6 +182,8 @@ class Cleaner(Base):
                                        sheet_names=sheet_names)
         xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
                                            sheet_names=sheet_names)
+        xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs,
+                                        sheet_names=sheet_names)
 
         solutions = {
             'csv': {'path': [self.get_csv_data_cleaned],
@@ -203,6 +205,12 @@ class Cleaner(Base):
                         'content_bytesio': [lambda x: x.getvalue(), xls_xml_contents_cleaned],
                         'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_xml_contents_cleaned],
                         },
+            'xlsx': {'path': [get_file_content_bytes, xls_contents_cleaned],
+                     'content_str': [lambda x: x.encode('utf-8'), xlsx_contents_cleaned],
+                     'content_bytes': [xlsx_contents_cleaned],
+                     'content_bytesio': [lambda x: x.getvalue(), xlsx_contents_cleaned],
+                     'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xlsx_contents_cleaned],
+                     }
         }
 
         content_type = content_type.lower()

@@ -12,6 +12,12 @@ def xls_contents1():
 
 
 @pytest.fixture(scope='session')
+def xlsx_contents1():
+    with open(os.path.join(current_dir, 'training_fixture1.xlsx'), 'rb') as xlsx:
+        return xlsx.read()
+
+
+@pytest.fixture(scope='session')
 def xls_xml_contents1():
     with open(os.path.join(current_dir, 'training_fixture1.xml'), 'rb') as the_file:
         return the_file.read()
@@ -48,9 +54,21 @@ def xls_xml_contents1_with_2_sheets():
 
 
 @pytest.fixture(scope='session')
+def xlsx_contents1_with_2_sheets():
+    with open(os.path.join(current_dir, 'training_fixture1_with_2_sheets.xlsx'), 'rb') as the_file:
+        return the_file.read()
+
+
+@pytest.fixture(scope='session')
 def xls_contents2():
     with open(os.path.join(current_dir, 'training_fixture2.xls'), 'rb') as the_file:
         return the_file.read()
+
+
+@pytest.fixture(scope='session')
+def xlsx_contents2():
+    with open(os.path.join(current_dir, 'training_fixture2.xlsx'), 'rb') as xlsx:
+        return xlsx.read()
 
 
 @pytest.fixture(scope='session')
