@@ -9,7 +9,7 @@ import gzip
 import datetime
 import logging
 import pickle
-
+from types import GeneratorType
 from collections import Mapping
 
 
@@ -145,7 +145,8 @@ class ETL(Base):
         raise NotImplementedError('Please implement verify_access_to_backup_source')
 
     def _extract(self, session, path=None, content=None, content_type=None,
-                 sheet_names=None, use_client=True, backup_data=True):
+                 sheet_names=None, use_client=True, backup_data=True,
+                 should_persist_client_state=True):
         invalid_choices = [
             (path is None and content is None and not use_client,
              ValueError('If path and content are None, the client must be used.')),
@@ -167,6 +168,9 @@ class ETL(Base):
         if use_client:
             content = self.get_client_data()
 
+        if (backup_data or should_persist_client_state) and isinstance(content, GeneratorType):
+            content = list(content)
+
         if backup_data:
             content = content.encode('utf-8') if isinstance(content, str) else content
             raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
@@ -176,7 +180,10 @@ class ETL(Base):
 
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
                 "path": path, "sheet_names": sheet_names}
-        self._dump_state_after_client_response(data)
+
+        if should_persist_client_state:
+            self._dump_state_after_client_response(data)
+
         return data
 
     def transform(self, session=None, data_gen=None):
