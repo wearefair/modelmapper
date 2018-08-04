@@ -43,7 +43,7 @@ class TestETL:
         mock_client_data.return_value = yield training_fixture1_content_str
         mock_create_raw_key.return_value = uuid4()
         data = job._extract(None, backup_data=False, content_type='csv')
-        assert isinstance(data['content]'], GeneratorType)
+        assert isinstance(data['content'], GeneratorType)
 
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
