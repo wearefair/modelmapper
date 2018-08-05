@@ -237,11 +237,12 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True):
+            sheet_names=None, use_client=True, backup_data=True, should_persist_client_state=True):
         try:
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,
-                                     sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
+                                     sheet_names=sheet_names, use_client=use_client, backup_data=backup_data,
+                                     should_persist_client_state=True)
                 data_gen = self._transform(session, data)
                 self._load(session, data_gen)
         except Exception as e:
