@@ -69,6 +69,25 @@ class Cleaner(Base):
         for i in all_lines_cleaned:
             yield dict(zip(all_items.keys(), i))
 
+    def clean_named_tuple_gen(self, named_tuple_gen):
+        combined_module = self._get_combined_module()
+        model_info = combined_module.FIELDS
+
+        cleaned_table = self._collect_columns(named_tuple_gen)
+
+        for field_name, field_value in cleaned_table.items():
+            try:
+                field_info = model_info[field_name]
+            except KeyError:
+                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
+
+            self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
+
+        all_lines_cleaned = zip(*cleaned_table)
+
+        for i in all_lines_cleaned:
+            yield dict(zip(all_items.keys(), i))
+
     def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values, original_content_type):
         is_nullable = field_info.get('is_nullable', False)
         is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
@@ -210,7 +229,8 @@ class Cleaner(Base):
                      'content_bytes': [xlsx_contents_cleaned],
                      'content_bytesio': [lambda x: x.getvalue(), xlsx_contents_cleaned],
                      'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xlsx_contents_cleaned],
-                     }
+                     },
+            'named_tuple': {'content_generator': [self.clean_named_tuple_gen]}
         }
 
         content_type = content_type.lower()
