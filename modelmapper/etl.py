@@ -189,13 +189,45 @@ class ETL(Base):
 
         return data
 
-    def transform(self, session=None, data_gen=None):
+    def pre_clean_transform(self, session=None, data=None):
+        """User implemented function that is applied to data before modelmapper.Cleaner.clean.
+
+        Args:
+            session (SQLAlchemy.Session): Return value from client provided implementation of self.get_session.
+            data (dict): Raw data dict from self._extract() that contains the following keys:
+                         content, raw_key_id, content_type, path, and sheets.
+
+        Returns:
+            data: Same data dict from above but contents have transformation applied.
         """
+        return data
+
+    def post_clean_transform(self, session=None, data_gen=None):
+        """Function that is applied to data after modelmapper.Cleaner.clean has finished.
         The function to add your additional transform functionality
+
+        Args:
+            session (SQLAlchemy.Session): Description of parameter `session`.
+            data_gen (type): Description of parameter `data_gen`.
+
+        Returns:
+            data_gen (GeneratorType):
         """
         return data_gen
 
     def _transform(self, session, data):
+        """Applies idempotent functions to data transformations
+
+        Args:
+            session (SQLAlchemy.Session):
+            data (dict): Raw data dict from self._extract() that contains the following keys:
+                         content, raw_key_id, content_type, path, and sheets.
+
+        Returns:
+            data_gen: list of dictionaries that normalized column headers to values in data.
+        """
+        data = self.pre_clean_transform(session, data)
+
         data_gen = self.cleaner.clean(content_type=data['content_type'], path=data['path'],
                                       content=data['content'], sheet_names=data['sheet_names'])
 
@@ -204,9 +236,8 @@ class ETL(Base):
 
         row_metadata = {'raw_key_id': data['raw_key_id']}
         data_gen = generator_updater(data_gen, **row_metadata)
-        data_gen = self.transform(session, data_gen)
 
-        return data_gen
+        return self.post_clean_transform(session, data_gen)
 
     def _load(self, session, data_gen):
         self.logger.info(f"{self.JOB_NAME}: Inserting data into db")
@@ -238,6 +269,22 @@ class ETL(Base):
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
             sheet_names=None, use_client=True, backup_data=True, should_persist_client_state=True):
+        """Starting point for the Extract Transform Load (ETL) job. Your subclass must run this
+        function for the entire ETL job to run.
+
+        Args:
+            ping_slack (Boolean): Should we alert slack on the status of this job?
+            path (str): Location of file whose contents are to be read (See below for content types).
+            content (str): {str, bytes, bytesio, stringio}. See solutions dict in modelmapper.Cleaner.clean.
+            content_type (str): Description of parameter `content_type`.
+            sheet_names (list): names of individual files to process (only used for xls and xlsx).
+            use_client (Boolean): Should we use self.get_client_data() for the extraction process?
+            backup_data (Boolean): Should we save raw data to an external data source?
+            should_persist_client_state (Boolean): Should we pickle client response once we have it?
+
+
+        Raises:            Exception: A general error occurred in our ETL process.
+        """
         try:
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,

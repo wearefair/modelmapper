@@ -26,3 +26,9 @@ class BasicETL(ETL):
 
     def verify_access_to_backup_source(self):
         pass
+
+    def pre_clean_transform(self, session, data_gen):
+        pass
+
+    def post_clean_transform(self, session, data_gen):
+        pass

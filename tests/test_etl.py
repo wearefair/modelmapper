@@ -87,3 +87,7 @@ class TestETL:
     def test_hash_of_bytes_converts_to_str(self, job):
         content = None
         assert job.get_hash_of_bytes(content) == mmh3.hash(str(content))
+
+
+    def test_transformers(self):
+        pass
