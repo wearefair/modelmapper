@@ -9,7 +9,7 @@ import gzip
 import datetime
 import logging
 import pickle
-
+from types import GeneratorType
 from collections import Mapping
 
 
@@ -49,7 +49,10 @@ class ETL(Base):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
-        return mmh3.hash(item)
+        try:
+            return mmh3.hash(item)
+        except TypeError:
+            return mmh3.hash(str(item))
 
     def get_hash_of_row(self, row):
         if isinstance(row, list):
@@ -145,7 +148,8 @@ class ETL(Base):
         raise NotImplementedError('Please implement verify_access_to_backup_source')
 
     def _extract(self, session, path=None, content=None, content_type=None,
-                 sheet_names=None, use_client=True, backup_data=True):
+                 sheet_names=None, use_client=True, backup_data=True,
+                 should_persist_client_state=True):
         invalid_choices = [
             (path is None and content is None and not use_client,
              ValueError('If path and content are None, the client must be used.')),
@@ -167,6 +171,9 @@ class ETL(Base):
         if use_client:
             content = self.get_client_data()
 
+        if (backup_data or should_persist_client_state) and isinstance(content, GeneratorType):
+            content = list(content)
+
         if backup_data:
             content = content.encode('utf-8') if isinstance(content, str) else content
             raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
@@ -176,16 +183,51 @@ class ETL(Base):
 
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
                 "path": path, "sheet_names": sheet_names}
-        self._dump_state_after_client_response(data)
+
+        if should_persist_client_state:
+            self._dump_state_after_client_response(data)
+
         return data
 
-    def transform(self, session=None, data_gen=None):
+    def pre_clean_transform(self, session=None, data=None):
+        """User implemented function that is applied to data before modelmapper.Cleaner.clean.
+
+        Args:
+            session (SQLAlchemy.Session): Return value from client provided implementation of self.get_session.
+            data (dict): Raw data dict from self._extract() that contains the following keys:
+                         content, raw_key_id, content_type, path, and sheets.
+
+        Returns:
+            data: Same data dict from above but contents have transformation applied.
         """
+        return data
+
+    def post_clean_transform(self, session=None, data_gen=None):
+        """Function that is applied to data after modelmapper.Cleaner.clean has finished.
         The function to add your additional transform functionality
+
+        Args:
+            session (SQLAlchemy.Session): Description of parameter `session`.
+            data_gen (type): Description of parameter `data_gen`.
+
+        Returns:
+            data_gen (GeneratorType):
         """
         return data_gen
 
     def _transform(self, session, data):
+        """Applies idempotent functions to data transformations
+
+        Args:
+            session (SQLAlchemy.Session):
+            data (dict): Raw data dict from self._extract() that contains the following keys:
+                         content, raw_key_id, content_type, path, and sheets.
+
+        Returns:
+            data_gen: list of dictionaries that normalized column headers to values in data.
+        """
+        data = self.pre_clean_transform(session, data)
+
         data_gen = self.cleaner.clean(content_type=data['content_type'], path=data['path'],
                                       content=data['content'], sheet_names=data['sheet_names'])
 
@@ -194,9 +236,8 @@ class ETL(Base):
 
         row_metadata = {'raw_key_id': data['raw_key_id']}
         data_gen = generator_updater(data_gen, **row_metadata)
-        data_gen = self.transform(session, data_gen)
 
-        return data_gen
+        return self.post_clean_transform(session, data_gen)
 
     def _load(self, session, data_gen):
         self.logger.info(f"{self.JOB_NAME}: Inserting data into db")
@@ -227,11 +268,28 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True):
+            sheet_names=None, use_client=True, backup_data=True, should_persist_client_state=True):
+        """Starting point for the Extract Transform Load (ETL) job. Your subclass must run this
+        function for the entire ETL job to run.
+
+        Args:
+            ping_slack (Boolean): Should we alert slack on the status of this job?
+            path (str): Location of file whose contents are to be read (See below for content types).
+            content (str): {str, bytes, bytesio, stringio}. See solutions dict in modelmapper.Cleaner.clean.
+            content_type (str): Description of parameter `content_type`.
+            sheet_names (list): names of individual files to process (only used for xls and xlsx).
+            use_client (Boolean): Should we use self.get_client_data() for the extraction process?
+            backup_data (Boolean): Should we save raw data to an external data source?
+            should_persist_client_state (Boolean): Should we pickle client response once we have it?
+
+
+        Raises:            Exception: A general error occurred in our ETL process.
+        """
         try:
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,
-                                     sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
+                                     sheet_names=sheet_names, use_client=use_client, backup_data=backup_data,
+                                     should_persist_client_state=should_persist_client_state)
                 data_gen = self._transform(session, data)
                 self._load(session, data_gen)
         except Exception as e:

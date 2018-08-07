@@ -90,11 +90,7 @@ class Base:
         return item
 
     def _get_all_clean_field_names_mapping(self, names):
-        name_mapping = {}
-        for name in names:
-            name_mapping[name] = self._get_clean_field_name(name)
-
-        return name_mapping
+        return {name: self._get_clean_field_name(name) for name in names}
 
     def _get_combined_module(self):
         combined_module_str = self.settings.combined_file_name[:-3]
@@ -143,3 +139,19 @@ class Base:
                     else:
                         result[field_name].append(v)
         return result
+
+    def _clean_names(self, record):
+        record_keys = record._asdict().keys()
+        return self._get_all_clean_field_names_mapping(record_keys)
+
+    def _collect_columns(self, named_tuple_gen):
+        table = defaultdict(list)
+        record = next(named_tuple_gen)
+        cleaned_names = self._clean_names(record)
+
+        for elem in named_tuple_gen:
+            for dirty_name, value in elem._asdict():
+                clean_name = cleaned_names[dirty_name]
+                table[clean_name].append(value)
+
+        return table
