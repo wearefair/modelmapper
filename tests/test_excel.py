@@ -5,11 +5,11 @@ from modelmapper.excel import (_xls_contents_to_csvs, _xls_xml_contents_to_dict,
                                _xls_xml_contents_to_csvs, excel_contents_to_csvs,
                                _xlsx_contents_to_csvs, excel_file_to_csv_files)
 
-from fixtures.excel_fixtures import (xls_contents2, xls_xml_contents1, xls_xml_contents2,  # NOQA
-                                     xls_xml_contents_in_json1, xls_xml_contents_in_json2, csv_contents2,
-                                     xls_xml_contents1_with_2_sheets, csv_contents1_other_sheet,
-                                     csv_contents1, csv_contents1_reformatted,
-                                     xlsx_contents1_with_2_sheets, xlsx_contents2)
+from tests.fixtures.excel_fixtures import (xls_contents2, xls_xml_contents1, xls_xml_contents2,  # NOQA
+                                           xls_xml_contents_in_json1, xls_xml_contents_in_json2, csv_contents2,
+                                           xls_xml_contents1_with_2_sheets, csv_contents1_other_sheet,
+                                           csv_contents1, csv_contents1_reformatted,
+                                           xlsx_contents1_with_2_sheets, xlsx_contents2)
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

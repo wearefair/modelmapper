@@ -8,8 +8,8 @@ from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert
                               convert_dict_item_type, write_toml, write_settings, read_csv_gen,
                               DefaultList, generator_chunker, generator_updater)
 from modelmapper.mapper import SqlalchemyFieldType
-from fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
-from fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2  # NOQA
+from tests.fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
+from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2  # NOQA
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 

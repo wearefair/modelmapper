@@ -7,10 +7,10 @@ from deepdiff import DeepDiff
 from modelmapper import Mapper
 from modelmapper.mapper import FieldResult, SqlalchemyFieldType, get_field_result_from_dict
 from modelmapper.stats import FieldStats
-from fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
-from fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, override_fixture1,
-                                        analysis_fixture_a_only_combined, analysis_fixture_a_and_b_combined,
-                                        analysis_fixture_a_and_b_combined_with_override)
+from tests.fixtures.training_fixture1_mapping import all_fixture1_values, all_field_results_fixture1, all_field_sqlalchemy_str_fixture1  # NOQA
+from tests.fixtures.analysis_fixtures import (analysis_fixture_a, analysis_fixture_b, override_fixture1,
+                                              analysis_fixture_a_only_combined, analysis_fixture_a_and_b_combined,
+                                              analysis_fixture_a_and_b_combined_with_override)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
