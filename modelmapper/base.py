@@ -40,6 +40,7 @@ class Base:
             self.settings[item] = set(self.settings.get(item, []))
         slack_http_endpoint = self.settings['slack_http_endpoint']
         slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
+        self.settings['raw_headers'] = self.settings.get('raw_headers', {})
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
@@ -120,7 +121,8 @@ class Base:
             raise ValueError(f'The following fields were repeated in the csv: {duplicates}')
 
     def _get_clean_names_and_csv_data_gen(self, path):
-        reader = read_csv_gen(path)
+        raw_headers = self.settings.raw_headers
+        reader = read_csv_gen(path, raw_headers=raw_headers)
         names = next(reader)
         self._verify_no_duplicate_names(names)
         name_mapping = self._get_all_clean_field_names_mapping(names)

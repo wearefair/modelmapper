@@ -172,12 +172,13 @@ def find_header(iostream, **kwargs):
     """
     sniffer = csv.Sniffer()
     raw_headers = kwargs.pop('raw_headers', None)
-    has_header = sniffer.has_header(iostream.read(CHUNK_SIZE))
+    has_header = sniffer.has_header(iostream.readline())
 
     # reset the file pointer to beginning
     iostream.seek(0)
+    false_headers = raw_headers is None or raw_headers == {}
 
-    if has_header:
+    if has_header and false_headers:
         return csv.reader(iostream, **kwargs)
 
     if raw_headers is None:
