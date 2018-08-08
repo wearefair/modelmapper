@@ -87,3 +87,15 @@ def xls_xml_contents_in_json2():
 def csv_contents2():
     with open(os.path.join(current_dir, 'training_fixture2.csv'), 'r', encoding='utf-8-sig') as the_file:
         return the_file.read()
+
+
+@pytest.fixture(scope='session')
+def offset_header():
+    with open(os.path.join(current_dir, 'offset_header.csv')) as stream:
+        return stream.read()
+
+
+@pytest.fixture(scope='session')
+def corrected_header():
+    with open(os.path.join(current_dir, 'corrected_offset_header.csv')) as stream:
+        return stream.read()

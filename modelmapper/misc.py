@@ -163,13 +163,11 @@ def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
 
     Args:
-        iostream (type): Description of parameter `iostream`.
-        **kwargs (dict): Description of parameter `**kwargs`.
+        iostream (_io.TextIOWrapper): Description of parameter `iostream`.
+        **kwargs (dict): keyword arguments for csv.reader and .
 
     Returns:
-        type: Description of returned object.
-
-    Raises:        ExceptionName: Why the exception is raised.
+        iterable: csv data started from the head
 
     """
     sniffer = csv.Sniffer()
@@ -189,7 +187,7 @@ def find_header(iostream, **kwargs):
 
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):
-            return chain(record, records)
+            return chain([record], records)
 
 def read_csv_gen(path_or_stringio, **kwargs):
     """

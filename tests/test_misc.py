@@ -9,7 +9,7 @@ from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert
                               DefaultList, generator_chunker, generator_updater)
 from modelmapper.mapper import SqlalchemyFieldType
 from tests.fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
-from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2  # NOQA
+from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2, offset_header, corrected_header  # NOQA
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 
@@ -89,12 +89,6 @@ class TestMisc:
         result = write_settings('/tmp/settings.toml', loaded_template)
         assert template_settings_content == result
 
-    def test_read_csv_gen(self, csv_contents2, xls_xml_contents_in_json2):  # NOQA
-        item = io.StringIO(csv_contents2)
-        csv_gen = read_csv_gen(item)
-        result = list(csv_gen)
-        assert result == xls_xml_contents_in_json2['Sheet1']
-
     def test_default_list1(self):
         items = DefaultList()
         items.append(1)
@@ -145,15 +139,16 @@ class TestMisc:
         result_list = list(result)
         assert expected == result_list
 
+    @pytest.mark.parametrize('contents, expected, raw_headers', [
+        (csv_contents2(), xls_xml_contents_in_json2()['Sheet1'], {}),
+    ])
+    def test_read_csv_gen(self, contents, expected, raw_headers):  # NOQA
+        item = io.StringIO(contents)
+        item = list(read_csv_gen(item, raw_headers=raw_headers))
+        assert item == expected
+
     def test_read_csv_gen_offset_header(self):
-        offset_path = os.path.join(current_dir, 'fixtures/offset_header.csv')
-        corrected_path = os.path.join(current_dir, 'fixtures/corrected_offset_header.csv')
-        fixed_offset_contents = read_csv_gen(offset_path, raw_headers={'Account Number', 'Fees'})
-
-        for item in fixed_offset_contents:
-            print(item)
-
-        with open(corrected_path, 'r') as stream:
-            corrected_contents = stream.read().split('\n')
-
-        assert fixed_offset_contents == corrected_contents
+        offset_io = io.StringIO(offset_header())
+        csv_gen = read_csv_gen(offset_io, raw_headers={'Account Number', 'Fees'})
+        for corrected, expected in zip(list(csv_gen), corrected_header().split('\n')):
+            assert corrected == expected.split(',')
