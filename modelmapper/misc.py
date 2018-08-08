@@ -186,9 +186,10 @@ def find_header(iostream, **kwargs):
         raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
 
     records = csv.reader(iostream, **kwargs)
-    for row in records:
-        if any(map(lambda x: x in raw_headers, row)):
-            return chain(row, records)
+
+    for record in records:
+        if any(map(lambda x: x in raw_headers, record)):
+            return chain(record, records)
 
 def read_csv_gen(path_or_stringio, **kwargs):
     """

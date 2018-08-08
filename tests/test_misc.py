@@ -152,7 +152,8 @@ class TestMisc:
 
         for item in fixed_offset_contents:
             print(item)
+
         with open(corrected_path, 'r') as stream:
-            corrected_contents = stream.read()
+            corrected_contents = stream.read().split('\n')
 
         assert fixed_offset_contents == corrected_contents
