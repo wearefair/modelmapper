@@ -15,6 +15,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
+CHUNK_SIZE = 1024
 
 
 class FileNotFound(ValueError):
@@ -157,6 +158,36 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
         with open(path, 'w') as model_file:
             model_file.write("".join(new_model_lines))
 
+def find_headers(iostream, **kwargs):
+    """From an open csv file descriptor, finds the headers and yields data from there.
+
+    Args:
+        iostream (type): Description of parameter `iostream`.
+        **kwargs (dict): Description of parameter `**kwargs`.
+
+    Returns:
+        type: Description of returned object.
+
+    Raises:        ExceptionName: Why the exception is raised.
+
+    """
+    sniffer = csv.Sniffer()
+    raw_headers = kwargs.pop('raw_headers', None)
+
+    if sniffer.has_header(iostream.read(CHUNK_SIZE)) is False:
+        iostream.seek(0)
+        if raw_headers is None:
+            raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
+
+    has_seen_header = False
+
+    for row in csv.reader(iostream, **kwargs):
+
+        if any(map(lambda x: x in raw_headers, row)) and has_seen_header is False:
+            has_seen_header = True
+
+        if has_seen_header:
+            yield row
 
 def read_csv_gen(path_or_stringio, **kwargs):
     """
@@ -166,11 +197,11 @@ def read_csv_gen(path_or_stringio, **kwargs):
         _check_file_exists(path_or_stringio)
         encoding = kwargs.pop('encoding', 'utf-8-sig')
         with open(path_or_stringio, 'r', encoding=encoding) as csvfile:
-            for i in csv.reader(csvfile, **kwargs):
-                yield i
+            for row in find_headers(csvfile, **kwargs):
+                yield row
     elif isinstance(path_or_stringio, io.StringIO):
-        for i in csv.reader(path_or_stringio, **kwargs):
-            yield i
+        for row in find_headers(path_or_stringio, **kwargs):
+            yield row
     else:
         raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 
