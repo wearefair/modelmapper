@@ -144,3 +144,13 @@ class TestMisc:
         result = generator_updater(gen, **update)
         result_list = list(result)
         assert expected == result_list
+
+    def test_read_csv_gen_offset_header(self):
+        offset_path = os.path.join(current_dir, 'fixtures/offset_header.csv')
+        corrected_path = os.path.join(current_dir, 'fixtures/corrected_offset_header.csv')
+        fixed_offset_contents = list(read_csv_gen(offset_path, raw_headers={'Account Number', 'Fees'}))
+
+        with open(corrected_path, 'r') as stream:
+            corrected_contents = stream.read()
+
+        assert fixed_offset_contents == corrected_contents
