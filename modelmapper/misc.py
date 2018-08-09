@@ -1,5 +1,6 @@
 import csv
 import io
+from itertools import chain
 import os
 import enum
 import logging
@@ -158,6 +159,37 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
             model_file.write("".join(new_model_lines))
 
 
+def find_header(iostream, **kwargs):
+    """From an open csv file descriptor, locates header and returns iterable data from there.
+
+    Args:
+        iostream (_io.TextIOWrapper): Description of parameter `iostream`.
+        **kwargs (dict): keyword arguments for csv.reader and .
+
+    Returns:
+        iterable: csv data started from the head
+
+    """
+    sniffer = csv.Sniffer()
+    raw_headers = kwargs.pop('raw_headers_include', None)
+    has_header = sniffer.has_header(iostream.readline())
+
+    # reset the file pointer to beginning
+    iostream.seek(0)
+    false_headers = raw_headers is None or raw_headers == {}
+
+    if has_header and false_headers:
+        return csv.reader(iostream, **kwargs)
+
+    if raw_headers is None:
+        raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
+
+    records = csv.reader(iostream, **kwargs)
+
+    for record in records:
+        if any(map(lambda x: x in raw_headers, record)):
+            return chain([record], records)
+
 def read_csv_gen(path_or_stringio, **kwargs):
     """
     Takes a path_or_stringio to a file or a StringIO object and creates a CSV generator
@@ -166,11 +198,11 @@ def read_csv_gen(path_or_stringio, **kwargs):
         _check_file_exists(path_or_stringio)
         encoding = kwargs.pop('encoding', 'utf-8-sig')
         with open(path_or_stringio, 'r', encoding=encoding) as csvfile:
-            for i in csv.reader(csvfile, **kwargs):
-                yield i
+            for row in find_header(csvfile, **kwargs):
+                yield row
     elif isinstance(path_or_stringio, io.StringIO):
-        for i in csv.reader(path_or_stringio, **kwargs):
-            yield i
+        for row in find_header(path_or_stringio, **kwargs):
+            yield row
     else:
         raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 

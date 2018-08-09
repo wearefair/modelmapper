@@ -4,8 +4,8 @@ import pytest
 
 from deepdiff import DeepDiff
 from modelmapper import Cleaner
-from fixtures.training_fixture1_cleaned_for_import import cleaned_csv_for_import_fixture  # NOQA
-from fixtures.training_fixture1_with_2_sheets_cleaned_for_import import cleaned_csv_with_2_sheets_combined_for_import_fixture  # NOQA
+from tests.fixtures.training_fixture1_cleaned_for_import import cleaned_csv_for_import_fixture  # NOQA
+from tests.fixtures.training_fixture1_with_2_sheets_cleaned_for_import import cleaned_csv_with_2_sheets_combined_for_import_fixture  # NOQA
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 example_setup_path = os.path.join(current_dir, '../modelmapper/example/some_model_setup.toml')
