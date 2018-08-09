@@ -49,10 +49,7 @@ class ETL(Base):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
-        try:
-            return mmh3.hash(item)
-        except TypeError:
-            return mmh3.hash(str(item))
+        return mmh3.hash(item)
 
     def get_hash_of_row(self, row):
         if isinstance(row, list):
@@ -149,7 +146,7 @@ class ETL(Base):
 
     def _extract(self, session, path=None, content=None, content_type=None,
                  sheet_names=None, use_client=True, backup_data=True,
-                 should_cache_client_response=True):
+                 cache_client_response=True):
         invalid_choices = [
             (path is None and content is None and not use_client,
              ValueError('If path and content are None, the client must be used.')),
@@ -181,7 +178,7 @@ class ETL(Base):
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
                 "path": path, "sheet_names": sheet_names}
 
-        if should_cache_client_response:
+        if cache_client_response:
             self._dump_state_after_client_response(data)
 
         return data

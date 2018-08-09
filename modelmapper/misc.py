@@ -16,7 +16,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
-CHUNK_SIZE = 1024
 
 
 class FileNotFound(ValueError):
@@ -159,6 +158,7 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
         with open(path, 'w') as model_file:
             model_file.write("".join(new_model_lines))
 
+
 def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
 
@@ -171,7 +171,7 @@ def find_header(iostream, **kwargs):
 
     """
     sniffer = csv.Sniffer()
-    raw_headers = kwargs.pop('raw_headers', None)
+    raw_headers = kwargs.pop('raw_headers_include', None)
     has_header = sniffer.has_header(iostream.readline())
 
     # reset the file pointer to beginning

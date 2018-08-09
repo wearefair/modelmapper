@@ -3,7 +3,6 @@ from types import GeneratorType
 from unittest import mock
 from uuid import uuid4
 
-import mmh3
 import pytest
 
 from modelmapper import ETL
@@ -74,14 +73,3 @@ class TestETL:
             # kinda hacky but it does the trick
             args = [None] * arg_count
             getattr(job, fn_name)(*args)
-
-    @pytest.mark.parametrize('content', [
-        b'foo_bar',
-        'foo_bar',
-    ])
-    def test_hash_of_bytes(self, job, content):
-        assert job.get_hash_of_bytes(content) == mmh3.hash(content)
-
-    def test_hash_of_bytes_converts_to_str(self, job):
-        content = None
-        assert job.get_hash_of_bytes(content) == mmh3.hash(str(content))
