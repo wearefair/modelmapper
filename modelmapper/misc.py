@@ -174,7 +174,7 @@ def find_header(iostream, **kwargs):
     raw_headers = kwargs.pop('raw_headers_include', None)
     sniffer = csv.Sniffer()
     preview = iostream.read(CHUNK_SIZE)
-    delimiter = kwargs.pop('delimiter', None) or sniffer.sniff(preview).delimiter
+    delimiter = kwargs.pop('delimiter', sniffer.sniff(preview).delimiter)
     has_header = sniffer.has_header(preview)
 
     # reset the file pointer to beginning
