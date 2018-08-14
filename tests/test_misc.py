@@ -15,7 +15,6 @@ TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-tab_sep_path = os.path.join(current_dir, 'fixtures/tab_sep.txt')
 
 
 class TestMisc:
