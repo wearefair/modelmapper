@@ -16,6 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
+CHUNK_SIZE = 1024
 
 
 class FileNotFound(ValueError):
@@ -170,21 +171,23 @@ def find_header(iostream, **kwargs):
         iterable: csv data started from the head
 
     """
-    sniffer = csv.Sniffer()
     raw_headers = kwargs.pop('raw_headers_include', None)
-    has_header = sniffer.has_header(iostream.readline())
+    sniffer = csv.Sniffer()
+    preview = iostream.read(CHUNK_SIZE)
+    delimiter = kwargs.pop('delimiter', sniffer.sniff(preview).delimiter)
+    has_header = sniffer.has_header(preview)
 
     # reset the file pointer to beginning
     iostream.seek(0)
     false_headers = raw_headers is None or raw_headers == {}
 
     if has_header and false_headers:
-        return csv.reader(iostream, **kwargs)
+        return csv.reader(iostream, delimiter=delimiter, **kwargs)
 
     if raw_headers is None:
         raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
 
-    records = csv.reader(iostream, **kwargs)
+    records = csv.reader(iostream, delimiter=delimiter, **kwargs)
 
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):

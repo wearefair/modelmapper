@@ -13,6 +13,7 @@ training_fixture1_path = os.path.join(current_dir, 'fixtures/training_fixture1.c
 training_fixture1_xls_xml_path = training_fixture1_path.replace('.csv', '.xml')
 training_fixture1_xls_path = training_fixture1_path.replace('.csv', '.xls')
 training_fixture1_xlsx_path = training_fixture1_path.replace('.csv', '.xlsx')
+training_fixture1_tab_path = training_fixture1_path.replace('.csv', '.txt')
 training_fixture1_with_2_sheets_path = os.path.join(current_dir, 'fixtures/training_fixture1_with_2_sheets.xml')
 training_fixture1_xlsx_with_2_sheets_path = training_fixture1_with_2_sheets_path.replace('xml', 'xlsx')
 
@@ -21,6 +22,9 @@ with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
 
 with open(training_fixture1_xls_xml_path, 'r', encoding='utf-8-sig') as the_file:
     training_fixture1_xls_xml_content_str = the_file.read()
+
+with open(training_fixture1_tab_path, 'r', encoding='utf-8-sig') as ostream:
+    training_fixture1_tab_content_str = ostream.read()
 
 
 @pytest.fixture
@@ -50,6 +54,11 @@ class TestCleaner:
         ('csv', None, training_fixture1_content_str.encode('utf-8'), None),
         ('csv', None, io.BytesIO(training_fixture1_content_str.encode('utf-8')), None),
         ('csv', training_fixture1_path, None, None),
+        ('txt', None, io.StringIO(training_fixture1_tab_content_str), None),
+        ('txt', None, training_fixture1_tab_content_str, None),
+        ('txt', None, training_fixture1_tab_content_str.encode('utf-8'), None),
+        ('txt', None, io.BytesIO(training_fixture1_tab_content_str.encode('utf-8')), None),
+        ('txt', training_fixture1_tab_path, None, None),
         ('xls_xml', training_fixture1_xls_xml_path, None, None),
         ('xls_xml', None, training_fixture1_xls_xml_content_str, None),
         ('xls_xml', None, training_fixture1_xls_xml_content_str.encode('utf-8'), None),

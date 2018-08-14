@@ -9,7 +9,8 @@ from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert
                               DefaultList, generator_chunker, generator_updater)
 from modelmapper.mapper import SqlalchemyFieldType
 from tests.fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
-from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2, offset_header, corrected_header  # NOQA
+from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2, offset_header, corrected_header
+
 TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 
 

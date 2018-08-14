@@ -210,8 +210,9 @@ class Cleaner(Base):
                      'content_bytes': [xlsx_contents_cleaned],
                      'content_bytesio': [lambda x: x.getvalue(), xlsx_contents_cleaned],
                      'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xlsx_contents_cleaned],
-                     }
+                     },
         }
+        solutions['txt'] = solutions['csv']
 
         content_type = content_type.lower()
         try:
