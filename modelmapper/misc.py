@@ -171,7 +171,7 @@ def find_header(iostream, **kwargs):
         iterable: csv data started from the head
     """
     raw_headers = kwargs.pop('raw_headers_include', None)
-    dialect = kwargs.pop('csv_dialect', None)
+    dialect = kwargs.pop('dialect', None)
     delimiter = kwargs.pop('delimiter', None)
     sniffer = csv.Sniffer()
     sample = iostream.read(CHUNK_SIZE)
@@ -193,7 +193,7 @@ def find_header(iostream, **kwargs):
 
     # no user provided headers but sniffer found some
     if not raw_headers and has_header:
-        return csv.reader(iostream, delimiter=delimiter, dialect=dialect)
+        return csv.reader(iostream, delimiter=delimiter, dialect=dialect, **kwargs)
 
     # no user provided headers and sniffer could not find any.
     # we cannot locate the headers
@@ -201,8 +201,9 @@ def find_header(iostream, **kwargs):
         raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
                         'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
 
-    records = csv.reader(iostream, delimiter=delimiter, dialect=dialect)
+    records = csv.reader(iostream, delimiter=delimiter, dialect=dialect, **kwargs)
 
+    # find headers
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):
             return chain([record], records)
