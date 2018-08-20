@@ -169,25 +169,35 @@ def find_header(iostream, **kwargs):
 
     Returns:
         iterable: csv data started from the head
-
     """
     raw_headers = kwargs.pop('raw_headers_include', None)
+    dialect = kwargs.pop('csv_dialect', None)
+    delimiter = kwargs.pop('delimiter', None)
     sniffer = csv.Sniffer()
-    preview = iostream.read(CHUNK_SIZE)
-    delimiter = kwargs.pop('delimiter', sniffer.sniff(preview).delimiter)
-    has_header = sniffer.has_header(preview)
+    sample = iostream.read(CHUNK_SIZE)
+
+    try:
+        dialect = sniffer.sniff(sample)
+        delimiter = dialect.delimiter
+    except csv.Error:
+        dialect = dialect or csv.excel
+        delimiter = delimiter or ','
+    try:
+        has_header = sniffer.has_header(sample)
+    except csv.Error:
+        has_header = False
 
     # reset the file pointer to beginning
     iostream.seek(0)
-    false_headers = raw_headers is None or raw_headers == {}
 
-    if has_header and false_headers:
-        return csv.reader(iostream, delimiter=delimiter, **kwargs)
+
+    if not raw_headers:
+        return csv.reader(iostream, delimiter=delimiter, dialect=dialect)
 
     if raw_headers is None:
         raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
 
-    records = csv.reader(iostream, delimiter=delimiter, **kwargs)
+    records = csv.reader(iostream, dialect=dialect)
 
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):
