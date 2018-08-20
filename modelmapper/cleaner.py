@@ -47,11 +47,14 @@ class Cleaner(Base):
 
         super().__init__(*args, **kwargs)
 
-    def get_csv_data_cleaned(self, path_or_content, original_content_type=None):
+    def get_csv_data_cleaned(self, path_or_content, original_content_type=None, delimiter=None):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
         """
+        if delimiter is not None:
+            self.settings = self.settings._replace(delimiter=delimiter)
+
         combined_module = self._get_combined_module()
         model_info = combined_module.FIELDS
 
@@ -171,7 +174,6 @@ class Cleaner(Base):
         sheet_names: (optional) The sheet names from the Excel file to be considered.
                                 If none provided, all sheets will be considered.
         """
-
         def _excel_contents_cleaned(content, func, sheet_names):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
@@ -184,6 +186,7 @@ class Cleaner(Base):
                                            sheet_names=sheet_names)
         xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs,
                                         sheet_names=sheet_names)
+        tsv_contents_cleaned = partial(self.get_csv_data_cleaned, delimiter='\t')
 
         solutions = {
             'csv': {'path': [self.get_csv_data_cleaned],
@@ -192,6 +195,13 @@ class Cleaner(Base):
                     'content_stringio': [self.get_csv_data_cleaned],
                     'content_bytesio': [lambda x: x.getvalue().decode('utf-8'),
                                         io.StringIO, self.get_csv_data_cleaned],
+                    },
+            'tsv': {'path': [tsv_contents_cleaned],
+                    'content_str': [io.StringIO, tsv_contents_cleaned],
+                    'content_bytes': [lambda x: x.decode('utf-8'), io.StringIO, tsv_contents_cleaned],
+                    'content_stringio': [tsv_contents_cleaned],
+                    'content_bytesio': [lambda x: x.getvalue().decode('utf-8'),
+                                        io.StringIO, tsv_contents_cleaned],
                     },
             'xls': {'path': [get_file_content_bytes, xls_contents_cleaned],
                     'content_str': [lambda x: x.encode('utf-8'), xls_contents_cleaned],
@@ -212,7 +222,6 @@ class Cleaner(Base):
                      'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xlsx_contents_cleaned],
                      },
         }
-        solutions['txt'] = solutions['csv']
 
         content_type = content_type.lower()
         try:

@@ -173,20 +173,22 @@ def find_header(iostream, **kwargs):
     raw_headers = kwargs.pop('raw_headers_include', None)
     dialect = kwargs.pop('dialect', None)
     delimiter = kwargs.pop('delimiter', None)
-    sniffer = csv.Sniffer()
     sample = iostream.read(CHUNK_SIZE)
+    sniffer = csv.Sniffer()
 
-    try:
-        dialect = sniffer.sniff(sample)
-        delimiter = dialect.delimiter
-    except csv.Error:
-        dialect = dialect or csv.excel
-        delimiter = delimiter or ','
+    if dialect is None or delimiter is None:
+        try:
+            dialect = sniffer.sniff(sample)
+            delimiter = dialect.delimiter
+        except csv.Error:
+            dialect = dialect or csv.excel
+            delimiter = delimiter or ','
 
-    try:
-        has_header = sniffer.has_header(sample)
-    except csv.Error:
-        has_header = False
+    if not raw_headers:
+        try:
+            has_header = sniffer.has_header(sample)
+        except csv.Error:
+            has_header = False
 
     # reset the file pointer to beginning
     iostream.seek(0)
