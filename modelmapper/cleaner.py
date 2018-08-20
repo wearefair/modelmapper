@@ -52,9 +52,6 @@ class Cleaner(Base):
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
         """
-        if delimiter is not None:
-            self.settings = self.settings._replace(delimiter=delimiter)
-
         combined_module = self._get_combined_module()
         model_info = combined_module.FIELDS
 

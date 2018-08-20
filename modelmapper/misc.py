@@ -171,12 +171,11 @@ def find_header(iostream, **kwargs):
         iterable: csv data started from the head
     """
     raw_headers = kwargs.pop('raw_headers_include', None)
-    dialect = kwargs.pop('dialect', None)
     delimiter = kwargs.pop('delimiter', None)
     sample = iostream.read(CHUNK_SIZE)
     sniffer = csv.Sniffer()
 
-    if dialect is None or delimiter is None:
+    if delimiter is None:
         try:
             dialect = sniffer.sniff(sample)
             delimiter = dialect.delimiter

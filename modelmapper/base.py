@@ -41,8 +41,7 @@ class Base:
         slack_http_endpoint = self.settings['slack_http_endpoint']
         slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
         self.settings['raw_headers_include'] = self.settings.get('raw_headers_include', {})
-        self.settings['csv_dialect'] = self.settings.get('csv_dialect', 'excel')
-        self.settings['delimiter'] = self.settings.get('delimiter', ',')
+        self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
@@ -123,10 +122,9 @@ class Base:
             raise ValueError(f'The following fields were repeated in the csv: {duplicates}')
 
     def _get_clean_names_and_csv_data_gen(self, path):
-        dialect = self.settings.csv_dialect
-        delimiter = self.settings.delimiter
+        delimiter = self.settings.csv_delimiter
         raw_headers_include = self.settings.raw_headers_include
-        reader = read_csv_gen(path, dialect=dialect, delimiter=delimiter, raw_headers_include=raw_headers_include)
+        reader = read_csv_gen(path, delimiter=delimiter, raw_headers_include=raw_headers_include)
         names = next(reader)
         self._verify_no_duplicate_names(names)
         name_mapping = self._get_all_clean_field_names_mapping(names)
