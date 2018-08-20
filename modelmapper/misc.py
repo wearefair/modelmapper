@@ -164,8 +164,8 @@ def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
 
     Args:
-        iostream (_io.TextIOWrapper): Description of parameter `iostream`.
-        **kwargs (dict): keyword arguments for csv.reader and .
+        iostream (_io.TextIOWrapper): fileobj containing csv data.
+        **kwargs (dict): keyword arguments for csv.reader().
 
     Returns:
         iterable: csv data started from the head
@@ -182,6 +182,7 @@ def find_header(iostream, **kwargs):
     except csv.Error:
         dialect = dialect or csv.excel
         delimiter = delimiter or ','
+
     try:
         has_header = sniffer.has_header(sample)
     except csv.Error:
@@ -190,14 +191,17 @@ def find_header(iostream, **kwargs):
     # reset the file pointer to beginning
     iostream.seek(0)
 
-
-    if not raw_headers:
+    # no user provided headers but sniffer found some
+    if not raw_headers and has_header:
         return csv.reader(iostream, delimiter=delimiter, dialect=dialect)
 
-    if raw_headers is None:
-        raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
+    # no user provided headers and sniffer could not find any.
+    # we cannot locate the headers
+    if not raw_headers:
+        raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
+                        'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
 
-    records = csv.reader(iostream, dialect=dialect)
+    records = csv.reader(iostream, delimiter=delimiter, dialect=dialect)
 
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):
