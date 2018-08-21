@@ -160,6 +160,20 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
             model_file.write("".join(new_model_lines))
 
 def analyze_csv_format(iostream, **kwargs):
+    """From csv fileobj detects delimiter, raw headers, and whether or not a header is contained in csv.
+
+    Args:
+        iostream (_io.TextIOWrapper): fileobj containing csv data.
+        **kwargs (dict): keyword arguments for csv.reader().
+
+    Returns:
+        str: delimiter used by csv
+        bool: does the csv fileobj contain headers?
+        set: raw headers passed by user in setup.toml
+
+    Raises:        csv.Error : Malformed csv.
+
+    """
     raw_headers = kwargs.pop('raw_headers_include', None)
     delimiter = kwargs.pop('delimiter', None)
     sample = iostream.read(CHUNK_SIZE)
