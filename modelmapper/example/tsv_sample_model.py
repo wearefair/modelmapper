@@ -12,7 +12,7 @@ SmallInteger = mock.Mock()
 class SomeTSVModel():
     __tablename__ = "some_tsv_model"
 
-    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. tsv_model --------
+    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. tsv_model -------- # noqa
     available = Column(Boolean, nullable=True)
     casualty = Column(Boolean, nullable=True)
     last_payment_date = Column(DateTime, nullable=True)
@@ -21,4 +21,4 @@ class SomeTSVModel():
     slope = Column(DECIMAL(7, 6), nullable=True)
     value_current = Column(Integer, nullable=True)
     year = Column(String(6), nullable=False, default='')
-    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. tsv_model --------
+    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. tsv_model -------- # noqa
