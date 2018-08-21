@@ -1,4 +1,5 @@
 [settings]
+csv_delimiter = "\t"
 null_values = ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900"]
 boolean_true = ["true", "t", "yes", "y", "1"]
 boolean_false = ["false", "f", "no", "n", "0"]
