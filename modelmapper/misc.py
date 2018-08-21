@@ -184,9 +184,10 @@ def analyze_csv_format(iostream, **kwargs):
         try:
             dialect = sniffer.sniff(sample)
             delimiter = dialect.delimiter
-        except csv.Error:
+        except csv.Error as e:
             raise csv.Error('csv.Sniffer() could not detect the dialect of your file',
-                            'Please specify the csv_delimiter in your setup.toml')
+                            'Please specify the csv_delimiter in your setup.toml.',
+                            str(e)) from None
 
     if not raw_headers:
         try:
