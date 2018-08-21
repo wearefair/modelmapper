@@ -159,6 +159,31 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
         with open(path, 'w') as model_file:
             model_file.write("".join(new_model_lines))
 
+def analyze_csv_format(iostream, **kwargs):
+    raw_headers = kwargs.pop('raw_headers_include', None)
+    delimiter = kwargs.pop('delimiter', None)
+    sample = iostream.read(CHUNK_SIZE)
+    sniffer = csv.Sniffer()
+    has_header = True
+
+    if delimiter is None:
+        try:
+            dialect = sniffer.sniff(sample)
+            delimiter = dialect.delimiter
+        except csv.Error:
+            raise csv.Error('csv.Sniffer() could not detect the dialect of your file',
+                            'Please specify the csv_delimiter in your setup.toml')
+
+    if not raw_headers:
+        try:
+            has_header = sniffer.has_header(sample)
+        except csv.Error:
+            has_header = False
+
+    # reset the file pointer to beginning
+    iostream.seek(0)
+
+    return delimiter, has_header, raw_headers
 
 def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
@@ -170,31 +195,11 @@ def find_header(iostream, **kwargs):
     Returns:
         iterable: csv data started from the head
     """
-    raw_headers = kwargs.pop('raw_headers_include', None)
-    delimiter = kwargs.pop('delimiter', None)
-    sample = iostream.read(CHUNK_SIZE)
-    sniffer = csv.Sniffer()
-
-    if delimiter is None:
-        try:
-            dialect = sniffer.sniff(sample)
-            delimiter = dialect.delimiter
-        except csv.Error:
-            dialect = dialect or csv.excel
-            delimiter = delimiter or ','
-
-    if not raw_headers:
-        try:
-            has_header = sniffer.has_header(sample)
-        except csv.Error:
-            has_header = False
-
-    # reset the file pointer to beginning
-    iostream.seek(0)
+    delimiter, has_header, raw_headers = analyze_csv_format(iostream, **kwargs)
 
     # no user provided headers but sniffer found some
     if not raw_headers and has_header:
-        return csv.reader(iostream, delimiter=delimiter, dialect=dialect, **kwargs)
+        return csv.reader(iostream, delimiter=delimiter)
 
     # no user provided headers and sniffer could not find any.
     # we cannot locate the headers
@@ -202,7 +207,7 @@ def find_header(iostream, **kwargs):
         raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
                         'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
 
-    records = csv.reader(iostream, delimiter=delimiter, dialect=dialect, **kwargs)
+    records = csv.reader(iostream, delimiter=delimiter)
 
     # find headers
     for record in records:

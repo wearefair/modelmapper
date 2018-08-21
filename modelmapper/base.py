@@ -41,7 +41,7 @@ class Base:
         slack_http_endpoint = self.settings['slack_http_endpoint']
         slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
         self.settings['raw_headers_include'] = self.settings.get('raw_headers_include', {})
-        self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
+        self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', None)
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
