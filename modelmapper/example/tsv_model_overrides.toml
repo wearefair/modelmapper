@@ -1,0 +1,3 @@
+[year]
+field_db_str = "String(6)"
+is_nullable = false

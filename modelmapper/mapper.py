@@ -347,20 +347,34 @@ class Mapper(Base):
         return results
 
     def analyze(self):
-        results = []
+        """Reads csvs from setup.toml and collects metrics on each column.
+
+        Returns:
+            list: list of dictionaries contained analyzed csv results.
+
+        Raises:            ValueError: No training_csvs are specified in setup.toml
+        """
         if not self.settings.training_csvs:
             raise ValueError('The list of training_csvs in the settings file is empty.')
+
+        results = []
         for csv_path in self.settings.training_csvs:
+
             csv_path = self._get_csv_full_path(csv_path)
             file_path = self._get_analyzed_file_path_from_csv_path(csv_path)
             result = {}
+
             for field_name, field_result in self._get_field_results_from_csv(csv_path):
                 result[field_name] = named_tuple_to_compact_dict(field_result)
+
             write_toml(file_path, result, auto_generated_from=os.path.basename(csv_path),
                        keys_to_convert_to_list=TOML_KEYS_THAT_ARE_SET)
+
             results.append(result)
             print(f'{file_path} updated.')
+
         overrides = self._get_overrides()
+
         if overrides:
             overrides_keys = {k for k, v in overrides.items() if 'field_db_str' in v}
         else:

@@ -1,3 +1,4 @@
+import csv
 import io
 import os
 import enum
@@ -153,3 +154,8 @@ class TestMisc:
         csv_gen = read_csv_gen(offset_io, raw_headers_include={'Account Number', 'Fees'})
         for corrected, expected in zip(list(csv_gen), corrected_header().split('\n')):
             assert corrected == expected.split(',')
+
+    def test_read_csv_gen_errors(self):
+        offset_io = io.StringIO(offset_header())
+        with pytest.raises(csv.Error):
+            list(read_csv_gen(offset_io))

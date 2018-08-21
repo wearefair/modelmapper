@@ -171,7 +171,6 @@ class Cleaner(Base):
         sheet_names: (optional) The sheet names from the Excel file to be considered.
                                 If none provided, all sheets will be considered.
         """
-
         def _excel_contents_cleaned(content, func, sheet_names):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
@@ -184,7 +183,6 @@ class Cleaner(Base):
                                            sheet_names=sheet_names)
         xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs,
                                         sheet_names=sheet_names)
-
         solutions = {
             'csv': {'path': [self.get_csv_data_cleaned],
                     'content_str': [io.StringIO, self.get_csv_data_cleaned],
@@ -212,7 +210,7 @@ class Cleaner(Base):
                      'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xlsx_contents_cleaned],
                      },
         }
-        solutions['txt'] = solutions['csv']
+        solutions['tsv'] = solutions['csv']
 
         content_type = content_type.lower()
         try:

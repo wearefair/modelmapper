@@ -159,36 +159,72 @@ def update_file_chunk_content(path, code, identifier='', start_line=None, end_li
         with open(path, 'w') as model_file:
             model_file.write("".join(new_model_lines))
 
+def analyze_csv_format(iostream, **kwargs):
+    """From csv fileobj detects delimiter, raw headers, and whether or not a header is contained in csv.
+
+    Args:
+        iostream (_io.TextIOWrapper): fileobj containing csv data.
+        **kwargs (dict): keyword arguments for csv.reader().
+
+    Returns:
+        str: delimiter used by csv
+        bool: does the csv fileobj contain headers?
+        set: raw headers passed by user in setup.toml
+
+    Raises:        csv.Error : Malformed csv.
+
+    """
+    raw_headers = kwargs.pop('raw_headers_include', None)
+    delimiter = kwargs.pop('delimiter', None)
+    sample = iostream.read(CHUNK_SIZE)
+    sniffer = csv.Sniffer()
+    has_header = True
+
+    if delimiter is None:
+        try:
+            dialect = sniffer.sniff(sample)
+            delimiter = dialect.delimiter
+        except csv.Error as e:
+            raise csv.Error('csv.Sniffer() could not detect the dialect of your file',
+                            'Please specify the csv_delimiter in your setup.toml.',
+                            str(e)) from None
+
+    if not raw_headers:
+        try:
+            has_header = sniffer.has_header(sample)
+        except csv.Error:
+            has_header = False
+
+    # reset the file pointer to beginning
+    iostream.seek(0)
+
+    return delimiter, has_header, raw_headers
 
 def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
 
     Args:
-        iostream (_io.TextIOWrapper): Description of parameter `iostream`.
-        **kwargs (dict): keyword arguments for csv.reader and .
+        iostream (_io.TextIOWrapper): fileobj containing csv data.
+        **kwargs (dict): keyword arguments for csv.reader().
 
     Returns:
         iterable: csv data started from the head
-
     """
-    raw_headers = kwargs.pop('raw_headers_include', None)
-    sniffer = csv.Sniffer()
-    preview = iostream.read(CHUNK_SIZE)
-    delimiter = kwargs.pop('delimiter', sniffer.sniff(preview).delimiter)
-    has_header = sniffer.has_header(preview)
+    delimiter, has_header, raw_headers = analyze_csv_format(iostream, **kwargs)
 
-    # reset the file pointer to beginning
-    iostream.seek(0)
-    false_headers = raw_headers is None or raw_headers == {}
+    # no user provided headers but sniffer found some
+    if not raw_headers and has_header:
+        return csv.reader(iostream, delimiter=delimiter)
 
-    if has_header and false_headers:
-        return csv.reader(iostream, delimiter=delimiter, **kwargs)
+    # no user provided headers and sniffer could not find any.
+    # we cannot locate the headers
+    if not raw_headers:
+        raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
+                        'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
 
-    if raw_headers is None:
-        raise ValueError('Sniffer could not detect headers and modelmapper was not provided raw_headers')
+    records = csv.reader(iostream, delimiter=delimiter)
 
-    records = csv.reader(iostream, delimiter=delimiter, **kwargs)
-
+    # find headers
     for record in records:
         if any(map(lambda x: x in raw_headers, record)):
             return chain([record], records)
