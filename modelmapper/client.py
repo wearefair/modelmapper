@@ -5,7 +5,7 @@ import logging
 
 import paramiko
 
-from misc import cached_property
+from modelmapper.misc import cached_property
 
 
 class ClientException(Exception):
@@ -17,23 +17,21 @@ class ClientSSHException(ClientException):
 
 
 class BaseClient(object):
-    def __init__(self):
-        self.logger = logging
+    def __init__(self, *args, **kwargs):
+        self.logger = kwargs.get('logger', logging.Logger(__name__))
 
     @cached_property
     def seen_keys(self, session, raw_key_model):
         return set(map(lambda x: x[0], session.query(raw_key_model.key)))
 
-    def extract(self):
+    def extract(self, *args, **kwargs):
         raise NotImplemented('Implement extract in your implementation')
 
 
 class SFTPClient(BaseClient):
     def __init__(self, *args, settings=None, **kwargs):
-        super(*args, **kwargs).__init__()
-        self.settings = settings
-        if not settings:
-            self.settings.update(kwargs)
+        super().__init__(*args, **kwargs)
+        self.settings = settings or kwargs
 
     @contextmanager
     @staticmethod
@@ -42,7 +40,7 @@ class SFTPClient(BaseClient):
 
         Args:
             hostname (str): SFTP hostname you want to connect to.
-            **auth_kwargs (type): .
+            **auth_kwargs (type): SSH/SFTP authentication parameters.
 
         Raises:             paramiko.SSHException: Any error establishing an SSH Session.
                             paramiko.BadHostKeyException: Server hostkey could not be verified.
@@ -77,7 +75,7 @@ class SFTPClient(BaseClient):
 
         Args:
             cls (type): Class constructor
-            remote_dirpath (str): Description of parameter `remote_dirpath`.
+            remote_dirpath (str): Base directory where files are pulled.
 
         Returns:
             type: Description of returned object.
@@ -112,30 +110,28 @@ class SFTPClient(BaseClient):
             return sftp.listdir(remotepath)
 
     def getfo(self, remotepath, file_like_obj, callback=None):
-        """Wrapper around Paramiko sftp.get().
+        """Wrapper around Paramiko.SFTPClient.getfo().
 
         Args:
-            remotepath (type): Description of parameter `remotepath`.
-            file_like_obj (type): Description of parameter `file_like_obj`.
-            callback (type): Description of parameter `callback`.
+            remotepath (str): Full path on FTP to get
+            file_like_obj (One of (BytesIO, StringIO)): Where to write raw bytes.
+            callback (fn): Custom function
 
         Returns:
-            type: Description of returned object.
+            file_like_obj (One of (BytesIO, StringIO)): Where to write raw bytes.
 
-        Raises:            ExceptionName: Why the exception is raised.
 
         """
         callback = callback or self.default_callback
 
         with self.get_sftp() as sftp:
             self.logger.info('Extracting {}'.format(remotepath))
-
             bytes_read = sftp.get(remotepath, file_like_obj, callback=callback)
-            if bytes_read < 1:
-                self.logger.info('SFTP did not transfer any data')
-            return bytes
+            self.logger.info('SFTP Client transferred {} bytes'.format(bytes_read))
+            return file_like_obj
 
     def get(self, remotepath, localpath, callback=None):
+        """Wrapper around Paramiko.SFTPClient.get()."""
         callback = callback or self.default_callback
 
         with self.get_sftp() as sftp:
@@ -144,6 +140,10 @@ class SFTPClient(BaseClient):
                 self.logger.info('SFTP did not transfer any data')
 
     def default_callback(self):
+        """Default callback for all our wrapped Paramiko calls.
+        Possibly dangerous because it relies on the underlying logger
+        to have a info functiond defined.
+        """
         def cb(logger, seen, total):
             logger.info('Read {} bytes of total {} bytes.'.format(seen, total))
         return partial(cb, logger=self.logger)
