@@ -2,3 +2,4 @@ pytoml==0.1.16
 click>=6.7
 tabulate==0.8.2
 xlrd>=1.1.0
+paramiko==2.4.1
