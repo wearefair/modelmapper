@@ -17,8 +17,10 @@ class ClientSSHException(ClientException):
 
 
 class BaseClient(object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, session, raw_key_model, *args, **kwargs):
         self.logger = kwargs.get('logger', logging.Logger(__name__))
+        self.session = session
+        self.raw_key_model = raw_key_model
 
     @cached_property
     def seen_keys(self, session, raw_key_model):
@@ -30,11 +32,18 @@ class BaseClient(object):
 
 class SFTPClient(BaseClient):
     def __init__(self, *args, settings=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.settings = settings or kwargs
+        model = kwargs.pop('raw_key_model')
+        session = kwargs.pop('session')
+        super(*args, session, model, **kwargs).__init__()
+        self.settings = {
+            'hostname': 'localhost',
+            'username': '',
+            'password': '',
+        }
+        self.settings.update(kwargs)
 
-    @contextmanager
     @staticmethod
+    @contextmanager
     def get_sftp(self, hostname, **auth_kwargs):
         """Gracefully opens and closes Paramiko SFTPClient instance.
 
@@ -61,7 +70,6 @@ class SFTPClient(BaseClient):
         # attempts connection
         try:
             ssh.connect(hostname, **auth_kwargs)
-            self.logger.info('Connecting to {}'.format(hostname))
             yield ssh.open_sftp()
         except (paramiko.SSHException, paramiko.BadHostKeyException,
                 paramiko.AuthenticationException, SocketError) as e:
@@ -119,15 +127,17 @@ class SFTPClient(BaseClient):
 
         Returns:
             file_like_obj (One of (BytesIO, StringIO)): Where to write raw bytes.
-
-
         """
         callback = callback or self.default_callback
 
         with self.get_sftp() as sftp:
+
             self.logger.info('Extracting {}'.format(remotepath))
             bytes_read = sftp.get(remotepath, file_like_obj, callback=callback)
-            self.logger.info('SFTP Client transferred {} bytes'.format(bytes_read))
+
+            if bytes_read < 1:
+                self.logger.info('SFTP did not transfer any data')
+
             return file_like_obj
 
     def get(self, remotepath, localpath, callback=None):
