@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from functools import partial
-from socket import error as SocketError
 import logging
+from socket import error as SocketError
 
 import paramiko
 
@@ -27,15 +27,15 @@ class BaseClient(object):
         return set(map(lambda x: x[0], session.query(raw_key_model.key)))
 
     def extract(self, *args, **kwargs):
-        raise NotImplemented('Implement extract in your implementation')
+        raise NotImplemented('Implement extract in your subclass')
 
 
 class SFTPClient(BaseClient):
-    def __init__(self, *args, settings=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         model = kwargs.pop('raw_key_model')
         session = kwargs.pop('session')
         super(*args, session, model, **kwargs).__init__()
-        self.settings = {
+        self.auth = {
             'hostname': 'localhost',
             'username': '',
             'password': '',

@@ -99,6 +99,34 @@ class BlahLoader(PostgresLoader):
         return db.get_session()
 ```
 
+# Client
+
+## SFTP Client
+
+Example:
+
+```py
+
+import os
+
+from modelmapper.client import SFTPClient
+from modelmapper.loader import PostgresBulkLoaderMixin
+from modelmapper.etl import ETL
+from my_etl import My_ETL_Raw_Key_Model
+
+class ETLJob(PostgresBulkLoaderMixin, ETL):
+  RAW_KEY_MODEL = My_ETL_Raw_Key_Model
+
+  def get_client_data(self):
+    hostname = os.environ.get('SFTP_HOSTNAME')
+    username = os.environ.get('SFTP_USERNAME')
+    password = os.environ.get('SFTP_PASSWORD')
+    remotepath = '/reports'
+
+    with self.get_session() as session:
+      return SFTPClient.extract(remotepath, session=session, raw_key_model=RAW_KEY_MODEL,
+                                hostname=password, username=username, password=password)
+```
 # Settings
 
 The power of ModelMapper lies in how you can easily change the settings, train the model, look at the results, change the settings, add new training csvs, etc and quickly iterate through your model.
