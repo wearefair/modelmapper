@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 
 from modelmapper.client import SFTPClient, ClientException
@@ -37,7 +39,8 @@ class TestSFTPClient:
     def test_default_callback(self, sftp_client):
         assert callable(sftp_client.default_callback)
 
-    def test_contents(self):
+    @mock.patch('modelmapper.client.SFTPClient.get_sftp')
+    def test_contents(self, mock, sftp_client):
         pass
 
     def test_getfo(self):

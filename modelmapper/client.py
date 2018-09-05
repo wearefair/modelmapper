@@ -16,10 +16,10 @@ class ClientSSHException(ClientException):
 
 
 class BaseClient:
-    def __init__(self, session, raw_key_model, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.logger = kwargs.get('logger', logging.Logger(__name__))
-        self.session = session
-        self.raw_key_model = raw_key_model
+        self.session = kwargs.get('session', None)
+        self.raw_key_model = kwargs.get('raw_key_model', None)
 
     @cached_property
     def seen_keys(self, session, raw_key_model):
@@ -31,14 +31,13 @@ class BaseClient:
 
 class SFTPClient(BaseClient):
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         try:
-            model = kwargs.pop('raw_key_model')
-            session = kwargs.pop('session')
+            self.model = kwargs.pop('raw_key_model')
+            self.session = kwargs.pop('session')
             self.hostname = kwargs.pop('hostname')
         except KeyError:
             raise ClientException('SFTPClient requires raw_key_model, db_session, and hostname.') from None
-
-        super().__init__(session, model, **kwargs)
 
         self.auth_kwargs = {
             'username': '',
@@ -61,7 +60,7 @@ class SFTPClient(BaseClient):
                             paramiko.AuthenticationException: Auth failed.
                             SocketError (socker.error): Low-level socket error. Accompanied by sys (errno, string).
         Example:
-            with self.get_sftp() as sftp:
+            with self.get_sftp(hostname, username='user_john', password='notveryclever') as sftp:
                 # use sftp client
                 sftp.get(remotepath, localpath)
 
@@ -78,7 +77,7 @@ class SFTPClient(BaseClient):
             yield ssh.open_sftp()
         except (paramiko.SSHException, paramiko.BadHostKeyException,
                 paramiko.AuthenticationException, SocketError) as e:
-                raise ClientSSHException('SFTP CLient Error: {}'.format(str(e))) from None
+                raise ClientSSHException('SFTP Client Error: {}'.format(str(e))) from None
         finally:
             ssh.close()
 
@@ -97,7 +96,7 @@ class SFTPClient(BaseClient):
 
         """
         sftp_client = cls(*args, **kwargs)
-        return sftp_client._extract(remote_dirpath, localpath, )
+        return sftp_client._extract(remote_dirpath, localpath)
 
     def _extract(self, remote_dirpath, localpath):
         get_fn = self.get if isinstance(localpath, str) else self.getfo
@@ -109,7 +108,6 @@ class SFTPClient(BaseClient):
 
         return get_fn('{}/{}'.format(remote_dirpath, new_file)), new_file
 
-    @cached_property
     def contents(self, remotepath):
         """Lists contents of SFTP at given path.
 
