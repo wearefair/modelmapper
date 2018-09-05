@@ -49,7 +49,7 @@ class SFTPClient(BaseClient):
 
     @staticmethod
     @contextmanager
-    def get_sftp(self, hostname, **auth_kwargs):
+    def get_sftp(hostname, **auth_kwargs):
         """Gracefully opens and closes Paramiko SFTPClient instance.
 
         Args:
@@ -74,11 +74,11 @@ class SFTPClient(BaseClient):
 
         # attempts connection
         try:
-            ssh.connect(hostname, auth_kwargs)
+            ssh.connect(hostname, **auth_kwargs)
             yield ssh.open_sftp()
         except (paramiko.SSHException, paramiko.BadHostKeyException,
                 paramiko.AuthenticationException, SocketError) as e:
-                raise ClientSSHException('SFTP CLient {}'.format(e)) from None
+                raise ClientSSHException('SFTP CLient Error: {}'.format(str(e))) from None
         finally:
             ssh.close()
 
@@ -97,7 +97,7 @@ class SFTPClient(BaseClient):
 
         """
         sftp_client = cls(*args, **kwargs)
-        return sftp_client._extract(remote_dirpath, localpath)
+        return sftp_client._extract(remote_dirpath, localpath, )
 
     def _extract(self, remote_dirpath, localpath):
         get_fn = self.get if isinstance(localpath, str) else self.getfo
@@ -138,11 +138,12 @@ class SFTPClient(BaseClient):
         with self.get_sftp(self.hostname, **self.auth_kwargs) as sftp:
 
             self.logger.info('Extracting {}'.format(remotepath))
-            bytes_read = sftp.get(remotepath, file_like_obj, callback=callback)
+            bytes_read = sftp.getfo(remotepath, file_like_obj, callback=callback)
 
             if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
 
+            file_like_obj.seek(0)
             self.logger.info('Transferred {} to file_like_obj'.format(remotepath))
             return file_like_obj
 
@@ -161,7 +162,7 @@ class SFTPClient(BaseClient):
         self.logger.info('Transferred {} to {}'.format(remotepath, localpath))
         return localpath
 
-    def default_callback(self):
+    def default_callback(self, seen, total):
         """Default callback for all our wrapped Paramiko calls.
         Possibly dangerous because it relies on the underlying logger
         to have a info functiond defined.
