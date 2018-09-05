@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from functools import partial
 import logging
 from socket import error as SocketError
 
@@ -16,7 +15,7 @@ class ClientSSHException(ClientException):
     pass
 
 
-class BaseClient(object):
+class BaseClient:
     def __init__(self, session, raw_key_model, *args, **kwargs):
         self.logger = kwargs.get('logger', logging.Logger(__name__))
         self.session = session
@@ -32,8 +31,11 @@ class BaseClient(object):
 
 class SFTPClient(BaseClient):
     def __init__(self, *args, **kwargs):
-        model = kwargs.pop('raw_key_model')
-        session = kwargs.pop('session')
+        try:
+            model = kwargs.pop('raw_key_model')
+            session = kwargs.pop('session')
+        except KeyError:
+            raise ClientSSHException() from None
         super(*args, session, model, **kwargs).__init__()
         self.auth = {
             'hostname': 'localhost',
@@ -135,7 +137,7 @@ class SFTPClient(BaseClient):
             self.logger.info('Extracting {}'.format(remotepath))
             bytes_read = sftp.get(remotepath, file_like_obj, callback=callback)
 
-            if bytes_read < 1:
+            if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
 
             return file_like_obj
@@ -146,7 +148,7 @@ class SFTPClient(BaseClient):
 
         with self.get_sftp() as sftp:
             bytes_read = sftp.get(remotepath, localpath, callback=callback)
-            if bytes_read < 1:
+            if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
 
     def default_callback(self):
@@ -154,6 +156,6 @@ class SFTPClient(BaseClient):
         Possibly dangerous because it relies on the underlying logger
         to have a info functiond defined.
         """
-        def cb(logger, seen, total):
-            logger.info('Read {} bytes of total {} bytes.'.format(seen, total))
-        return partial(cb, logger=self.logger)
+        def cb(seen, total):
+            self.logger.info('Read {} bytes of total {} bytes.'.format(seen, total))
+        return cb
