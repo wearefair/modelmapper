@@ -106,7 +106,7 @@ class SFTPClient(BaseClient):
             new_file = sorted(diff)[0]
             self.logger.info('Files not already extracted: {}'.format(diff))
 
-        return get_fn('{}/{}'.format(remote_dirpath, new_file)), new_file
+        return get_fn('{}/{}'.format(remote_dirpath, new_file)), localpath
 
     def contents(self, remotepath):
         """Lists contents of SFTP at given path.
