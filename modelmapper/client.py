@@ -34,15 +34,18 @@ class SFTPClient(BaseClient):
         try:
             model = kwargs.pop('raw_key_model')
             session = kwargs.pop('session')
+            self.hostname = kwargs.pop('hostname')
         except KeyError:
-            raise ClientSSHException() from None
-        super(*args, session, model, **kwargs).__init__()
-        self.auth = {
-            'hostname': 'localhost',
+            raise ClientException('SFTPClient requires raw_key_model, db_session, and hostname.') from None
+
+        super().__init__(session, model, **kwargs)
+
+        self.auth_kwargs = {
             'username': '',
             'password': '',
         }
-        self.settings.update(kwargs)
+
+        self.auth_kwargs.update(kwargs)
 
     @staticmethod
     @contextmanager
@@ -71,7 +74,7 @@ class SFTPClient(BaseClient):
 
         # attempts connection
         try:
-            ssh.connect(hostname, **auth_kwargs)
+            ssh.connect(hostname, auth_kwargs)
             yield ssh.open_sftp()
         except (paramiko.SSHException, paramiko.BadHostKeyException,
                 paramiko.AuthenticationException, SocketError) as e:
@@ -80,7 +83,7 @@ class SFTPClient(BaseClient):
             ssh.close()
 
     @classmethod
-    def extract(cls, remote_dirpath, *args, **kwargs):
+    def extract(cls, remote_dirpath, localpath, *args, **kwargs):
         """Exposed function.
 
         Args:
@@ -94,11 +97,11 @@ class SFTPClient(BaseClient):
 
         """
         sftp_client = cls(*args, **kwargs)
-        return sftp_client.extract(remote_dirpath)
+        return sftp_client._extract(remote_dirpath, localpath)
 
-    def _extract(self, remote_dirpath, localpath, historical=True):
+    def _extract(self, remote_dirpath, localpath):
         get_fn = self.get if isinstance(localpath, str) else self.getfo
-        diff = self.contents.difference(self.seen_keys)
+        diff = set(self.contents.difference(self.seen_keys))
 
         if len(diff) > 0:
             new_file = sorted(diff)[0]
@@ -116,7 +119,7 @@ class SFTPClient(BaseClient):
         Returns:
             list[str]: SFTP directory contents.
         """
-        with self.get_sftp() as sftp:
+        with self.get_sftp(self.hostname, **self.auth_kwargs) as sftp:
             return sftp.listdir(remotepath)
 
     def getfo(self, remotepath, file_like_obj, callback=None):
@@ -132,7 +135,7 @@ class SFTPClient(BaseClient):
         """
         callback = callback or self.default_callback
 
-        with self.get_sftp() as sftp:
+        with self.get_sftp(self.hostname, **self.auth_kwargs) as sftp:
 
             self.logger.info('Extracting {}'.format(remotepath))
             bytes_read = sftp.get(remotepath, file_like_obj, callback=callback)
@@ -140,16 +143,23 @@ class SFTPClient(BaseClient):
             if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
 
+            self.logger.info('Transferred {} to file_like_obj'.format(remotepath))
             return file_like_obj
 
     def get(self, remotepath, localpath, callback=None):
         """Wrapper around Paramiko.SFTPClient.get()."""
         callback = callback or self.default_callback
 
-        with self.get_sftp() as sftp:
+        with self.get_sftp(self.hostname, **self.auth_kwargs) as sftp:
+
+            self.logger.info('Extracting {}'.format(remotepath))
             bytes_read = sftp.get(remotepath, localpath, callback=callback)
+
             if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
+
+        self.logger.info('Transferred {} to {}'.format(remotepath, localpath))
+        return localpath
 
     def default_callback(self):
         """Default callback for all our wrapped Paramiko calls.

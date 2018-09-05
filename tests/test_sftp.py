@@ -1,6 +1,26 @@
 import pytest
 
-from modelmapper.client import SFTPClient
+from modelmapper.client import SFTPClient, ClientException
+
+
+class SFTPClientStub:
+    def __enter__(*args):
+        return {}
+
+    def __exit__(*args):
+        return None
+
+
+@pytest.fixture(scope='session')
+def sftp_client():
+    sftp_kwargs = {
+        'raw_key_model': {},
+        'session': {},
+        'hostname': 'localhost',
+        'username': 'skamdart',
+        'password': 'puppies'
+    }
+    return SFTPClient(**sftp_kwargs)
 
 
 @pytest.fixture(scope='session')
@@ -10,5 +30,18 @@ def client():
 
 class TestSFTPClient:
 
-    def test_foo(self):
+    def test_constructor(self):
+        with pytest.raises(ClientException):
+            SFTPClient()
+
+    def test_default_callback(self, sftp_client):
+        assert callable(sftp_client.default_callback)
+
+    def test_contents(self):
+        pass
+
+    def test_getfo(self):
+        pass
+
+    def test_get(self):
         pass
