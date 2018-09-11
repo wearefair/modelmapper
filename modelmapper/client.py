@@ -8,22 +8,32 @@ from modelmapper.misc import cached_property
 
 
 class ClientException(Exception):
+    """Base exception for all clients."""
     pass
 
 
 class ClientSSHException(ClientException):
+    """Catch all error for reporting SSH Errors."""
     pass
 
 
 class BaseClient:
+    """Here is our ABC Clients.
+    At our most basic functionality the client should:
+    1. Extract data
+    2. Know which files we have seen or not
+
+    In order to do this we need to have a database session and a raw_key_model.
+    Additionally, a logger is either passed or specified so we can update the developer on the client status.
+    """
     def __init__(self, *args, **kwargs):
         self.logger = kwargs.get('logger', logging.Logger(__name__))
         self.session = kwargs.get('session', None)
         self.raw_key_model = kwargs.get('raw_key_model', None)
 
     @cached_property
-    def seen_keys(self, session, raw_key_model):
-        return set(map(lambda x: x[0], session.query(raw_key_model.key)))
+    def seen_keys(self):
+        return set(map(lambda x: x[0], self.session.query(self.raw_key_model.key)))
 
     def extract(self, *args, **kwargs):
         raise NotImplemented('Implement extract in your subclass')
@@ -141,7 +151,6 @@ class SFTPClient(BaseClient):
             if not bytes_read:
                 self.logger.info('SFTP did not transfer any data')
 
-            file_like_obj.seek(0)
             self.logger.info('Transferred {} to file_like_obj'.format(remotepath))
             return file_like_obj
 
