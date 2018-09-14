@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import logging
 from socket import error as SocketError
+import stat
 
 import paramiko
 
@@ -109,14 +110,19 @@ class SFTPClient(BaseClient):
         return sftp_client._extract(remote_dirpath, localpath)
 
     def _extract(self, remote_dirpath, localpath):
-        get_fn = self.get if isinstance(localpath, str) else self.getfo
-        diff = set(self.contents.difference(self.seen_keys))
+        is_file = isinstance(localpath, str)
+        get_fn = self.get if is_file else self.getfo
+        remote_contents = set(self.contents(remote_dirpath))
+        diff = remote_contents.difference(self.seen_keys)
 
-        if len(diff) > 0:
-            new_file = sorted(diff)[0]
-            self.logger.info('Files not already extracted: {}'.format(diff))
+        if len(diff) < 1:
+            self.logger.info('No files needed')
+            return None
 
-        return get_fn('{}/{}'.format(remote_dirpath, new_file)), localpath
+        new_file = sorted(diff)[0]
+        self.logger.info(f'Pulling {new_file}')
+        filename = localpath if is_file else new_file
+        return get_fn(f'{remote_dirpath}/{new_file}', localpath), filename
 
     def contents(self, remotepath):
         """Lists contents of SFTP at given path.
@@ -128,7 +134,9 @@ class SFTPClient(BaseClient):
             list[str]: SFTP directory contents.
         """
         with self.get_sftp(self.hostname, **self.auth_kwargs) as sftp:
-            return sftp.listdir(remotepath)
+            attrs = sftp.listdir_attr(remotepath)
+            file_attrs = filter(lambda attr: stat.S_ISREG(attr.st_mode), attrs)
+            return list(map(lambda attr: attr.filename, file_attrs))
 
     def getfo(self, remotepath, file_like_obj, callback=None):
         """Wrapper around Paramiko.SFTPClient.getfo().
@@ -152,6 +160,7 @@ class SFTPClient(BaseClient):
                 self.logger.info('SFTP did not transfer any data')
 
             self.logger.info('Transferred {} to file_like_obj'.format(remotepath))
+            file_like_obj.seek(0)
             return file_like_obj
 
     def get(self, remotepath, localpath, callback=None):
