@@ -27,8 +27,8 @@ class BaseClient:
     In order to do this we need to have a database session and a raw_key_model.
     Additionally, a logger is either passed or specified so we can update the developer on the client status.
     """
-    def __init__(self, *args, **kwargs):
-        self.logger = kwargs.get('logger', logging.Logger(__name__))
+    def __init__(self, *args, logger=None, **kwargs):
+        self.logger = logger or logging.Logger(__name__)
         self.session = kwargs.get('session', None)
         self.raw_key_model = kwargs.get('raw_key_model', None)
 
@@ -47,6 +47,7 @@ class SFTPClient(BaseClient):
             self.model = kwargs.pop('raw_key_model')
             self.session = kwargs.pop('session')
             self.hostname = kwargs.pop('hostname')
+            self.logger = kwargs.pop('logger', self.logger)
         except KeyError:
             raise ClientException('SFTPClient requires raw_key_model, db_session, and hostname.') from None
 
@@ -109,7 +110,7 @@ class SFTPClient(BaseClient):
         sftp_client = cls(*args, **kwargs)
         return sftp_client._extract(remote_dirpath, localpath)
 
-    def _extract(self, remote_dirpath, localpath):
+    def _extract(self, remote_dirpath, localpath, pull_latest=True):
         is_file = isinstance(localpath, str)
         get_fn = self.get if is_file else self.getfo
         remote_contents = set(self.contents(remote_dirpath))
@@ -119,7 +120,7 @@ class SFTPClient(BaseClient):
             self.logger.info('No files needed')
             return None
 
-        new_file = sorted(diff)[0]
+        new_file = sorted(diff)[-1]
         self.logger.info(f'Pulling {new_file}')
         filename = localpath if is_file else new_file
         return get_fn(f'{remote_dirpath}/{new_file}', localpath), filename
