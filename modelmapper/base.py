@@ -39,7 +39,8 @@ class Base:
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
         slack_http_endpoint = self.settings['slack_http_endpoint']
-        slack_http_endpoint = os.environ.get('slack_http_endpoint', slack_http_endpoint)
+        # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
+        slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
         self.settings['raw_headers_include'] = self.settings.get('raw_headers_include', {})
         self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
         self.settings['slack_http_endpoint'] = slack_http_endpoint
