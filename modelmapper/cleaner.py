@@ -60,7 +60,8 @@ class Cleaner(Base):
             try:
                 field_info = model_info[field_name]
             except KeyError:
-                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
+                if not self.settings.should_ignore_unknown_fields:
+                    raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
 
         # transposing

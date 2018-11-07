@@ -41,6 +41,7 @@ class Base:
         slack_http_endpoint = self.settings['slack_http_endpoint']
         # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
         slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
+        self.settings['should_ignore_unknown_fields'] = self.settings.get('should_ignore_unknown_fields', False)
         self.settings['raw_headers_include'] = self.settings.get('raw_headers_include', {})
         self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
         self.settings['slack_http_endpoint'] = slack_http_endpoint
