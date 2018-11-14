@@ -217,11 +217,12 @@ class ETL(Base):
                 if chunk_rows_inserted:
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')
         except Exception as e:
-            self.logger.exception(f'Error when inserting row into {table}: {e}')
             try:
                 session.rollback()
             except Exception as e2:
-                self.logger.error('Failed to rollback the transaction: {}'.format(e2))
+                self.logger.exception('Failed to rollback the transaction')
+                self.report_exception(e2)
+            raise ValueError(f'Error when inserting row into {table}: {e}') from e
         else:
             if row_count:
                 msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
