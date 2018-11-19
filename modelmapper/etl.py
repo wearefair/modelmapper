@@ -17,6 +17,7 @@ from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
 from modelmapper.slack import slack
 from modelmapper.misc import generator_chunker, generator_updater
+from sqlalchemy import exc as core_exc
 
 
 class ETL(Base):
@@ -73,7 +74,7 @@ class ETL(Base):
                      channel=self.settings.slack_channel,
                      slack_http_endpoint=self.settings.slack_http_endpoint)
 
-    def _compress(data):
+    def _compress(self, data):
         if isinstance(data, (dict, list, tuple)):
             data = json.dumps(data).encode('utf-8')
         elif isinstance(data, str):
@@ -116,6 +117,8 @@ class ETL(Base):
             raw_key = self.RAW_KEY_MODEL(key=key, signature=signature)
             session.add(raw_key)
             session.commit()
+        except core_exc.IntegrityError:
+            session.rollback()  # Signature already exists, so we're processing an existing file.
         except Exception as e:
             session.rollback()
             raise
@@ -217,11 +220,12 @@ class ETL(Base):
                 if chunk_rows_inserted:
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')
         except Exception as e:
-            self.logger.exception(f'Error when inserting row into {table}: {e}')
             try:
                 session.rollback()
             except Exception as e2:
-                self.logger.error('Failed to rollback the transaction: {}'.format(e2))
+                self.logger.exception('Failed to rollback the transaction')
+                self.report_exception(e2)
+            raise ValueError(f'Error when inserting row into {table}: {e}') from e
         else:
             if row_count:
                 msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
