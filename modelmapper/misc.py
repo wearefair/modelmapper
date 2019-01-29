@@ -93,6 +93,7 @@ def write_settings(path, contents):
         lines = the_file.readlines()
 
     comments = {}
+    # import pudb; pudb.set_trace()
     for line in lines:
         if '=' in line:
             parts = line.split('=')
@@ -240,8 +241,13 @@ def read_csv_gen(path_or_stringio, **kwargs):
             for row in find_header(csvfile, **kwargs):
                 yield row
     elif isinstance(path_or_stringio, io.StringIO):
-        for row in find_header(path_or_stringio, **kwargs):
-            yield row
+        csv = find_header(path_or_stringio, **kwargs)
+        if csv:
+            for row in csv:
+                yield row
+        else:
+            # Not sure what to do in this case
+            pass
     else:
         raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 
@@ -375,7 +381,7 @@ class DefaultList(list):
 
 def generator_chunker(gen, chunk_size):
     """
-    Get a chunk of a generator
+    Create generator to yield lists of items at a time of size: chunk_size 
     """
     try:
         while True:

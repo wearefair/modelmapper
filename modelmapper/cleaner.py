@@ -56,20 +56,33 @@ class Cleaner(Base):
         model_info = combined_module.FIELDS
 
         all_items = self._get_all_values_per_clean_name(path_or_content)
+        failed_fields = []
         for field_name, field_values in all_items.items():
             try:
                 field_info = model_info[field_name]
             except KeyError:
-                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
+                self.logger.error(
+                    "Field '{}' does not exist in the defined model. The model will need to be retrained".format(
+                        field_name
+                    )
+                )
+                failed_fields.append(field_name)
+                continue
+                # raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
 
         # transposing
+        for field in failed_fields:
+            all_items.pop(field)
         all_lines_cleaned = zip(*all_items.values())
 
         for i in all_lines_cleaned:
             yield dict(zip(all_items.keys(), i))
 
     def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values, original_content_type):
+        """ Reads in training values to generate models??
+        """
+
         is_nullable = field_info.get('is_nullable', False)
         is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
         is_dollar = field_info.get('is_dollar', False)
