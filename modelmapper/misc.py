@@ -240,13 +240,8 @@ def read_csv_gen(path_or_stringio, **kwargs):
             for row in find_header(csvfile, **kwargs):
                 yield row
     elif isinstance(path_or_stringio, io.StringIO):
-        csv = find_header(path_or_stringio, **kwargs)
-        if csv:
-            for row in csv:
-                yield row
-        else:
-            # Not sure what to do in this case
-            pass
+        for row in find_header(path_or_stringio, **kwargs):
+            yield row
     else:
         raise TypeError('Either a path to the file or StringIO object needs to be passed.')
 

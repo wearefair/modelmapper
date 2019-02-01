@@ -207,7 +207,7 @@ class ETL(Base):
         self.all_recent_rows_signatures = set()
         chunks = generator_chunker(data_gen, chunk_size=self.SQL_CHUNK_ROWS)
         if chunks is None:
-            self.logger.info("Chunks was none for table: {}".format(table))
+            self.logger.error("No data was provided by generator for table: {}".format(table))
             return
         try:
             for chunk in chunks:
@@ -221,7 +221,6 @@ class ETL(Base):
             except Exception as e2:
                 self.logger.exception('Failed to rollback the transaction')
                 self.report_exception(e2)
-            self.logger.info('Failed to insert data: {}'.format(chunks))
             raise ValueError(f'Error when inserting row into {table}: {e}') from e
         else:
             if row_count:
@@ -237,10 +236,10 @@ class ETL(Base):
 
         Argumements:
             ping_slack (bool): should alert slack on error
-            path (str): file path of 
-            content: source content
-            content_type: input data type
-            use_client: 
+            path (str): file path of data
+            content (?): source content
+            content_type (str): input data type
+            use_client (bool): use the given client for accessing data 
             ignore_new_fields (bool): drop columns that are not defined in the provided model mapping 
                                       instead of raising an error.
         """
