@@ -15,7 +15,6 @@ from collections import Mapping
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
-from modelmapper.slack import slack
 from modelmapper.misc import generator_chunker, generator_updater
 from sqlalchemy import exc as core_exc
 
@@ -67,12 +66,6 @@ class ETL(Base):
         except Exception as e:
             pass
         self.slack(msg)
-
-    def slack(self, text):
-        return slack(text,
-                     username=self.settings.slack_username,
-                     channel=self.settings.slack_channel,
-                     slack_http_endpoint=self.settings.slack_http_endpoint)
 
     def _compress(self, data):
         if isinstance(data, (dict, list, tuple)):
@@ -213,6 +206,9 @@ class ETL(Base):
 
         self.all_recent_rows_signatures = set()
         chunks = generator_chunker(data_gen, chunk_size=self.SQL_CHUNK_ROWS)
+        if chunks is None:
+            self.logger.info("Chunks was none for table: {}".format(table))
+            return
         try:
             for chunk in chunks:
                 chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, table, chunk)
@@ -225,6 +221,7 @@ class ETL(Base):
             except Exception as e2:
                 self.logger.exception('Failed to rollback the transaction')
                 self.report_exception(e2)
+            self.logger.info('Failed to insert data: {}'.format(chunks))
             raise ValueError(f'Error when inserting row into {table}: {e}') from e
         else:
             if row_count:
@@ -235,7 +232,18 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True):
+            sheet_names=None, use_client=True, backup_data=True, ignore_new_fields=True):
+        """Entrypoint for any ETL job
+
+        Argumements:
+            ping_slack (bool): should alert slack on error
+            path (str): file path of 
+            content: source content
+            content_type: input data type
+            use_client: 
+            ignore_new_fields (bool): drop columns that are not defined in the provided model mapping 
+                                      instead of raising an error.
+        """
         try:
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,

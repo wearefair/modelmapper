@@ -93,7 +93,6 @@ def write_settings(path, contents):
         lines = the_file.readlines()
 
     comments = {}
-    # import pudb; pudb.set_trace()
     for line in lines:
         if '=' in line:
             parts = line.split('=')
