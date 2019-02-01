@@ -48,7 +48,7 @@ class Cleaner(Base):
         self.publicized = False
 
         super().__init__(*args, **kwargs)
-    
+
     def slack_missing_fields(self):
         self.slack(
             f'''Field found in a report where not defined in its given Modelmapping.
@@ -84,13 +84,14 @@ class Cleaner(Base):
 
             if not self.publicized:
                 self.logger.error(
-                    "Fields in the report not found in Model. Model will need to be retrained. Fields missing: {}. Model: {}".format(
+                    """Fields in the report not found in Model. Model will need to be retrained.
+                    Fields missing: {}. Model: {}""".format(
                         self._missing_fields, self.settings.combined_file_name[:-3]),
                 )
 
                 self.slack_missing_fields()
                 self.publicized = True
-        
+
         all_lines_cleaned = zip(*all_items.values())
 
         for i in all_lines_cleaned:
@@ -199,7 +200,7 @@ class Cleaner(Base):
         content: (optional) The content to be read. The content can be bytes, string, BytesIO or StringIO
         sheet_names: (optional) The sheet names from the Excel file to be considered.
                                 If none provided, all sheets will be considered.
-        ignore_new_fields: (optional) If true: fields not defined in the model will be dropped from the data source 
+        ignore_new_fields: (optional) If true: fields not defined in the model will be dropped from the data source
                                       If false: an error will be raised when an unlisted field is found
         """
         def _excel_contents_cleaned(content, func, sheet_names):

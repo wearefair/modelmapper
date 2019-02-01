@@ -239,8 +239,8 @@ class ETL(Base):
             path (str): file path of data
             content (?): source content
             content_type (str): input data type
-            use_client (bool): use the given client for accessing data 
-            ignore_new_fields (bool): drop columns that are not defined in the provided model mapping 
+            use_client (bool): use the given client for accessing data
+            ignore_new_fields (bool): drop columns that are not defined in the provided model mapping
                                       instead of raising an error.
         """
         try:
