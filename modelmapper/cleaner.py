@@ -51,15 +51,12 @@ class Cleaner(Base):
 
     def slack_missing_fields(self):
         self.slack(
-            f'''Field found in a report where not defined in its given Modelmapping.
-                Fields Missing: {self._missing_fields}
-                Model: {self.settings.combined_file_name[:-3]}
-             '''
+            f'Field found in a report where not defined in its given Modelmapping.\n'
+            f'Fields Missing: {self._missing_fields}\n'
+            f'Model: {self.settings.combined_file_name[:-3]}'
         )
 
-    def get_csv_data_cleaned(self, path_or_content,
-                             original_content_type=None,
-                             ignore_new_fields=True):
+    def get_csv_data_cleaned(self, path_or_content, original_content_type=None, ignore_missing_fields=True):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
@@ -72,23 +69,25 @@ class Cleaner(Base):
             try:
                 field_info = model_info[field_name]
             except KeyError:
-                if ignore_new_fields:
+                if ignore_missing_fields:
                     self._missing_fields.add(field_name)
                     continue
                 else:
-                    raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
+                    raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name))
             self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
-        if ignore_new_fields and self._missing_fields:
+        if self._missing_fields:
             for field in self._missing_fields:
-                all_items.pop(field)
+                try:
+                    all_items.pop(field)
+                except KeyError:
+                    pass
 
             if not self.publicized:
                 self.logger.error(
-                    """Fields in the report not found in Model. Model will need to be retrained.
-                    Fields missing: {}. Model: {}""".format(
-                        self._missing_fields, self.settings.combined_file_name[:-3]),
+                    f'Field found in a report where not defined in its given Modelmapping.\n'
+                    f'Fields Missing: {self._missing_fields}\n'
+                    f'Model: {self.settings.combined_file_name[:-3]}'
                 )
-
                 self.slack_missing_fields()
                 self.publicized = True
 
@@ -98,7 +97,19 @@ class Cleaner(Base):
             yield dict(zip(all_items.keys(), i))
 
     def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values, original_content_type):
-        """ Reads in training values to generate models??
+        """Prepares source data for insertion into database.
+
+        Arguments:
+            field_name (str) - The name of the field to be inserted into the model.
+            field_info (dict) - Information about the filed pulled from the model's TOML file.
+            field_values (list) - All values to be inserted into the model from the source data.
+            original_content_type (str) - The file type of the source data (i.e. xls or csv)
+
+        Returns:
+            field_values (list) - The prepared values to insert into the given model.
+
+        Raises:
+            ValueError, TypeError - Indicates something is wrong with the incoming data, refer to error message.
         """
 
         is_nullable = field_info.get('is_nullable', False)
@@ -192,7 +203,7 @@ class Cleaner(Base):
                 field_values[:] = map(lambda x: None if x is None else strptime(x, _format), field_values)
         return field_values
 
-    def clean(self, content_type, path=None, content=None, sheet_names=None, ignore_new_fields=True):
+    def clean(self, content_type, path=None, content=None, sheet_names=None, ignore_missing_fields=True):
         """
         Clean the data for importing into database.
         content_type: Options: csv, xls, xls_xml, xlsx
@@ -200,18 +211,17 @@ class Cleaner(Base):
         content: (optional) The content to be read. The content can be bytes, string, BytesIO or StringIO
         sheet_names: (optional) The sheet names from the Excel file to be considered.
                                 If none provided, all sheets will be considered.
-        ignore_new_fields: (optional) If true: fields not defined in the model will be dropped from the data source
-                                      If false: an error will be raised when an unlisted field is found
+        ignore_missing_fields: (optional) If true: fields not found in the model will be ignored
         """
         def _excel_contents_cleaned(content, func, sheet_names):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
             csvs_cleaned = map(
-                lambda x: self.get_csv_data_cleaned(x, content_type, ignore_new_fields=ignore_new_fields), csvs_chained
+                lambda x: self.get_csv_data_cleaned(x, content_type, ignore_missing_fields=ignore_missing_fields), csvs_chained
             )
             return chain.from_iterable(csvs_cleaned)
 
-        get_csv_data_cleaned = partial(self.get_csv_data_cleaned, ignore_new_fields=ignore_new_fields)
+        get_csv_data_cleaned = partial(self.get_csv_data_cleaned, ignore_missing_fields=ignore_missing_fields)
         xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,
                                        sheet_names=sheet_names)
         xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,

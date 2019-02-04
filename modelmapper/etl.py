@@ -231,7 +231,7 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True, ignore_new_fields=True):
+            sheet_names=None, use_client=True, backup_data=True, ignore_missing_fields=True):
         """Entrypoint for any ETL job
 
         Argumements:
@@ -240,7 +240,7 @@ class ETL(Base):
             content (?): source content
             content_type (str): input data type
             use_client (bool): use the given client for accessing data
-            ignore_new_fields (bool): drop columns that are not defined in the provided model mapping
+            ignore_missing_fields (bool): drop columns that are not defined in the provided model mapping
                                       instead of raising an error.
         """
         try:
