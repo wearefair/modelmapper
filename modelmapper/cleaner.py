@@ -74,7 +74,9 @@ class Cleaner(Base):
                     continue
                 else:
                     raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name))
-            self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
+            self._get_field_values_cleaned_for_importing(
+                field_name, field_info, field_values, original_content_type
+            )
         if self._missing_fields:
             for field in self._missing_fields:
                 try:
@@ -217,11 +219,15 @@ class Cleaner(Base):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
             csvs_cleaned = map(
-                lambda x: self.get_csv_data_cleaned(x, content_type, ignore_missing_fields=ignore_missing_fields), csvs_chained
+                lambda x: self.get_csv_data_cleaned(
+                    x, content_type, ignore_missing_fields=ignore_missing_fields
+                ), csvs_chained
             )
             return chain.from_iterable(csvs_cleaned)
 
-        get_csv_data_cleaned = partial(self.get_csv_data_cleaned, ignore_missing_fields=ignore_missing_fields)
+        get_csv_data_cleaned = partial(
+            self.get_csv_data_cleaned, ignore_missing_fields=ignore_missing_fields
+        )
         xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,
                                        sheet_names=sheet_names)
         xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
@@ -264,7 +270,7 @@ class Cleaner(Base):
         try:
             content_type_solution = solutions[content_type]
         except KeyError as e:
-            raise KeyError(f"content_type of {e} is invalid. Options are: {', '.join(solutions.keys())}") from None
+            raise KeyError(f"content_type of {e} is invalid. Options are: {', '.join(solutions.keys())}")
 
         if path:
             key = 'path'
