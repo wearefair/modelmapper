@@ -17,9 +17,13 @@ training_fixture1_xlsx_path = training_fixture1_path.replace('.csv', '.xlsx')
 training_fixture1_tab_path = training_fixture1_path.replace('.csv', '.tsv')
 training_fixture1_with_2_sheets_path = os.path.join(current_dir, 'fixtures/training_fixture1_with_2_sheets.xml')
 training_fixture1_xlsx_with_2_sheets_path = training_fixture1_with_2_sheets_path.replace('xml', 'xlsx')
+new_field_fixture_path = os.path.join(current_dir, 'fixtures/new_field_fixture.csv')
 
 with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
     training_fixture1_content_str = the_file.read()
+
+with open(new_field_fixture_path, 'r', encoding='utf-8-sig') as the_file:
+    new_field_fixture_str = the_file.read()
 
 with open(training_fixture1_xls_xml_path, 'r', encoding='utf-8-sig') as the_file:
     training_fixture1_xls_xml_content_str = the_file.read()
@@ -54,31 +58,33 @@ class TestCleaner:
         result = cleaner._does_line_include_data(line)
         assert is_parsable is result
 
-    @pytest.mark.parametrize("content_type, path, content, sheet_names, _cleaner", [  # NOQA
-        ('csv', None, io.StringIO(training_fixture1_content_str), None, cleaner()),
-        ('csv', None, training_fixture1_content_str, None, cleaner()),
-        ('csv', None, training_fixture1_content_str.encode('utf-8'), None, cleaner()),
-        ('csv', None, io.BytesIO(training_fixture1_content_str.encode('utf-8')), None, cleaner()),
-        ('csv', training_fixture1_path, None, None, cleaner()),
-        ('tsv', None, io.StringIO(training_fixture1_tab_content_str), None, tsv_cleaner()),
-        ('tsv', None, training_fixture1_tab_content_str, None, tsv_cleaner()),
-        ('tsv', None, training_fixture1_tab_content_str.encode('utf-8'), None, tsv_cleaner()),
-        ('tsv', None, io.BytesIO(training_fixture1_tab_content_str.encode('utf-8')), None, tsv_cleaner()),
-        ('tsv', training_fixture1_tab_path, None, None, tsv_cleaner()),
-        ('xls_xml', training_fixture1_xls_xml_path, None, None, cleaner()),
-        ('xls_xml', None, training_fixture1_xls_xml_content_str, None, cleaner()),
-        ('xls_xml', None, training_fixture1_xls_xml_content_str.encode('utf-8'), None, cleaner()),
-        ('xls_xml', None, io.BytesIO(training_fixture1_xls_xml_content_str.encode('utf-8')), None, cleaner()),
-        ('xls_xml', None, io.StringIO(training_fixture1_xls_xml_content_str), None, cleaner()),
+    @pytest.mark.parametrize("content_type, path, content, sheet_names, _cleaner, missing_field", [  # NOQA
+        ('csv', None, new_field_fixture_str, None, cleaner(), ['new_column']),
+        ('csv', None, io.StringIO(training_fixture1_content_str), None, cleaner(), []),
+        ('csv', None, training_fixture1_content_str, None, cleaner(), []),
+        ('csv', None, training_fixture1_content_str.encode('utf-8'), None, cleaner(), []),
+        ('csv', None, io.BytesIO(training_fixture1_content_str.encode('utf-8')), None, cleaner(), []),
+        ('csv', training_fixture1_path, None, None, cleaner(), []),
+        ('tsv', None, io.StringIO(training_fixture1_tab_content_str), None, tsv_cleaner(), []),
+        ('tsv', None, training_fixture1_tab_content_str, None, tsv_cleaner(), []),
+        ('tsv', None, training_fixture1_tab_content_str.encode('utf-8'), None, tsv_cleaner(), []),
+        ('tsv', None, io.BytesIO(training_fixture1_tab_content_str.encode('utf-8')), None, tsv_cleaner(), []),
+        ('tsv', training_fixture1_tab_path, None, None, tsv_cleaner(), []),
+        ('xls_xml', training_fixture1_xls_xml_path, None, None, cleaner(), []),
+        ('xls_xml', None, training_fixture1_xls_xml_content_str, None, cleaner(), []),
+        ('xls_xml', None, training_fixture1_xls_xml_content_str.encode('utf-8'), None, cleaner(), []),
+        ('xls_xml', None, io.BytesIO(training_fixture1_xls_xml_content_str.encode('utf-8')), None, cleaner(), []),
+        ('xls_xml', None, io.StringIO(training_fixture1_xls_xml_content_str), None, cleaner(), []),
     ])
     def test_clean_csv_and_xls_xml(self, cleaned_csv_for_import_fixture, content_type,
-                                   path, content, sheet_names, _cleaner):
+                                   path, content, sheet_names, _cleaner, missing_field):
 
         result_gen = _cleaner.clean(content_type=content_type, path=path,
                                     content=content, sheet_names=sheet_names)
         result = list(result_gen)
         diff = DeepDiff(cleaned_csv_for_import_fixture, result)
         assert not diff
+        assert list(_cleaner._missing_fields) == missing_field
 
     @pytest.mark.parametrize("content_type, path, content, sheet_names", [  # NOQA
         ('xls', training_fixture1_xls_path, None, None),
