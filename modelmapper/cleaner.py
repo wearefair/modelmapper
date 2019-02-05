@@ -49,13 +49,6 @@ class Cleaner(Base):
 
         super().__init__(*args, **kwargs)
 
-    def slack_missing_fields(self):
-        self.slack(
-            f'Field found in a report where not defined in its given Modelmapping.\n'
-            f'Fields Missing: {self._missing_fields}\n'
-            f'Model: {self.settings.combined_file_name[:-3]}'
-        )
-
     def get_csv_data_cleaned(self, path_or_content, original_content_type=None, ignore_missing_fields=True):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
@@ -85,12 +78,13 @@ class Cleaner(Base):
                     pass
 
             if not self.publicized:
-                self.logger.error(
-                    f'Field found in a report where not defined in its given Modelmapping.\n'
+                error_msg = (
+                    f'There were fields found in the source data that were not defined in the given Model.\n'
                     f'Fields Missing: {self._missing_fields}\n'
                     f'Model: {self.settings.combined_file_name[:-3]}'
                 )
-                self.slack_missing_fields()
+                self.logger.error(error_msg)
+                self.slack(error_msg)
                 self.publicized = True
 
         all_lines_cleaned = zip(*all_items.values())
