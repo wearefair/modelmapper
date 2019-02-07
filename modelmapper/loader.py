@@ -30,6 +30,7 @@ class PostgresBulkLoaderMixin():
 
 
 def get_id_by_signature(session, table, signature):
+    """Searches given table for given signature. Returns row if found or None if not"""
     query = select([table.c.id]).where(table.c.signature == signature)
     query_result = session.execute(query)
     result = query_result.fetchone()

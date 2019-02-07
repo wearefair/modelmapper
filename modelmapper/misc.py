@@ -375,7 +375,7 @@ class DefaultList(list):
 
 def generator_chunker(gen, chunk_size):
     """
-    Get a chunk of a generator
+    Create generator to yield lists of items at a time of size: chunk_size 
     """
     try:
         while True:

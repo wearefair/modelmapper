@@ -15,7 +15,6 @@ from collections import Mapping
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
-from modelmapper.slack import slack
 from modelmapper.misc import generator_chunker, generator_updater
 from sqlalchemy import exc as core_exc
 
@@ -67,12 +66,6 @@ class ETL(Base):
         except Exception as e:
             pass
         self.slack(msg)
-
-    def slack(self, text):
-        return slack(text,
-                     username=self.settings.slack_username,
-                     channel=self.settings.slack_channel,
-                     slack_http_endpoint=self.settings.slack_http_endpoint)
 
     def _compress(self, data):
         if isinstance(data, (dict, list, tuple)):
@@ -213,6 +206,9 @@ class ETL(Base):
 
         self.all_recent_rows_signatures = set()
         chunks = generator_chunker(data_gen, chunk_size=self.SQL_CHUNK_ROWS)
+        if chunks is None:
+            self.logger.error("No data was provided by generator for table: {}".format(table))
+            return
         try:
             for chunk in chunks:
                 chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, table, chunk)
@@ -235,7 +231,18 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True):
+            sheet_names=None, use_client=True, backup_data=True, ignore_missing_fields=True):
+        """Entrypoint for any ETL job
+
+        Argumements:
+            ping_slack (bool): should alert slack on error
+            path (str): file path of data
+            content (?): source content
+            content_type (str): input data type
+            use_client (bool): use the given client for accessing data
+            ignore_missing_fields (bool): drop columns that are not defined in the provided model mapping
+                                      instead of raising an error.
+        """
         try:
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,

@@ -1,0 +1,6 @@
+Casualty (Y/N),Value (current),Last Payment Date,model_year,score,slope,available,make,new_column
+N,"$15,688 ",5/5/18,2015,233,-2.14%,FALSE,Cadillac,new_value_1
+N,"$12,785 ",5/5/18,2014,1000,-1.91%,TRUE,Chrysler,new_value_2
+N,"$8,655 ",5/7/18,2017,,-2.48%,,Kia,new_value_3
+,"$13,700 ",Nan,2017,100,-1.90%,,Ford,new_value_4
+N,"$16,313 ",5/7/18,2014,200,-1.92%,,BMW,new_value_5

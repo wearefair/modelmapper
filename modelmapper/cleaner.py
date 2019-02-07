@@ -44,10 +44,12 @@ class Cleaner(Base):
         # https://github.com/python-excel/xlrd/blob/master/xlrd/xldate.py
         # 0: 1900-based, 1: 1904-based.
         self.xls_date_mode = kwargs.pop('xls_date_mode', 0)
+        self._missing_fields = set()
+        self.publicized = False
 
         super().__init__(*args, **kwargs)
 
-    def get_csv_data_cleaned(self, path_or_content, original_content_type=None):
+    def get_csv_data_cleaned(self, path_or_content, original_content_type=None, ignore_missing_fields=True):
         """
         Gets csv data cleaned. Use it only if you know you have a CSV path or stringIO with CSV content.
         Otherwise use the clean method in this class.
@@ -60,16 +62,52 @@ class Cleaner(Base):
             try:
                 field_info = model_info[field_name]
             except KeyError:
-                raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name)) from None
-            self._get_field_values_cleaned_for_importing(field_name, field_info, field_values, original_content_type)
+                if ignore_missing_fields:
+                    self._missing_fields.add(field_name)
+                    continue
+                else:
+                    raise KeyError(FIELD_NAME_NOT_FOUND_MSG.format(field_name))
+            self._get_field_values_cleaned_for_importing(
+                field_name, field_info, field_values, original_content_type
+            )
+        if self._missing_fields:
+            for field in self._missing_fields:
+                try:
+                    all_items.pop(field)
+                except KeyError:
+                    pass
 
-        # transposing
+            if not self.publicized:
+                error_msg = (
+                    f'There were fields found in the source data that were not defined in the given Model.\n'
+                    f'Fields Missing: {self._missing_fields}\n'
+                    f'Model: {self.settings.combined_file_name[:-3]}'
+                )
+                self.logger.error(error_msg)
+                self.slack(error_msg)
+                self.publicized = True
+
         all_lines_cleaned = zip(*all_items.values())
 
         for i in all_lines_cleaned:
             yield dict(zip(all_items.keys(), i))
 
     def _get_field_values_cleaned_for_importing(self, field_name, field_info, field_values, original_content_type):
+        """Prepares source data for insertion into database.
+
+        Arguments:
+            field_name (str) - The name of the field to be inserted into the model.
+            field_info (dict) - Information about the filed pulled from the model's TOML file.
+            field_values (list) - All values to be inserted into the model from the source data.
+            original_content_type (str) - The file type of the source data (i.e. xls or csv)
+
+        Returns:
+            field_values (list) - The prepared values to insert into the given model.
+
+        Raises:
+            ValueError, TypeError - Indicates something is wrong with the incoming data, refer to error message.
+        """
+
         is_nullable = field_info.get('is_nullable', False)
         is_decimal = field_info['field_db_sqlalchemy_type'] == SqlalchemyFieldType.Decimal
         is_dollar = field_info.get('is_dollar', False)
@@ -129,7 +167,6 @@ class Cleaner(Base):
                     item = int(item)
                 if is_datetime:
                     item_chars = set(item)
-                    # import pytest; pytest.set_trace()
                     if not item_chars <= self.settings.datetime_allowed_characters:
                         raise ValueError(f"Datetime value of {item} in {field_name} has characters "
                                          "that are NOT defined in datetime_allowed_characters")
@@ -162,7 +199,7 @@ class Cleaner(Base):
                 field_values[:] = map(lambda x: None if x is None else strptime(x, _format), field_values)
         return field_values
 
-    def clean(self, content_type, path=None, content=None, sheet_names=None):
+    def clean(self, content_type, path=None, content=None, sheet_names=None, ignore_missing_fields=True):
         """
         Clean the data for importing into database.
         content_type: Options: csv, xls, xls_xml, xlsx
@@ -170,13 +207,21 @@ class Cleaner(Base):
         content: (optional) The content to be read. The content can be bytes, string, BytesIO or StringIO
         sheet_names: (optional) The sheet names from the Excel file to be considered.
                                 If none provided, all sheets will be considered.
+        ignore_missing_fields: (optional) If true: fields not found in the model will be ignored
         """
         def _excel_contents_cleaned(content, func, sheet_names):
             results = func(content, sheet_names=sheet_names)
             csvs_chained = results.values()
-            csvs_cleaned = map(lambda x: self.get_csv_data_cleaned(x, content_type), csvs_chained)
+            csvs_cleaned = map(
+                lambda x: self.get_csv_data_cleaned(
+                    x, content_type, ignore_missing_fields=ignore_missing_fields
+                ), csvs_chained
+            )
             return chain.from_iterable(csvs_cleaned)
 
+        get_csv_data_cleaned = partial(
+            self.get_csv_data_cleaned, ignore_missing_fields=ignore_missing_fields
+        )
         xls_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_contents_to_csvs,
                                        sheet_names=sheet_names)
         xls_xml_contents_cleaned = partial(_excel_contents_cleaned, func=_xls_xml_contents_to_csvs,
@@ -184,12 +229,12 @@ class Cleaner(Base):
         xlsx_contents_cleaned = partial(_excel_contents_cleaned, func=_xlsx_contents_to_csvs,
                                         sheet_names=sheet_names)
         solutions = {
-            'csv': {'path': [self.get_csv_data_cleaned],
-                    'content_str': [io.StringIO, self.get_csv_data_cleaned],
-                    'content_bytes': [lambda x: x.decode('utf-8'), io.StringIO, self.get_csv_data_cleaned],
-                    'content_stringio': [self.get_csv_data_cleaned],
+            'csv': {'path': [get_csv_data_cleaned],
+                    'content_str': [io.StringIO, get_csv_data_cleaned],
+                    'content_bytes': [lambda x: x.decode('utf-8'), io.StringIO, get_csv_data_cleaned],
+                    'content_stringio': [get_csv_data_cleaned],
                     'content_bytesio': [lambda x: x.getvalue().decode('utf-8'),
-                                        io.StringIO, self.get_csv_data_cleaned],
+                                        io.StringIO, get_csv_data_cleaned],
                     },
             'xls': {'path': [get_file_content_bytes, xls_contents_cleaned],
                     'content_str': [lambda x: x.encode('utf-8'), xls_contents_cleaned],
@@ -212,11 +257,14 @@ class Cleaner(Base):
         }
         solutions['tsv'] = solutions['csv']
 
+        self.publicized = False
+        self._missing_fields = set()
+
         content_type = content_type.lower()
         try:
             content_type_solution = solutions[content_type]
         except KeyError as e:
-            raise KeyError(f"content_type of {e} is invalid. Options are: {', '.join(solutions.keys())}") from None
+            raise KeyError(f"content_type of {e} is invalid. Options are: {', '.join(solutions.keys())}")
 
         if path:
             key = 'path'

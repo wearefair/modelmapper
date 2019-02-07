@@ -9,6 +9,7 @@ from collections import defaultdict
 from collections import namedtuple, Counter
 
 from modelmapper.misc import read_csv_gen, load_toml
+from modelmapper.slack import slack
 
 OVERRIDES_FILE_NAME = "{}_overrides.toml"
 COMBINED_FILE_NAME = "{}_combined.py"
@@ -148,3 +149,14 @@ class Base:
                     else:
                         result[field_name].append(v)
         return result
+
+    def slack(self, text):
+        if self.settings.slack_username and \
+           self.settings.slack_channel and \
+           self.settings.slack_http_endpoint:
+            return slack(
+                text,
+                username=self.settings.slack_username,
+                channel=self.settings.slack_channel,
+                slack_http_endpoint=self.settings.slack_http_endpoint
+            )
