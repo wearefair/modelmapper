@@ -49,13 +49,14 @@ class ETL(Base):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
-        return mmh3.hash64(item, False)[0]
+        return mmh3.hash64(item, x64arch=False)[0]
 
     def get_hash_of_row(self, row):
         if isinstance(row, list):
             items = row
         elif isinstance(row, Mapping):
             items = row.items()
+        import pudb; pudb.set_trace()
         row_bytes = b','.join([str(v).encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation])  # NOQA
         return self.get_hash_of_bytes(row_bytes)
 
