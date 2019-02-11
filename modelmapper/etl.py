@@ -10,6 +10,7 @@ import datetime
 import logging
 import pickle
 
+
 from collections import Mapping
 
 
@@ -22,7 +23,6 @@ from sqlalchemy import exc as core_exc
 class ETL(Base):
     """
     Subclass this for your data processing and define the BUCKET_NAME, RAW_KEY_MODEL and RECORDS_MODEL.
-
     """
 
     BUCKET_NAME = None
@@ -49,7 +49,7 @@ class ETL(Base):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
-        return mmh3.hash(item)
+        return mmh3.hash64(item, 47, False)[0]
 
     def get_hash_of_row(self, row):
         if isinstance(row, list):
@@ -63,7 +63,7 @@ class ETL(Base):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
             msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e)
-        except Exception as e:
+        except Exception:
             pass
         self.slack(msg)
 
@@ -87,7 +87,7 @@ class ETL(Base):
 
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
-        signature = mmh3.hash(data_raw_bytes)
+        signature = self.get_hash_of_bytes(data_raw_bytes)
         raw_key_id = self._create_raw_key(session, key, signature)
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
@@ -112,7 +112,7 @@ class ETL(Base):
             session.commit()
         except core_exc.IntegrityError:
             session.rollback()  # Signature already exists, so we're processing an existing file.
-        except Exception as e:
+        except Exception:
             session.rollback()
             raise
         return raw_key.id
@@ -233,7 +233,6 @@ class ETL(Base):
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
             sheet_names=None, use_client=True, backup_data=True, ignore_missing_fields=True):
         """Entrypoint for any ETL job
-
         Argumements:
             ping_slack (bool): should alert slack on error
             path (str): file path of data
