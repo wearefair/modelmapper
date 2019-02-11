@@ -49,7 +49,7 @@ class ETL(Base):
         raise NotImplementedError('Please implement this method in your subclass.')
 
     def get_hash_of_bytes(self, item):
-        return mmh3.hash64(item, 47, False)[0]
+        return mmh3.hash64(item, False)[0]
 
     def get_hash_of_row(self, row):
         if isinstance(row, list):
