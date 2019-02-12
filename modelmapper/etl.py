@@ -48,6 +48,21 @@ class ETL(Base):
     def report_exception(self, e):
         raise NotImplementedError('Please implement this method in your subclass.')
 
+    def drop_model_defaults_from_row(self, row):
+        new_row = {}
+        columns = self.RECORDS_MODEL.__table__.columns
+        for column in columns:
+            if column.description not in row.keys():
+                continue
+            if column.default is None or row[column.description] != column.default.arg:
+                new_row[column.description] = row[column.description]
+        return new_row
+
+    def get_row_signature(self, row):
+        cleaned_row = self.drop_model_defaults_from_row(row)
+        sorted_row = sorted(cleaned_row.items(), key=lambda t: t[0])
+        return self.get_hash_of_row(sorted_row)
+
     def get_hash_of_bytes(self, item):
         return mmh3.hash64(item, x64arch=False)[0]
 
@@ -56,7 +71,7 @@ class ETL(Base):
             items = row
         elif isinstance(row, Mapping):
             items = row.items()
-        row_bytes = b','.join([str(v).encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation])  # NOQA
+        row_bytes = b','.join([str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation and v is not None])  # NOQA
         return self.get_hash_of_bytes(row_bytes)
 
     def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
@@ -123,10 +138,6 @@ class ETL(Base):
             if signature and signature not in self.all_recent_rows_signatures:
                 self.all_recent_rows_signatures.add(signature)
                 yield row
-
-    def get_row_signature(self, row):
-        sorted_row = sorted(row.items(), key=lambda t: t[0])
-        return self.get_hash_of_row(sorted_row)
 
     def get_session(self):
         raise NotImplementedError('Please provide a function for SQLAlchemy session.')
