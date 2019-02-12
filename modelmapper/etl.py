@@ -1,22 +1,12 @@
-try:
-    import mmh3
-except ImportError:
-    class mmh3:
-        def hash(self, *args, **kwargs):
-            raise ImportError('Please install mmh3')
-
 import gzip
 import datetime
 import logging
 import pickle
 
-
-from collections import Mapping
-
-
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
 from modelmapper.misc import generator_chunker, generator_updater
+from modelmapper.signature import generate_row_signature, get_hash_of_bytes
 from sqlalchemy import exc as core_exc
 
 
@@ -58,22 +48,6 @@ class ETL(Base):
                 new_row[column.description] = row[column.description]
         return new_row
 
-    def get_row_signature(self, row):
-        cleaned_row = self.drop_model_defaults_from_row(row)
-        sorted_row = sorted(cleaned_row.items(), key=lambda t: t[0])
-        return self.get_hash_of_row(sorted_row)
-
-    def get_hash_of_bytes(self, item):
-        return mmh3.hash64(item, x64arch=False)[0]
-
-    def get_hash_of_row(self, row):
-        if isinstance(row, list):
-            items = row
-        elif isinstance(row, Mapping):
-            items = row.items()
-        row_bytes = b','.join([str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in self.settings.ignore_fields_in_signature_calculation and v is not None])  # NOQA
-        return self.get_hash_of_bytes(row_bytes)
-
     def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
@@ -102,7 +76,7 @@ class ETL(Base):
 
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
-        signature = self.get_hash_of_bytes(data_raw_bytes)
+        signature = get_hash_of_bytes(data_raw_bytes)
         raw_key_id = self._create_raw_key(session, key, signature)
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
@@ -134,7 +108,9 @@ class ETL(Base):
 
     def add_row_signature(self, chunk):
         for row in chunk:
-            row['signature'] = signature = self.get_row_signature(row)
+            row['signature'] = signature = generate_row_signature(
+                row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
+            )
             if signature and signature not in self.all_recent_rows_signatures:
                 self.all_recent_rows_signatures.add(signature)
                 yield row
