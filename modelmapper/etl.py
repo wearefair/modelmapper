@@ -38,16 +38,6 @@ class ETL(Base):
     def report_exception(self, e):
         raise NotImplementedError('Please implement this method in your subclass.')
 
-    def drop_model_defaults_from_row(self, row):
-        new_row = {}
-        columns = self.RECORDS_MODEL.__table__.columns
-        for column in columns:
-            if column.description not in row.keys():
-                continue
-            if column.default is None or row[column.description] != column.default.arg:
-                new_row[column.description] = row[column.description]
-        return new_row
-
     def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
