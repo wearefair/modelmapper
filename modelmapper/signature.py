@@ -63,7 +63,8 @@ def get_byte_str_of_row(row, ignore_fields=[]):
         items = row
     elif isinstance(row, Mapping):
         items = row.items()
-    row_bytes = b','.join([str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in ignore_fields and v is not None])
+    row_bytes = b','.join(
+        [str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in ignore_fields and v is not None])
     return row_bytes
 
 
