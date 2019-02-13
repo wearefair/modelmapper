@@ -20,9 +20,11 @@ def generate_row_signature(row, model=None, ignore_fields=None):
     else:
         raise TypeError('Row needs to be a list of tuples or a dictionary')
 
-    default_row = drop_model_defaults(row_dict, model)
-    normalized_row = normalize_decimal_columns(default_row)
-    return get_row_signature(normalized_row, ignore_fields=ignore_fields)
+    default_dropped_row = drop_model_defaults(row_dict, model)
+    normalized_row = normalize_decimal_columns(default_dropped_row)
+    sorted_row = sort_row_values(normalized_row)
+    row_bytes = get_byte_str_of_row(sorted_row, ignore_fields)
+    return get_hash_of_bytes(row_bytes)
 
 
 def normalize_decimal_columns(row):
@@ -50,21 +52,19 @@ def drop_model_defaults(row, model):
     return new_row
 
 
-def get_row_signature(row, ignore_fields=None):
+def sort_row_values(row, ignore_fields=None):
     """Sort given row by key value"""
-    sorted_row = sorted(row.items(), key=lambda t: t[0])
-    return get_hash_of_row(sorted_row, ignore_fields)
+    return sorted(row.items(), key=lambda t: str(t[0]))
 
 
-def get_hash_of_row(row, ignore_fields=[]):
+def get_byte_str_of_row(row, ignore_fields=[]):
     """Format byte string to be hashed"""
     if isinstance(row, list):
         items = row
     elif isinstance(row, Mapping):
         items = row.items()
-    row_bytes = b','.join([str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in ignore_fields and v is not None])  # NOQA
-    # import pudb; pudb.set_trace()
-    return get_hash_of_bytes(row_bytes)
+    row_bytes = b','.join([str(f'{k}:{v}').encode('utf-8') for k, v in items if k not in ignore_fields and v is not None])
+    return row_bytes
 
 
 def get_hash_of_bytes(item):
