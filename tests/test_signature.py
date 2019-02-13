@@ -2,7 +2,7 @@ import datetime
 from decimal import Decimal
 import pytest
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, DECIMAL, Text, ForeignKey, Boolean
+from sqlalchemy import Column, BigInteger, String, DateTime, DECIMAL
 
 from modelmapper.signature import (
     generate_row_signature,
@@ -70,6 +70,3 @@ class TestSignatures:
     ])
     def test_generate_row_signature(self, row, ignore_fields, expected):
         assert generate_row_signature(row, Model, ignore_fields) == expected
-
-    
-    
