@@ -73,7 +73,7 @@ class Cleaner(Base):
         if self._missing_fields:
             for field in self._missing_fields:
                 try:
-                    all_items.pop(field)
+                    del all_items[field]
                 except KeyError:
                     pass
 
