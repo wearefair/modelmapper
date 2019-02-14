@@ -14,6 +14,9 @@ def generate_row_signature(row, model=None, ignore_fields=None):
             Integer: the hash value of the given row
     """
     if isinstance(row, list):
+        for each in row:
+            if not isinstance(each, tuple) or len(each) != 2:
+                raise TypeError("row must either be a dictionary or a list of tuples each with a size of 2")
         row_dict = dict(row)
     elif isinstance(row, Mapping):
         row_dict = row
