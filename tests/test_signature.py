@@ -28,12 +28,13 @@ class Model(Base):
 
 class TestSignatures:
 
-    @pytest.mark.parametrize("value, expected", [
-        (b'abc', -6723866935948359983),
-        (b'cba', -7271952113896179931)
+    @pytest.mark.parametrize("value, hash_args, expected", [
+        (b'abc', {'x64arch': False}, -6723866935948359983),
+        (b'cba', {'bits': 32}, 1667313988),
+        (b'zzz', {'bits': 128, 'x64arch': True}, 2309314818388519944532015355285894875)
     ])
-    def test_get_hash(self, value, expected):
-        assert get_hash_of_bytes(value) == expected
+    def test_get_hash(self, value, hash_args, expected):
+        assert get_hash_of_bytes(value, **hash_args) == expected
 
     @pytest.mark.parametrize("row, ignore_fields, expected", [
         ({'col_1': 1, 'col_2': 2}, [], b'col_1:1,col_2:2'),

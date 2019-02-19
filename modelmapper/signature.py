@@ -3,6 +3,12 @@ from decimal import Decimal
 
 import mmh3
 
+BITS_MAP = {
+    32: 'hash',
+    64: 'hash64',
+    128: 'hash128',
+}
+
 
 def generate_row_signature(row, model=None, ignore_fields=None):
     """ Generates a 64 bit hash of the given row
@@ -27,7 +33,7 @@ def generate_row_signature(row, model=None, ignore_fields=None):
     normalized_row = normalize_decimal_columns(default_dropped_row)
     sorted_row = sort_row_values(normalized_row)
     row_bytes = get_byte_str_of_row(sorted_row, ignore_fields)
-    return get_hash_of_bytes(row_bytes)
+    return get_hash_of_bytes(row_bytes, bits=64, x64arch=False)
 
 
 def normalize_decimal_columns(row):
@@ -71,7 +77,12 @@ def get_byte_str_of_row(row, ignore_fields=[]):
     return row_bytes
 
 
-def get_hash_of_bytes(item, bit32=False):
-    if bit32:
-        return mmh3.hash(item)
-    return mmh3.hash64(item, x64arch=False)[0]
+def get_hash_of_bytes(item, bits=64, **kwargs):
+    """Run selected  Murmur Hash function on given byte string"""
+    hash_type = BITS_MAP.get(int(bits))
+    if hash_type is None:
+        raise ValueError(f'get_hash_of_bytes only accepts: 32, 64, or 128 as bits values. Given: {bits}')
+    hash_value = getattr(mmh3, hash_type)(item, **kwargs)
+    if isinstance(hash_value, tuple):
+        return hash_value[0]
+    return hash_value
