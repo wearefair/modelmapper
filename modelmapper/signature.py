@@ -71,5 +71,7 @@ def get_byte_str_of_row(row, ignore_fields=[]):
     return row_bytes
 
 
-def get_hash_of_bytes(item):
+def get_hash_of_bytes(item, bit32=False):
+    if bit32:
+        return mmh3.hash(item)
     return mmh3.hash64(item, x64arch=False)[0]
