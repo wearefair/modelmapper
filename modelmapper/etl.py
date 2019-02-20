@@ -66,7 +66,7 @@ class ETL(Base):
 
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
-        signature = get_hash_of_bytes(data_raw_bytes)
+        signature = get_hash_of_bytes(data_raw_bytes, bits=32)
         raw_key_id = self._create_raw_key(session, key, signature)
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
