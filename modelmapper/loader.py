@@ -29,16 +29,7 @@ class PostgresBulkLoaderMixin():
             return 0
 
 
-class BasePostgresSignatureMixin():
-
-    def get_id_by_signature(self, session, table, signature):
-        """Searches given table for given signature. Returns row if found or None if not"""
-        query = select([table.c.id]).where(table.c.signature == signature)
-        query_result = session.execute(query)
-        result = query_result.fetchone()
-        result = None if result is None else result[0]
-        return result
-
+class BaseLoaderMixin():
     def pre_row_insert(self, row, session, table):
         return row
 
@@ -49,17 +40,32 @@ class BasePostgresSignatureMixin():
         raise NotImplementedError("Please implement the insert_row_into_db.")
 
     def insert_chunk_of_data_to_db(self, session, table, chunk):
-        new_chunk = self.add_row_signature(chunk)
         count = 0
-        if new_chunk:
-            for row in new_chunk:
+        if chunk:
+            for row in chunk:
                 if row is None:
                     continue
                 row = self.pre_row_insert(row, session, table)
-                self.insert_row_into_db(row, session, table)
-                self.post_row_insert(row, session, table)
-                count += 1
+                if row is not None:
+                    self.insert_row_into_db(row, session, table)
+                    self.post_row_insert(row, session, table)
+                    count += 1
         return count
+
+
+class BasePostgresSignatureMixin(BaseLoaderMixin):
+
+    def get_id_by_signature(self, session, table, signature):
+        """Searches given table for given signature. Returns row if found or None if not"""
+        query = select([table.c.id]).where(table.c.signature == signature)
+        query_result = session.execute(query)
+        result = query_result.fetchone()
+        result = None if result is None else result[0]
+        return result
+
+    def insert_chunk_of_data_to_db(self, session, table, chunk):
+        new_chunk = self.add_row_signature(chunk)
+        return super(BasePostgresSignatureMixin, self).insert_chunk_of_data_to_db(session, table, new_chunk)
 
 
 class PostgresSignatureLoaderMixin(BasePostgresSignatureMixin):
