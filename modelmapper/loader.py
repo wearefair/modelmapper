@@ -29,16 +29,79 @@ class PostgresBulkLoaderMixin():
             return 0
 
 
-def get_id_by_signature(session, table, signature):
-    """Searches given table for given signature. Returns row if found or None if not"""
-    query = select([table.c.id]).where(table.c.signature == signature)
-    query_result = session.execute(query)
-    result = query_result.fetchone()
-    result = None if result is None else result[0]
-    return result
+class BasePostgresSignatureMixin():
+
+    def get_id_by_signature(self, session, table, signature):
+        """Searches given table for given signature. Returns row if found or None if not"""
+        query = select([table.c.id]).where(table.c.signature == signature)
+        query_result = session.execute(query)
+        result = query_result.fetchone()
+        result = None if result is None else result[0]
+        return result
+
+    def pre_row_insert(self, row, session, table):
+        return row
+
+    def post_row_insert(self, row, session, table):
+        pass
+
+    def insert_row_into_db(self, row, session, table):
+        raise NotImplementedError("Please implement the insert_row_into_db.")
+
+    def insert_chunk_of_data_to_db(self, session, table, chunk):
+        new_chunk = self.add_row_signature(chunk)
+        count = 0
+        if new_chunk:
+            for row in new_chunk:
+                if row is None:
+                    continue
+                row = self.pre_row_insert(row, session, table)
+                self.insert_row_into_db(row, session, table)
+                self.post_row_insert(row, session, table)
+                count += 1
+        return count
 
 
-class PostgresSnapshotLoaderMixin():
+class PostgresSignatureLoaderMixin(BasePostgresSignatureMixin):
+    """
+    Postgres Specific Loader that backs up raw data into S3.
+    It appends a signature to the row only uploads if it is not already in the table.
+    Requires add_row_signature() method to be defined in the class.
+    """
+
+    def backup_data(self, content, key, metadata):
+        self.put_file_on_s3(content=content, key=key, metadata=metadata)
+
+    def insert_row_into_db(self, row, session, table):
+        if row['signature'] and not self.get_id_by_signature(session, table, row['signature']):
+            ins = table.insert().values(**row)
+            try:
+                session.execute(ins)
+                session.flush()
+            except Exception as e:
+                self.logger.error(f"Error on inserting row of data: {row}")
+                raise e
+
+    # def insert_chunk_of_data_to_db(self, session, table, chunk):
+    #     new_chunk = self.add_row_signature(chunk)
+    #     count = 0
+    #     if new_chunk:
+    #         for row in new_chunk:
+    #             if row['signature'] and not self.get_id_by_signature(session, table, row['signature']):
+    #                 ins = table.insert().values(**row)
+    #                 try:
+    #                     session.execute(ins)
+    #                     session.flush()
+    #                 except Exception as e:
+    #                     self.logger.error(f"Error on inserting row of data: {row}")
+    #                     raise e
+
+    #                 count += 1
+    #         session.flush()
+    #     return count
+
+
+class PostgresSnapshotLoaderMixin(BasePostgresSignatureMixin):
     """
     Postgres Specific Loader that backs up raw data into S3.
     It adds the records to the snapshot model.
@@ -56,7 +119,7 @@ class PostgresSnapshotLoaderMixin():
             for row in new_chunk:
                 id_ = None
                 if row['signature']:
-                    id_ = get_id_by_signature(session, table, row['signature'])
+                    id_ = self.get_id_by_signature(session, table, row['signature'])
                 if not id_:
                     ins = table.insert().values(**row)
                     result = session.execute(ins)
