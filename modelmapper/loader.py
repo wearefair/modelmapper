@@ -82,24 +82,6 @@ class PostgresSignatureLoaderMixin(BasePostgresSignatureMixin):
                 self.logger.error(f"Error on inserting row of data: {row}")
                 raise e
 
-    # def insert_chunk_of_data_to_db(self, session, table, chunk):
-    #     new_chunk = self.add_row_signature(chunk)
-    #     count = 0
-    #     if new_chunk:
-    #         for row in new_chunk:
-    #             if row['signature'] and not self.get_id_by_signature(session, table, row['signature']):
-    #                 ins = table.insert().values(**row)
-    #                 try:
-    #                     session.execute(ins)
-    #                     session.flush()
-    #                 except Exception as e:
-    #                     self.logger.error(f"Error on inserting row of data: {row}")
-    #                     raise e
-
-    #                 count += 1
-    #         session.flush()
-    #     return count
-
 
 class PostgresSnapshotLoaderMixin(BasePostgresSignatureMixin):
     """
