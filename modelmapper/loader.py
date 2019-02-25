@@ -1,3 +1,4 @@
+from modelmapper.signature import generate_row_signature
 try:
     from sqlalchemy.dialects.postgresql import insert
     from sqlalchemy.sql import select
@@ -40,7 +41,7 @@ class BaseLoaderMixin():
         return count
 
 
-class SimpleLoaderMixin(BaseLoaderMixin):
+class SimpleSqlalchemyLoaderMixin(BaseLoaderMixin):
     def insert_row_into_db(self, row, session, table):
         """Insert row into db"""
         ins = table.insert().values(**row)
@@ -52,7 +53,17 @@ class SimpleLoaderMixin(BaseLoaderMixin):
             raise e
 
 
-class BaseSignatureMixin(BaseLoaderMixin):
+class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
+    all_recent_rows_signatures = set()
+
+    def add_row_signature(self, chunk):
+        for row in chunk:
+            row['signature'] = signature = generate_row_signature(
+                row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
+            )
+            if signature and signature not in self.all_recent_rows_signatures:
+                self.all_recent_rows_signatures.add(signature)
+                yield row
 
     def get_id_by_signature(self, session, table, signature):
         """Searches given table for given signature. Returns row if found or None if not"""
@@ -65,10 +76,10 @@ class BaseSignatureMixin(BaseLoaderMixin):
     def insert_chunk_of_data_to_db(self, session, table, chunk):
         """Add row signature to row then run Base class logic"""
         new_chunk = self.add_row_signature(chunk)
-        return super(BaseSignatureMixin, self).insert_chunk_of_data_to_db(session, table, new_chunk)
+        return super(BaseSignatureSqlalchemyMixin, self).insert_chunk_of_data_to_db(session, table, new_chunk)
 
 
-class UniqueSignatureLoaderMixin(BaseSignatureMixin):
+class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
     Postgres Specific Loader that backs up raw data into S3.
     It appends a signature to the row only uploads if it is not already in the table.
@@ -90,7 +101,7 @@ class UniqueSignatureLoaderMixin(BaseSignatureMixin):
                 raise e
 
 
-class DuplicateSignatureLoaderMixin(BaseSignatureMixin):
+class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
     Loader that backs up raw data into S3.
     It appends a signature to the row and loads it into the db.
@@ -111,7 +122,7 @@ class DuplicateSignatureLoaderMixin(BaseSignatureMixin):
             raise e
 
 
-class PostgresSnapshotLoaderMixin(BaseSignatureMixin):
+class PostgresSnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
     Postgres Specific Loader that backs up raw data into S3.
     It adds the records to the snapshot model.
@@ -149,6 +160,15 @@ class PostgresBulkLoaderMixin():
     Postgres Specific Loader that backs up raw data into S3.
     Handles Bulk inserts and ignores when there were errors and continues
     """
+
+    def add_row_signature(self, chunk):
+        for row in chunk:
+            row['signature'] = signature = generate_row_signature(
+                row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
+            )
+            if signature and signature not in self.all_recent_rows_signatures:
+                self.all_recent_rows_signatures.add(signature)
+                yield row
 
     def backup_data(self, content, key, metadata):
         self.put_file_on_s3(content=content, key=key, metadata=metadata)

@@ -6,7 +6,7 @@ import pickle
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
 from modelmapper.misc import generator_chunker, generator_updater
-from modelmapper.signature import generate_row_signature, get_hash_of_bytes
+from modelmapper.signature import get_hash_of_bytes
 from sqlalchemy import exc as core_exc
 
 
@@ -95,15 +95,6 @@ class ETL(Base):
             session.rollback()
             raise
         return raw_key.id
-
-    def add_row_signature(self, chunk):
-        for row in chunk:
-            row['signature'] = signature = generate_row_signature(
-                row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
-            )
-            if signature and signature not in self.all_recent_rows_signatures:
-                self.all_recent_rows_signatures.add(signature)
-                yield row
 
     def get_session(self):
         raise NotImplementedError('Please provide a function for SQLAlchemy session.')
