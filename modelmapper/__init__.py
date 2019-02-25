@@ -14,8 +14,8 @@ from modelmapper.loader import (
     BaseLoaderMixin,
     BaseSignatureSqlalchemyMixin,
     DuplicateSignatureSqlalchemyLoaderMixin,
-    PostgresBulkLoaderMixin,
-    PostgresSnapshotLoaderMixin,
+    SqlalchemyBulkLoaderMixin,
+    SqlalchemySnapshotLoaderMixin,
     SimpleSqlalchemyLoaderMixin,
     UniqueSignatureSqlalchemyLoaderMixin,
 )

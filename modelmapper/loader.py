@@ -81,7 +81,7 @@ class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
 
 class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
-    Postgres Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Loader that backs up raw data into S3.
     It appends a signature to the row only uploads if it is not already in the table.
     Requires add_row_signature() method to be defined in the class.
     """
@@ -122,9 +122,9 @@ class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
             raise e
 
 
-class PostgresSnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
+class SqlalchemySnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
-    Postgres Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Loader that backs up raw data into S3.
     It adds the records to the snapshot model.
     """
     SNAPSHOT_MODEL = None
@@ -155,9 +155,9 @@ class PostgresSnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
         return count
 
 
-class PostgresBulkLoaderMixin():
+class SqlalchemyBulkLoaderMixin():
     """
-    Postgres Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Loader that backs up raw data into S3.
     Handles Bulk inserts and ignores when there were errors and continues
     """
 
