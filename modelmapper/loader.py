@@ -30,8 +30,7 @@ class BaseLoaderMixin():
         """Processing chunks of rows to be loaded into db"""
         count = 0
         for row in chunk:
-            if row:
-                row = self.pre_row_insert(row, session, table)
+            row = self.pre_row_insert(row, session, table)
             if row:
                 self.insert_row_into_db(row, session, table)
                 self.post_row_insert(row, session, table)
