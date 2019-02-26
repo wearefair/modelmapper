@@ -119,6 +119,8 @@ class ETL(Base):
             (not use_client and backup_data,
              ValueError('Data can be only backed up if the client is used.'))
         ]
+        content = None
+        key = None
 
         for case, err in invalid_choices:
             if case:
@@ -132,11 +134,15 @@ class ETL(Base):
         if use_client:
             content = self.get_client_data()
 
+        if isinstance(content, tuple):
+            content, key = content
+        if key is None:
+            key = path if path else f'content.{content_type}'
+
         if backup_data:
             content = content.encode('utf-8') if isinstance(content, str) else content
             raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
         else:
-            key = path if path else f'content.{content_type}'
             raw_key_id = self._create_raw_key(session, key=key, signature=None)
 
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
