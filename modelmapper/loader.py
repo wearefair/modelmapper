@@ -26,44 +26,46 @@ class BaseLoaderMixin():
         """REQUIRED IMPLEMENTATION for how a row is loaded into the db"""
         raise NotImplementedError("Please implement the insert_row_into_db.")
 
-    def insert_chunk_of_data_to_db(self, session, table, chunk):
+    def insert_chunk_of_data_to_db(self, session, table, chunk=()):
         """Processing chunks of rows to be loaded into db"""
         count = 0
-        if chunk:
-            for row in chunk:
-                if row is None:
-                    continue
+        for row in chunk:
+            if row:
                 row = self.pre_row_insert(row, session, table)
-                if row is not None:
-                    self.insert_row_into_db(row, session, table)
-                    self.post_row_insert(row, session, table)
-                    count += 1
+            if row:
+                self.insert_row_into_db(row, session, table)
+                self.post_row_insert(row, session, table)
+                count += 1
         return count
 
 
 class SimpleSqlalchemyLoaderMixin(BaseLoaderMixin):
+    """
+    Simple loader for inserting into a db with sqlalchemy
+    """
     def insert_row_into_db(self, row, session, table):
         """Insert row into db"""
         ins = table.insert().values(**row)
         try:
             session.execute(ins)
             session.flush()
-        except Exception as e:
-            self.logger.error(f"Error on inserting row of data: {row}")
-            raise e
+        except Exception:
+            self.logger.exception(f"Error on inserting row of data: {row}")
+            raise
 
 
 class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
-    all_recent_rows_signatures = set()
+    """
+    Base Signature loader
+    """
 
     def add_row_signature(self, chunk):
+        """Add hash of row to row about to be inserted"""
         for row in chunk:
-            row['signature'] = signature = generate_row_signature(
+            row['signature'] = generate_row_signature(
                 row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
             )
-            if signature and signature not in self.all_recent_rows_signatures:
-                self.all_recent_rows_signatures.add(signature)
-                yield row
+            yield row
 
     def get_id_by_signature(self, session, table, signature):
         """Searches given table for given signature. Returns row if found or None if not"""
@@ -81,13 +83,22 @@ class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
 
 class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
-    Sqlalchemy Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Loader with Signatures that does not allow dupes.
     It appends a signature to the row only uploads if it is not already in the table.
-    Requires add_row_signature() method to be defined in the class.
     """
 
-    def backup_data(self, content, key, metadata):
-        self.put_file_on_s3(content=content, key=key, metadata=metadata)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.all_recent_rows_signatures = set()
+
+    def add_row_signature(self, chunk):
+        """Generate hash of row, yield row only if it has not been generated recently"""
+        chunk_gen = super().add_row_signature(chunk)
+        for row in chunk_gen:
+            signature = row.get('signature')
+            if signature and signature not in self.all_recent_rows_signatures:
+                self.all_recent_rows_signatures.add(signature)
+                yield row
 
     def insert_row_into_db(self, row, session, table):
         """Insert row only if the signature is unique to the table"""
@@ -96,20 +107,16 @@ class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
             try:
                 session.execute(ins)
                 session.flush()
-            except Exception as e:
+            except Exception:
                 self.logger.error(f"Error on inserting row of data: {row}")
-                raise e
+                raise
 
 
 class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
-    Loader that backs up raw data into S3.
+    Sqlalchemy Loader with Signatures that allows dupes in table.
     It appends a signature to the row and loads it into the db.
-    Requires add_row_signature() method to be defined in the class.
     """
-
-    def backup_data(self, content, key, metadata):
-        self.put_file_on_s3(content=content, key=key, metadata=metadata)
 
     def insert_row_into_db(self, row, session, table):
         """Insert row into the table"""
@@ -117,20 +124,17 @@ class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
         try:
             session.execute(ins)
             session.flush()
-        except Exception as e:
+        except Exception:
             self.logger.error(f"Error on inserting row of data: {row}")
-            raise e
+            raise
 
 
 class SqlalchemySnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
-    Sqlalchemy Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Loader with Snapshot Auxilary Table for row dupes.
     It adds the records to the snapshot model.
     """
     SNAPSHOT_MODEL = None
-
-    def backup_data(self, content, key, metadata):
-        self.put_file_on_s3(content=content, key=key, metadata=metadata)
 
     def insert_chunk_of_data_to_db(self, session, table, chunk):
         snapshot_table = self.SNAPSHOT_MODEL.__table__
@@ -157,7 +161,7 @@ class SqlalchemySnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
 
 class SqlalchemyBulkLoaderMixin():
     """
-    Sqlalchemy Specific Loader that backs up raw data into S3.
+    Sqlalchemy Specific Bulk Loader.
     Handles Bulk inserts and ignores when there were errors and continues
     """
 
@@ -169,9 +173,6 @@ class SqlalchemyBulkLoaderMixin():
             if signature and signature not in self.all_recent_rows_signatures:
                 self.all_recent_rows_signatures.add(signature)
                 yield row
-
-    def backup_data(self, content, key, metadata):
-        self.put_file_on_s3(content=content, key=key, metadata=metadata)
 
     def insert_chunk_of_data_to_db(self, session, table, chunk):
         new_chunk = list(self.add_row_signature(chunk)) if self.settings.ignore_duplicate_rows_when_importing else list(chunk)  # NOQA
