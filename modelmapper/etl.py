@@ -64,6 +64,9 @@ class ETL(Base):
     def backup_data(self, content, key, metadata):
         self.put_file_on_s3(content=content, key=key, metadata=metadata)
 
+    def put_file_on_s3(self, content, key, metadata):
+        raise NotImplementedError('Please implement put_file_on_s3 method')
+
     def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
         signature = get_hash_of_bytes(data_raw_bytes, bits=32)
