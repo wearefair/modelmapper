@@ -185,7 +185,7 @@ class ETL(Base):
             return
         try:
             for chunk in chunks:
-                chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, table, chunk)
+                chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
                 row_count += chunk_rows_inserted
                 if chunk_rows_inserted:
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')

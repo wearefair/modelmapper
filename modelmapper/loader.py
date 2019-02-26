@@ -14,26 +14,26 @@ class BaseLoaderMixin():
     """
     Base class for loaders.
     """
-    def pre_row_insert(self, row, session, table):
+    def pre_row_insert(self, row: dict, session, model):
         """Override to add any logic for rows before being loaded"""
         return row
 
-    def post_row_insert(self, row, session, table):
+    def post_row_insert(self, row, session, model):
         """Override to add any logic for rows after being loaded"""
         pass
 
-    def insert_row_into_db(self, row, session, table):
+    def insert_row_into_db(self, row: dict, session, model):
         """REQUIRED IMPLEMENTATION for how a row is loaded into the db"""
         raise NotImplementedError("Please implement the insert_row_into_db.")
 
-    def insert_chunk_of_data_to_db(self, session, table, chunk=()):
+    def insert_chunk_of_data_to_db(self, session, model, chunk=()):
         """Processing chunks of rows to be loaded into db"""
         count = 0
         for row in chunk:
-            row = self.pre_row_insert(row, session, table)
+            row = self.pre_row_insert(row, session, model)
             if row:
-                self.insert_row_into_db(row, session, table)
-                self.post_row_insert(row, session, table)
+                inserted_row = self.insert_row_into_db(row, session, model)
+                self.post_row_insert(inserted_row, session, model)
                 count += 1
         return count
 
@@ -42,12 +42,13 @@ class SimpleSqlalchemyLoaderMixin(BaseLoaderMixin):
     """
     Simple loader for inserting into a db with sqlalchemy
     """
-    def insert_row_into_db(self, row, session, table):
+    def insert_row_into_db(self, row: dict, session, model):
         """Insert row into db"""
-        ins = table.insert().values(**row)
+        row_obj = model(**row)
         try:
-            session.execute(ins)
+            session.add(row_obj)
             session.flush()
+            return row_obj
         except Exception:
             self.logger.exception(f"Error on inserting row of data: {row}")
             raise
@@ -66,18 +67,19 @@ class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
             )
             yield row
 
-    def get_id_by_signature(self, session, table, signature):
+    def get_id_by_signature(self, session, model, signature):
         """Searches given table for given signature. Returns row if found or None if not"""
+        table = model.__table__
         query = select([table.c.id]).where(table.c.signature == signature)
         query_result = session.execute(query)
         result = query_result.fetchone()
         result = None if result is None else result[0]
         return result
 
-    def insert_chunk_of_data_to_db(self, session, table, chunk):
+    def insert_chunk_of_data_to_db(self, session, model, chunk):
         """Add row signature to row then run Base class logic"""
         new_chunk = self.add_row_signature(chunk)
-        return super(BaseSignatureSqlalchemyMixin, self).insert_chunk_of_data_to_db(session, table, new_chunk)
+        return super(BaseSignatureSqlalchemyMixin, self).insert_chunk_of_data_to_db(session, model, new_chunk)
 
 
 class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
@@ -99,13 +101,14 @@ class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
                 self.all_recent_rows_signatures.add(signature)
                 yield row
 
-    def insert_row_into_db(self, row, session, table):
+    def insert_row_into_db(self, row: dict, session, model):
         """Insert row only if the signature is unique to the table"""
-        if row['signature'] and not self.get_id_by_signature(session, table, row['signature']):
-            ins = table.insert().values(**row)
+        if row['signature'] and not self.get_id_by_signature(session, model, row['signature']):
+            row_obj = model(**row)
             try:
-                session.execute(ins)
+                session.add(row_obj)
                 session.flush()
+                return row_obj
             except Exception:
                 self.logger.error(f"Error on inserting row of data: {row}")
                 raise
@@ -117,12 +120,13 @@ class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
     It appends a signature to the row and loads it into the db.
     """
 
-    def insert_row_into_db(self, row, session, table):
+    def insert_row_into_db(self, row: dict, session, model):
         """Insert row into the table"""
-        ins = table.insert().values(**row)
+        row_obj = model(**row)
         try:
-            session.execute(ins)
+            session.add(row_obj)
             session.flush()
+            return row_obj
         except Exception:
             self.logger.error(f"Error on inserting row of data: {row}")
             raise
@@ -135,7 +139,8 @@ class SqlalchemySnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
     """
     SNAPSHOT_MODEL = None
 
-    def insert_chunk_of_data_to_db(self, session, table, chunk):
+    def insert_chunk_of_data_to_db(self, session, model, chunk):
+        table = model.__table__
         snapshot_table = self.SNAPSHOT_MODEL.__table__
         new_chunk = self.add_row_signature(chunk) if self.settings.ignore_duplicate_rows_when_importing else chunk  # NOQA
         count = 0
@@ -173,7 +178,8 @@ class SqlalchemyBulkLoaderMixin():
                 self.all_recent_rows_signatures.add(signature)
                 yield row
 
-    def insert_chunk_of_data_to_db(self, session, table, chunk):
+    def insert_chunk_of_data_to_db(self, session, model, chunk):
+        table = model.__table__
         new_chunk = list(self.add_row_signature(chunk)) if self.settings.ignore_duplicate_rows_when_importing else list(chunk)  # NOQA
         if new_chunk:
             insrt_stmnt = insert(table).values(new_chunk)
