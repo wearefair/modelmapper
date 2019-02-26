@@ -136,7 +136,7 @@ class ETL(Base):
 
         if isinstance(content, tuple):
             content, key = content
-        if key is None:
+        else:
             key = path if path else f'content.{content_type}'
 
         if backup_data:
