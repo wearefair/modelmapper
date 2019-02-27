@@ -6,7 +6,7 @@ import pickle
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
 from modelmapper.misc import generator_chunker, generator_updater
-from modelmapper.signature import generate_row_signature, get_hash_of_bytes
+from modelmapper.signature import get_hash_of_bytes
 from sqlalchemy import exc as core_exc
 
 
@@ -96,15 +96,6 @@ class ETL(Base):
             raise
         return raw_key.id
 
-    def add_row_signature(self, chunk):
-        for row in chunk:
-            row['signature'] = signature = generate_row_signature(
-                row, self.RECORDS_MODEL, self.settings.ignore_fields_in_signature_calculation
-            )
-            if signature and signature not in self.all_recent_rows_signatures:
-                self.all_recent_rows_signatures.add(signature)
-                yield row
-
     def get_session(self):
         raise NotImplementedError('Please provide a function for SQLAlchemy session.')
 
@@ -128,6 +119,8 @@ class ETL(Base):
             (not use_client and backup_data,
              ValueError('Data can be only backed up if the client is used.'))
         ]
+        content = None
+        key = None
 
         for case, err in invalid_choices:
             if case:
@@ -141,11 +134,16 @@ class ETL(Base):
         if use_client:
             content = self.get_client_data()
 
+        # get_client_data may have returned a key for the raw_key value
+        if isinstance(content, tuple):
+            content, key = content
+        else:
+            key = path if path else f'content.{content_type}'
+
         if backup_data:
             content = content.encode('utf-8') if isinstance(content, str) else content
             raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
         else:
-            key = path if path else f'content.{content_type}'
             raw_key_id = self._create_raw_key(session, key=key, signature=None)
 
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
@@ -188,7 +186,7 @@ class ETL(Base):
             return
         try:
             for chunk in chunks:
-                chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, table, chunk)
+                chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
                 row_count += chunk_rows_inserted
                 if chunk_rows_inserted:
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')
