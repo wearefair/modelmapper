@@ -134,6 +134,7 @@ class ETL(Base):
         if use_client:
             content = self.get_client_data()
 
+        # get_client_data may have returned a key for the raw_key value
         if isinstance(content, tuple):
             content, key = content
         else:

@@ -16,5 +16,4 @@ from modelmapper.loader import (
     SqlalchemyBulkLoaderMixin,
     SqlalchemyLoaderMixin,
     SqlalchemySnapshotLoaderMixin,
-    UniqueSignatureSqlalchemyLoaderMixin,
 )

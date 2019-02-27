@@ -1,6 +1,7 @@
 from modelmapper.signature import generate_row_signature
 try:
     from sqlalchemy.dialects.postgresql import insert
+    from sqlalchemy.exc import IntegrityError
     from sqlalchemy.sql import select
 except ImportError:
     def insert(table):
@@ -43,6 +44,11 @@ class SqlalchemyLoaderMixin(BaseLoaderMixin):
     """
     Simple loader for inserting into a db with sqlalchemy.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fail_on_integrity_error = False
+
     def insert_row_into_db(self, row: dict, session, model):
         """Insert row into db"""
         row_obj = model(**row)
@@ -50,6 +56,10 @@ class SqlalchemyLoaderMixin(BaseLoaderMixin):
             session.add(row_obj)
             session.flush()
             return row_obj
+        except IntegrityError:
+            self.logger.debug(f"Row caused Integrity Error: {row}")
+            if self._fail_on_integrity_error:
+                raise
         except Exception:
             self.logger.exception(f"Error on inserting row of data: {row}")
             raise
@@ -61,6 +71,10 @@ class SignatureSqlalchemyMixin(SqlalchemyLoaderMixin):
     murmur hash of the row (requiring BigInteger type). This will insert DUPLICATE ROWS!!!
     If unique rows are desired, use the: UniqueSignatureSqlalchemyLoaderMixin.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.all_recent_rows_signatures = set()
 
     def add_row_signature(self, chunk):
         """Add hash of row to row about to be inserted"""
@@ -85,39 +99,6 @@ class SignatureSqlalchemyMixin(SqlalchemyLoaderMixin):
         return super().insert_chunk_of_data_to_db(session, model, new_chunk)
 
 
-class UniqueSignatureSqlalchemyLoaderMixin(SignatureSqlalchemyMixin):
-    """
-    Sqlalchemy Specific Loader with Signatures that DOES NOT ALLOW DUPLICATES.
-    It appends a signature (64-bit murmur hash of the row) and only uploads if
-    it is not already in the table.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.all_recent_rows_signatures = set()
-
-    def add_row_signature(self, chunk):
-        """Generate hash of row, yield row only if it has not been generated recently"""
-        chunk_gen = super().add_row_signature(chunk)
-        for row in chunk_gen:
-            signature = row.get('signature')
-            if signature and signature not in self.all_recent_rows_signatures:
-                self.all_recent_rows_signatures.add(signature)
-                yield row
-
-    def insert_row_into_db(self, row: dict, session, model):
-        """Insert row only if the signature is unique to the table"""
-        if row['signature'] and not self.get_id_by_signature(session, model, row['signature']):
-            row_obj = model(**row)
-            try:
-                session.add(row_obj)
-                session.flush()
-                return row_obj
-            except Exception:
-                self.logger.error(f"Error on inserting row of data: {row}")
-                raise
-
-
 class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
     """
     Sqlalchemy Specific Loader with Snapshot Auxilary Table for row dupes.
@@ -134,7 +115,7 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
             for row in new_chunk:
                 id_ = None
                 if row['signature']:
-                    id_ = self.get_id_by_signature(session, table, row['signature'])
+                    id_ = self.get_id_by_signature(session, model, row['signature'])
                 if not id_:
                     ins = table.insert().values(**row)
                     result = session.execute(ins)
