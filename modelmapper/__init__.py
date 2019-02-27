@@ -12,10 +12,9 @@ from modelmapper.initialize import initialize
 from modelmapper.etl import ETL
 from modelmapper.loader import (
     BaseLoaderMixin,
-    BaseSignatureSqlalchemyMixin,
-    DuplicateSignatureSqlalchemyLoaderMixin,
+    SignatureSqlalchemyMixin,
     SqlalchemyBulkLoaderMixin,
+    SqlalchemyLoaderMixin,
     SqlalchemySnapshotLoaderMixin,
-    SimpleSqlalchemyLoaderMixin,
     UniqueSignatureSqlalchemyLoaderMixin,
 )

@@ -12,7 +12,8 @@ except ImportError:
 
 class BaseLoaderMixin():
     """
-    Base class for loaders.
+    Base class for loaders. Completely db and data structure agnostic.
+    REQUIRED: Override insert_row_into_db
     """
     def pre_row_insert(self, row: dict, session, model):
         """Override to add any logic for rows before being loaded"""
@@ -38,9 +39,9 @@ class BaseLoaderMixin():
         return count
 
 
-class SimpleSqlalchemyLoaderMixin(BaseLoaderMixin):
+class SqlalchemyLoaderMixin(BaseLoaderMixin):
     """
-    Simple loader for inserting into a db with sqlalchemy
+    Simple loader for inserting into a db with sqlalchemy.
     """
     def insert_row_into_db(self, row: dict, session, model):
         """Insert row into db"""
@@ -54,9 +55,11 @@ class SimpleSqlalchemyLoaderMixin(BaseLoaderMixin):
             raise
 
 
-class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
+class SignatureSqlalchemyMixin(SqlalchemyLoaderMixin):
     """
-    Base Signature loader
+    Base Signature loader. A signature column will be added to each row whose value is a 64-bit
+    murmur hash of the row (requiring BigInteger type). This will insert DUPLICATE ROWS!!!
+    If unique rows are desired, use the: UniqueSignatureSqlalchemyLoaderMixin.
     """
 
     def add_row_signature(self, chunk):
@@ -79,13 +82,14 @@ class BaseSignatureSqlalchemyMixin(BaseLoaderMixin):
     def insert_chunk_of_data_to_db(self, session, model, chunk):
         """Add row signature to row then run Base class logic"""
         new_chunk = self.add_row_signature(chunk)
-        return super(BaseSignatureSqlalchemyMixin, self).insert_chunk_of_data_to_db(session, model, new_chunk)
+        return super().insert_chunk_of_data_to_db(session, model, new_chunk)
 
 
-class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
+class UniqueSignatureSqlalchemyLoaderMixin(SignatureSqlalchemyMixin):
     """
-    Sqlalchemy Specific Loader with Signatures that does not allow dupes.
-    It appends a signature to the row only uploads if it is not already in the table.
+    Sqlalchemy Specific Loader with Signatures that DOES NOT ALLOW DUPLICATES.
+    It appends a signature (64-bit murmur hash of the row) and only uploads if
+    it is not already in the table.
     """
 
     def __init__(self, *args, **kwargs):
@@ -114,25 +118,7 @@ class UniqueSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
                 raise
 
 
-class DuplicateSignatureSqlalchemyLoaderMixin(BaseSignatureSqlalchemyMixin):
-    """
-    Sqlalchemy Loader with Signatures that allows dupes in table.
-    It appends a signature to the row and loads it into the db.
-    """
-
-    def insert_row_into_db(self, row: dict, session, model):
-        """Insert row into the table"""
-        row_obj = model(**row)
-        try:
-            session.add(row_obj)
-            session.flush()
-            return row_obj
-        except Exception:
-            self.logger.error(f"Error on inserting row of data: {row}")
-            raise
-
-
-class SqlalchemySnapshotLoaderMixin(BaseSignatureSqlalchemyMixin):
+class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
     """
     Sqlalchemy Specific Loader with Snapshot Auxilary Table for row dupes.
     It adds the records to the snapshot model.
