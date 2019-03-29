@@ -119,7 +119,6 @@ class ETL(Base):
             (not use_client and backup_data,
              ValueError('Data can be only backed up if the client is used.'))
         ]
-        content = None
         key = None
 
         for case, err in invalid_choices:
