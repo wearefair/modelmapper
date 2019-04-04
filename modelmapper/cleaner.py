@@ -191,12 +191,19 @@ class Cleaner(Base):
             field_values[i] = item
 
         if is_datetime:
-            if is_excel:
-                def xls_date(x):
-                    return xldate_as_datetime(float(x), self.xls_date_mode)
-                field_values[:] = map(lambda x: None if x is None else xls_date(x), field_values)
-            else:
-                field_values[:] = map(lambda x: None if x is None else strptime(x, _format), field_values)
+            def convert_dates(x):
+                if x is None:
+                    return None
+                if isinstance(x, datetime.datetime):
+                    return x
+                try:
+                    return strptime(x, _format)
+                except ValueError:
+                    if is_excel:
+                        return xldate_as_datetime(float(x), self.xls_date_mode)
+
+            field_values[:] = map(convert_dates, field_values)
+
         return field_values
 
     def clean(self, content_type, path=None, content=None, sheet_names=None, ignore_missing_fields=True):
