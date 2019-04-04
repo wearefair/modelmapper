@@ -4,6 +4,7 @@ import pytest
 
 from deepdiff import DeepDiff
 from modelmapper import Cleaner
+from modelmapper.mapper import SqlalchemyFieldType
 from tests.fixtures.training_fixture1_cleaned_for_import import cleaned_csv_for_import_fixture  # NOQA
 from tests.fixtures.training_fixture1_with_2_sheets_cleaned_for_import import cleaned_csv_with_2_sheets_combined_for_import_fixture  # NOQA
 
@@ -112,3 +113,13 @@ class TestCleaner:
         diff = DeepDiff(cleaned_csv_with_2_sheets_combined_for_import_fixture, results)
         for item in diff['values_changed'].keys():
             assert item.endswith("year']")
+
+    def test_clean_xlsx_string_date_values(self, cleaner):
+        field_info = {
+            'is_nullable': True,
+            'field_db_sqlalchemy_type': SqlalchemyFieldType.DateTime,
+            'datetime_formats': ['%Y/%m/%d']
+        }
+        field_values = ['2018/02/24']
+
+        assert field_values == cleaner._get_field_values_cleaned_for_importing('test_field', field_info, field_values, 'xlsx')
