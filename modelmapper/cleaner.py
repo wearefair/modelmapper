@@ -194,8 +194,6 @@ class Cleaner(Base):
             def convert_dates(x):
                 if x is None:
                     return None
-                if isinstance(x, datetime.datetime):
-                    return x
                 try:
                     return strptime(x, _format)
                 except ValueError:
