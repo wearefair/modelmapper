@@ -91,6 +91,13 @@ class ETL(Base):
             session.commit()
         except core_exc.IntegrityError:
             session.rollback()  # Signature already exists, so we're processing an existing file.
+
+            # let's grab the raw key id that already exists.
+            raw_key = session.query(
+                self.RAW_KEY_MODEL
+            ).filter(
+                self.RAW_KEY_MODEL.signature == signature
+            ).one()  # <-- raise exception if not found
         except Exception:
             session.rollback()
             raise
