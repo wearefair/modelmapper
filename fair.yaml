@@ -1,0 +1,8 @@
+apiVersion: fair/v1
+kind: Config
+releases:
+  environments: secure
+  branches: [master]
+  targets:
+    - k8/deployment.yaml
+    - k8/service.yaml
