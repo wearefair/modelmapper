@@ -1,7 +1,6 @@
 import gzip
 import datetime
 import logging
-import os
 import pickle
 
 from modelmapper.base import Base
