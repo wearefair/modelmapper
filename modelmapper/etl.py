@@ -1,6 +1,7 @@
 import gzip
 import datetime
 import logging
+import os
 import pickle
 
 from modelmapper.base import Base
@@ -25,6 +26,12 @@ class ETL(Base):
     def __init__(self, *args, **kwargs):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
+
+        if 'should_reprocess' in kwargs:
+            self.__should_reprocess = kwargs['should_reprocess']
+        else:
+            self.__should_reprocess = False
+
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
@@ -90,7 +97,23 @@ class ETL(Base):
             session.add(raw_key)
             session.commit()
         except core_exc.IntegrityError:
-            session.rollback()  # Signature already exists, so we're processing an existing file.
+            if self.__should_reprocess:
+                # We are processing an existing file so let's return the raw_key
+                # so the code will automagically re-process.
+
+                raw_key = session.query(
+                    self.RAW_KEY_MODEL
+                ).filter(
+                    self.RAW_KEY_MODEL.signature == signature
+                ).one()  # <-- raise exception if not found
+
+                self.logger.info(f'Reprocessing for ID: {raw_key.id} ' +
+                                 f'[Signature: {self.RAW_KEY_MODEL.signature}]')
+
+                return raw_key.id
+            else:
+                session.rollback()
+
         except Exception:
             session.rollback()
             raise
