@@ -227,7 +227,8 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True, ignore_missing_fields=True):
+            sheet_names=None, use_client=True, backup_data=True, reprocess=False,
+            ignore_missing_fields=True):
         """Entrypoint for any ETL job
         Argumements:
             ping_slack (bool): should alert slack on error
@@ -235,10 +236,13 @@ class ETL(Base):
             content (?): source content
             content_type (str): input data type
             use_client (bool): use the given client for accessing data
+            reprocess (bool): Reprocess flag - forces a reprocessing of data
             ignore_missing_fields (bool): drop columns that are not defined in the provided model mapping
                                       instead of raising an error.
         """
         try:
+            self.__should_reprocess = reprocess
+
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,
                                      sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
