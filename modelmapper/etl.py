@@ -153,7 +153,7 @@ class ETL(Base):
         self.logger.info(f'Starting the {self.JOB_NAME} ...')
 
         if use_client:
-            content = self.get_client_data()
+            content = self.get_client_data(reprocess=self.__should_reprocess)
 
         # get_client_data may have returned a key for the raw_key value
         if isinstance(content, tuple):
