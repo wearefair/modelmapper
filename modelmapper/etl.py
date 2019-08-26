@@ -26,10 +26,7 @@ class ETL(Base):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
 
-        if 'should_reprocess' in kwargs:
-            self.__should_reprocess = kwargs['should_reprocess']
-        else:
-            self.__should_reprocess = False
+        self._should_reprocess = kwargs.get('should_reprocess', False)
 
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
@@ -95,8 +92,10 @@ class ETL(Base):
             raw_key = self.RAW_KEY_MODEL(key=key, signature=signature)
             session.add(raw_key)
             session.commit()
-        except core_exc.IntegrityError: # We are processing an existing file.
-            if self.__should_reprocess:
+        except core_exc.IntegrityError:
+
+            # We are attempting to process an existing file.
+            if self._should_reprocess:
                 raw_key = session.query(
                     self.RAW_KEY_MODEL
                 ).filter(
@@ -150,7 +149,7 @@ class ETL(Base):
         self.logger.info(f'Starting the {self.JOB_NAME} ...')
 
         if use_client:
-            content = self.get_client_data(reprocess=self.__should_reprocess)
+            content = self.get_client_data(reprocess=self._should_reprocess)
 
         # get_client_data may have returned a key for the raw_key value
         if isinstance(content, tuple):
@@ -238,7 +237,7 @@ class ETL(Base):
                                       instead of raising an error.
         """
         try:
-            self.__should_reprocess = reprocess
+            self._should_reprocess = reprocess
 
             with self.get_session() as session:
                 data = self._extract(session, path=path, content=content, content_type=content_type,
