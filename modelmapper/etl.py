@@ -95,11 +95,8 @@ class ETL(Base):
             raw_key = self.RAW_KEY_MODEL(key=key, signature=signature)
             session.add(raw_key)
             session.commit()
-        except core_exc.IntegrityError:
+        except core_exc.IntegrityError: # We are processing an existing file.
             if self.__should_reprocess:
-                # We are processing an existing file so let's return the raw_key
-                # so the code will automagically re-process.
-
                 raw_key = session.query(
                     self.RAW_KEY_MODEL
                 ).filter(
