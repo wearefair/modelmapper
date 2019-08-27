@@ -27,6 +27,7 @@ class ETL(Base):
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
 
         self._should_reprocess = kwargs.get('should_reprocess', False)
+        kwargs.pop('should_reprocess', None)
 
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
