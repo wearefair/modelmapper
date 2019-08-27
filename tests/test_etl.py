@@ -77,7 +77,6 @@ class TestETL:
         test_etl.RAW_KEY_MODEL = Mock()
         actual_id = test_etl._create_raw_key(mock_session, "123", "123")
 
-        assert actual_id == mock_raw_key.id
         assert actual_id == '123'
 
     @pytest.mark.parametrize('fn_name, arg_count', [
