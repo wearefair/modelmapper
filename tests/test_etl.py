@@ -33,14 +33,6 @@ def content_generator():
 class TestETL:
     @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')
-    def test_extract_no_generator(self, mock_client_data, mock_create_raw_key, job):
-        mock_client_data.return_value = training_fixture1_content_str
-        mock_create_raw_key.return_value = uuid4()
-        data = job._extract(None, backup_data=False, content_type='csv')
-        assert not isinstance(data['content'], GeneratorType)
-
-    @mock.patch('modelmapper.ETL.get_client_data')
-    @mock.patch('modelmapper.ETL._create_raw_key')
     def test_extract_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = content_generator()
         mock_create_raw_key.return_value = uuid4()
