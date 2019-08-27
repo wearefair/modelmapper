@@ -27,6 +27,8 @@ def job_with_reprocess():
 def basic():
     return BasicETL(setup_path=example_setup_path)
 
+def content_generator():
+    yield training_fixture1_content_str
 
 class TestETL:
     @mock.patch('modelmapper.ETL.get_client_data')
@@ -41,21 +43,26 @@ class TestETL:
     @mock.patch('modelmapper.ETL._create_raw_key')
     def test_extract_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = yield training_fixture1_content_str
+        mock_client_data.return_value = content_generator()
         mock_create_raw_key.return_value = uuid4()
         data = job._extract(None, backup_data=False, content_type='csv')
-        assert isinstance(data['content'], GeneratorType)
+
+        assert list(data['content'][0]) == training_fixture1_content_str
 
     @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')
     def test_extract_no_generator_with_reprocess(self, mock_client_data, mock_create_raw_key, job_with_reprocess):
+    def test_extract_no_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = training_fixture1_content_str
         mock_create_raw_key.return_value = uuid4()
         job_with_reprocess._extract(None, backup_data=False, content_type='csv')
+        data = job._extract(None, backup_data=False, content_type='csv')
 
         # Running it a second time should not throw any exceptions
         data = job_with_reprocess._extract(None, backup_data=False, content_type='csv')
 
         assert not isinstance(data['content'], GeneratorType)
+        assert data['content'] == training_fixture1_content_str
 
     @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')

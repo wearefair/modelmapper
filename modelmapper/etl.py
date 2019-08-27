@@ -2,6 +2,7 @@ import gzip
 import datetime
 import logging
 import pickle
+import types
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
@@ -82,6 +83,11 @@ class ETL(Base):
 
     def _dump_state_after_client_response(self, data):
         with open(f'{self.DUMP_FILEPATH}.pickle', "wb") as the_file:
+            if isinstance(data['content'], types.GeneratorType):
+                # Since the type of data's content is a CSV we can unwrap the
+                # generator with list and just take it's first entry.
+                data['content'] = list(data['content'])[0]
+
             pickle.dump(data, the_file)
 
     def _load_state_after_client_response(self):
