@@ -67,7 +67,7 @@ class TestETL:
         # Running it a second time should not throw any exceptions
         data = job_with_reprocess._extract(None, backup_data=False, content_type='csv')
 
-        assert not isinstance(data['content'], GeneratorType)
+        assert isinstance(data['content'], GeneratorType)
 
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
