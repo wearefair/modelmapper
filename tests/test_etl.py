@@ -51,23 +51,34 @@ class TestETL:
         assert data['content'] == training_fixture1_content_str
 
     def test_reprocess_in_create_raw_key(self):
-        mock_raw_key = Mock()
-        mock_raw_key.id = "123"
-
         # This mock simulates the case where the create raw key function
         # is called and received a duplicate key. It raises an
         # IntegrityError which triggers our reprocessing code if the
         # reprocessing feature is enabled.
         mock_session = Mock()
-        mock_session.commit = Mock()
-        mock_session.commit.side_effect = core_exc.IntegrityError
-        mock_session.query = Mock()
-        mock_session.query.return_value = mock_raw_key
+        mock_session.commit = Mock(side_effect=core_exc.IntegrityError("test", "test", "test"))
+
+        mock_session.query.filter = Mock()
+
+        raw_id = Mock()
+        raw_id.id = "123"
+
+        filter_ret_mock = Mock()
+        filter_ret_mock.one = Mock(return_value=raw_id)
+
+        filter_mock = Mock()
+        filter_mock.filter = Mock(return_value=filter_ret_mock)
+
+        mock_session.query = Mock(return_value=filter_mock)
+
+        print(mock_session.query().filter().one().id)
 
         test_etl = ETL(setup_path=example_setup_path, should_reprocess=True)
+        test_etl.RAW_KEY_MODEL = Mock()
         actual_id = test_etl._create_raw_key(mock_session, "123", "123")
 
         assert actual_id == mock_raw_key.id
+        assert actual_id == '123'
 
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
