@@ -51,7 +51,6 @@ class TestETL:
 
     @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')
-    def test_extract_no_generator_with_reprocess(self, mock_client_data, mock_create_raw_key, job_with_reprocess):
     def test_extract_no_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = training_fixture1_content_str
         mock_create_raw_key.return_value = uuid4()
