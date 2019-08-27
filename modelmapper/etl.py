@@ -170,7 +170,6 @@ class ETL(Base):
         else:
             raw_key_id = self._create_raw_key(session, key=key, signature=None)
 
-
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
                 "path": path, "sheet_names": sheet_names}
 
