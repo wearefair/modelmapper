@@ -1,9 +1,11 @@
 import os
 from types import GeneratorType
 from unittest import mock
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import exc as core_exc
 
 from modelmapper import ETL
 from tests.fixtures.etl import BasicETL
@@ -20,51 +22,52 @@ def job():
     return ETL(setup_path=example_setup_path)
 
 @pytest.fixture(scope='module')
-def job_with_reprocess():
-    return ETL(setup_path=example_setup_path, should_reprocess=True)
-
-@pytest.fixture(scope='module')
 def basic():
     return BasicETL(setup_path=example_setup_path)
 
 def content_generator():
     yield training_fixture1_content_str
 
+
 class TestETL:
-    @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')
+    @mock.patch('modelmapper.ETL.get_client_data')
     def test_extract_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = content_generator()
         mock_create_raw_key.return_value = uuid4()
         data = job._extract(None, backup_data=False, content_type='csv')
 
-        assert list(data['content'][0]) == training_fixture1_content_str
+        assert ''.join(list(data['content'])) == training_fixture1_content_str
 
-    @mock.patch('modelmapper.ETL.get_client_data')
     @mock.patch('modelmapper.ETL._create_raw_key')
+    @mock.patch('modelmapper.ETL.get_client_data')
     def test_extract_no_generator(self, mock_client_data, mock_create_raw_key, job):
         mock_client_data.return_value = training_fixture1_content_str
+
         mock_create_raw_key.return_value = uuid4()
-        job_with_reprocess._extract(None, backup_data=False, content_type='csv')
+
         data = job._extract(None, backup_data=False, content_type='csv')
 
-        # Running it a second time should not throw any exceptions
-        data = job_with_reprocess._extract(None, backup_data=False, content_type='csv')
-
-        assert not isinstance(data['content'], GeneratorType)
         assert data['content'] == training_fixture1_content_str
 
-    @mock.patch('modelmapper.ETL.get_client_data')
-    @mock.patch('modelmapper.ETL._create_raw_key')
-    def test_extract_generator_with_reprocess(self, mock_client_data, mock_create_raw_key, job_with_reprocess):
-        mock_client_data.return_value = yield training_fixture1_content_str
-        mock_create_raw_key.return_value = uuid4()
-        job_with_reprocess._extract(None, backup_data=False, content_type='csv')
+    def test_reprocess_in_create_raw_key(self):
+        mock_raw_key = Mock()
+        mock_raw_key.id = "123"
 
-        # Running it a second time should not throw any exceptions
-        data = job_with_reprocess._extract(None, backup_data=False, content_type='csv')
+        # This mock simulates the case where the create raw key function
+        # is called and received a duplicate key. It raises an
+        # IntegrityError which triggers our reprocessing code if the
+        # reprocessing feature is enabled.
+        mock_session = Mock()
+        mock_session.commit = Mock()
+        mock_session.commit.side_effect = core_exc.IntegrityError
+        mock_session.query = Mock()
+        mock_session.query.return_value = mock_raw_key
 
-        assert isinstance(data['content'], GeneratorType)
+        test_etl = ETL(setup_path=example_setup_path, should_reprocess=True)
+        actual_id = test_etl._create_raw_key(mock_session, "123", "123")
+
+        assert actual_id == mock_raw_key.id
 
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
