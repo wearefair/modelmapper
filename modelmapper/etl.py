@@ -100,7 +100,7 @@ class ETL(Base):
             session.commit()
         except core_exc.IntegrityError:
             session.rollback()
-            
+
             # We are attempting to process an existing file.
             if self._should_reprocess:
                 raw_key = session.query(
