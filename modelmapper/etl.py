@@ -99,7 +99,8 @@ class ETL(Base):
             session.add(raw_key)
             session.commit()
         except core_exc.IntegrityError:
-
+            session.rollback()
+            
             # We are attempting to process an existing file.
             if self._should_reprocess:
                 raw_key = session.query(
@@ -112,8 +113,6 @@ class ETL(Base):
                                  f'[Signature: {self.RAW_KEY_MODEL.signature}]')
 
                 return raw_key.id
-            else:
-                session.rollback()
 
         except Exception:
             session.rollback()
