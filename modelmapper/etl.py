@@ -85,7 +85,7 @@ class ETL(Base):
             if isinstance(data['content'], types.GeneratorType):
                 # Since the type of data's content is a CSV we can unwrap the
                 # generator with list and just take it's first entry.
-                data['content'] = list(data['content'])[0]
+                data['content'] = next(data['content'])
 
             pickle.dump(data, the_file)
 
