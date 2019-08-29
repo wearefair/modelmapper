@@ -71,8 +71,6 @@ class TestETL:
 
         mock_session.query = Mock(return_value=filter_mock)
 
-        print(mock_session.query().filter().one().id)
-
         test_etl = ETL(setup_path=example_setup_path, should_reprocess=True)
         test_etl.RAW_KEY_MODEL = Mock()
         actual_id = test_etl._create_raw_key(mock_session, "123", "123")
