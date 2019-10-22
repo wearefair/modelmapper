@@ -249,7 +249,7 @@ class Cleaner(Base):
                     },
             'xls_xml': {'path': [get_file_content_bytes, xls_xml_contents_cleaned],
                         'content_str': [lambda x: x.encode('utf-8'), xls_xml_contents_cleaned],
-                        'content_bytes': [xls_xml_contents_cleaned],
+                        'content_bytes': [lambda x: x.replace(b' & ', b' &amp; '), xls_xml_contents_cleaned],
                         'content_bytesio': [lambda x: x.getvalue(), xls_xml_contents_cleaned],
                         'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_xml_contents_cleaned],
                         },
