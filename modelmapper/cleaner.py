@@ -157,7 +157,10 @@ class Cleaner(Base):
                     try:
                         item = Decimal(item)
                     except Exception as e:
-                        raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
+                        if self.settings.skip_failed_cast and is_nullable:
+                            item = None
+                        else:
+                            raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
 
                 if is_dollar:
                     item = item * ONE_HUNDRED
