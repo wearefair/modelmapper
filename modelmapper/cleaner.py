@@ -162,11 +162,11 @@ class Cleaner(Base):
                         else:
                             raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
 
-                if is_dollar:
+                if is_dollar and item is not None:
                     item = item * ONE_HUNDRED
-                if is_percent and not is_excel:  # xls already has it divided by 100
+                if is_percent and not is_excel and item is not None:  # xls already has it divided by 100
                     item = item / ONE_HUNDRED
-                if is_integer:
+                if is_integer and item is not None:
                     item = int(item)
                 if is_datetime:
                     item_chars = set(item)
