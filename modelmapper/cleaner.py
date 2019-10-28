@@ -258,7 +258,7 @@ class Cleaner(Base):
                 ],
                 'content_str': [
                     lambda x: x.encode('utf-8'),
-                    lambda x: x.replace(' & ', ' &amp; '),
+                    lambda x: x.replace(b' & ', b' &amp; '),
                     xls_xml_contents_cleaned
                 ],
                 'content_bytes': [lambda x: x.replace(b' & ', b' &amp; '), xls_xml_contents_cleaned],
@@ -269,7 +269,7 @@ class Cleaner(Base):
                 ],
                 'content_stringio': [
                     lambda x: x.getvalue().encode('utf-8'),
-                    lambda x: x.replace(' & ', ' &amp; '),
+                    lambda x: x.replace(b' & ', b' &amp; '),
                     xls_xml_contents_cleaned
                 ],
             },
