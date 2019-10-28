@@ -160,7 +160,7 @@ class Cleaner(Base):
                         if self.settings.skip_failed_cast and is_nullable:
                             item = None
                         else:
-                            raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
+                            raise TypeError(f'Unable to convert: {item} into decimal: {e}') from None
 
                 if is_dollar and item is not None:
                     item = item * ONE_HUNDRED
@@ -250,12 +250,29 @@ class Cleaner(Base):
                     'content_bytesio': [lambda x: x.getvalue(), xls_contents_cleaned],
                     'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_contents_cleaned],
                     },
-            'xls_xml': {'path': [get_file_content_bytes, xls_xml_contents_cleaned],
-                        'content_str': [lambda x: x.encode('utf-8'), xls_xml_contents_cleaned],
-                        'content_bytes': [lambda x: x.replace(b' & ', b' &amp; '), xls_xml_contents_cleaned],
-                        'content_bytesio': [lambda x: x.getvalue(), xls_xml_contents_cleaned],
-                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_xml_contents_cleaned],
-                        },
+            'xls_xml': {
+                'path': [
+                    get_file_content_bytes,
+                    lambda x: x.replace(b' & ', b' &amp; '),
+                    xls_xml_contents_cleaned
+                ],
+                'content_str': [
+                    lambda x: x.encode('utf-8'),
+                    lambda x: x.replace(' & ', ' &amp; '),
+                    xls_xml_contents_cleaned
+                ],
+                'content_bytes': [lambda x: x.replace(b' & ', b' &amp; '), xls_xml_contents_cleaned],
+                'content_bytesio': [
+                    lambda x: x.getvalue(),
+                    lambda x: x.replace(b' & ', b' &amp; '),
+                    xls_xml_contents_cleaned
+                ],
+                'content_stringio': [
+                    lambda x: x.getvalue().encode('utf-8'),
+                    lambda x: x.replace(' & ', ' &amp; '),
+                    xls_xml_contents_cleaned
+                ],
+            },
             'xlsx': {'path': [get_file_content_bytes, xls_contents_cleaned],
                      'content_str': [lambda x: x.encode('utf-8'), xlsx_contents_cleaned],
                      'content_bytes': [xlsx_contents_cleaned],
@@ -285,7 +302,7 @@ class Cleaner(Base):
 
         try:
             funcs = content_type_solution[key]
-        except KeyError as e:
+        except KeyError:
             raise ValueError('Unrecognized content. It has to be either bytes, string, BytesIO or StringIO')
         try:
             for function in funcs:
