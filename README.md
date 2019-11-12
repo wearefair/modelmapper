@@ -83,7 +83,7 @@ Use the Loader to import data easily. The Loader will take care of cleaning your
 
 Example:
 
-```py
+```
 class BlahLoader(PostgresLoader):
 
     BUCKET_NAME = 'blah_raw'
@@ -107,7 +107,7 @@ The settings are initialized for you by running `modelmapper init [identifier]`
 
 Example:
 
-```toml
+```
 [settings]
 null_values = ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]  # Any string that should be considered null
 boolean_true = ["true", "t", "yes", "y", "1"]  # Any string that should be considered boolean True

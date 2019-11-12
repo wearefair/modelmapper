@@ -21,19 +21,19 @@ def get_reqs(filename):
 
 reqs = get_reqs("requirements.txt")
 loader_reqs = get_reqs("requirements-loader.txt")
+description = "Auto generate SQLalchemy models, cleaning and field normalization from your csv files."
 
 try:
     with open('README.rst') as file:
         long_description = file.read()
 except Exception:
-    long_description = (
-        "Model Mapper: Auto generate SQLalchemy models, cleaning "
-        "and field normalization from your csv files!"
-    )
+    long_description = description
 
 setup(
     name='modelmapper',
-    description=long_description,
+    description=description,
+    long_description=long_description,
+    # long_description_content_type='text/markdown',
     author='Sep Dehpour',
     url='https://github.com/wearefair/modelmapper',
     download_url='https://github.com/wearefair/modelmapper/tarball/master',
