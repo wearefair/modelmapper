@@ -2,6 +2,7 @@ import gzip
 import datetime
 import logging
 import pickle
+import types
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner
@@ -25,6 +26,9 @@ class ETL(Base):
     def __init__(self, *args, **kwargs):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
+
+        self._should_reprocess = kwargs.pop('should_reprocess', None)
+
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
@@ -78,6 +82,11 @@ class ETL(Base):
 
     def _dump_state_after_client_response(self, data):
         with open(f'{self.DUMP_FILEPATH}.pickle', "wb") as the_file:
+            if isinstance(data['content'], types.GeneratorType):
+                # Since the type of data's content is a CSV we can unwrap the
+                # generator with list and just take it's first entry.
+                data['content'] = next(data['content'])
+
             pickle.dump(data, the_file)
 
     def _load_state_after_client_response(self):
@@ -90,7 +99,21 @@ class ETL(Base):
             session.add(raw_key)
             session.commit()
         except core_exc.IntegrityError:
-            session.rollback()  # Signature already exists, so we're processing an existing file.
+            session.rollback()
+
+            # We are attempting to process an existing file.
+            if self._should_reprocess:
+                raw_key = session.query(
+                    self.RAW_KEY_MODEL
+                ).filter(
+                    self.RAW_KEY_MODEL.signature == signature
+                ).one()  # <-- raise exception if not found
+
+                self.logger.info(f'Reprocessing for ID: {raw_key.id} ' +
+                                 f'[Signature: {self.RAW_KEY_MODEL.signature}]')
+
+                return raw_key.id
+
         except Exception:
             session.rollback()
             raise
@@ -131,7 +154,7 @@ class ETL(Base):
         self.logger.info(f'Starting the {self.JOB_NAME} ...')
 
         if use_client:
-            content = self.get_client_data()
+            content = self.get_client_data(reprocess=self._should_reprocess)
 
         # get_client_data may have returned a key for the raw_key value
         if isinstance(content, tuple):
@@ -205,7 +228,8 @@ class ETL(Base):
             session.commit()
 
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
-            sheet_names=None, use_client=True, backup_data=True, ignore_missing_fields=True):
+            sheet_names=None, use_client=True, backup_data=True,
+            ignore_missing_fields=True):
         """Entrypoint for any ETL job
         Argumements:
             ping_slack (bool): should alert slack on error

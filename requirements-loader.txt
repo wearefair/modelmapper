@@ -1,5 +1,5 @@
 -r requirements.txt
 mmh3==2.5.1
 requests==2.21.0
-SQLAlchemy==1.2.6
+SQLAlchemy==1.3.7
 boto3==1.7.11
