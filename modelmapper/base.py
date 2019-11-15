@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import importlib
+from ast import literal_eval
 from copy import deepcopy
 from collections import defaultdict
 
@@ -29,7 +30,7 @@ class Base:
         self.debug = debug
         self.setup_dir = os.path.dirname(self.setup_path)
         sys.path.append(self.setup_dir)
-        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation']
+        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation',]
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
                           'ignore_fields_in_signature_calculation', ]
@@ -39,6 +40,9 @@ class Base:
             self._clean_settings_item(item)
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
+        key = 'default_value_for_field_when_casting_error'
+        self.settings[key] = self.settings.get(key) or r'{}'
+        self.settings[key] = {self._clean_it(i): v for i, v in literal_eval(self.settings[key])}
         slack_http_endpoint = self.settings['slack_http_endpoint']
         # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
         slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
