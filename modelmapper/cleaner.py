@@ -182,8 +182,8 @@ class Cleaner(Base):
         if self._error_registry and self.publicized_errs:
             error_msg = f'There were errors when casting types for fields in {self.settings.combined_file_name[:-3]}.\n'
             slack_msg = error_msg + self._error_registry.get_report_str()
-            self.logger.error(error_msg, extra=self._error_registry.get_report_dict())
             self.slack(slack_msg)
+            self.logger.error(error_msg, extra=self._error_registry.get_report_dict())
             self.publicized_errs = True
 
         all_lines_cleaned = zip(*all_items.values())
