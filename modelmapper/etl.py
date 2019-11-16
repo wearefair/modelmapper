@@ -248,7 +248,7 @@ class ETL(Base):
                 self._load(session, data_gen)
         except Exception as e:
             self.report_exception(e)
-            self.logger.exception(str(e), extra=getattr(e, 'extra', None))
+            self.logger.exception(str(e))
             if ping_slack:
                 self.report_error_to_slack(e)
 
