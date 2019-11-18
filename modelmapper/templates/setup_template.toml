@@ -14,6 +14,7 @@ default_value_for_field_when_casting_error = ""  # Python dictionary of field na
 dollar_value_if_word_in_field_name = []  # If the field name has any of these words, consider it as money field. It only matters if dollar_to_cent is True
 non_string_fields_are_all_nullable = true  # If yes, any non string field will be automatically nullable. Otherwise only if you have null values in your training csv, then it will be marked as nullable.
 string_fields_can_be_nullable = false  # Normally string fields should not be nullable since they can be just empty. If you set it to True, then if there are null values inside the string field in any of the training csvs, it will mark the field is nullable.
+should_reprocess = false  # Whether to reprocess files that are already processed or not. The recommended value is false so we avoid reprocessing files that are already processed before.
 training_csvs = []  # The list of relative paths to the training csvs
 output_model_file = ""  # The relative path to the ORM model file that the output generated model will be inserted into.
 ignore_lines_that_include_only_subset_of = ["", "-"]  # Ignore lines that only include these characters
@@ -25,8 +26,9 @@ slack_username = ""  # slack username for reporting errors when importing data.
 slack_channel = ""  # slack channel for reporting errors when importing data.
 slack_http_endpoint = ""  # slack http endpoint for reporting errors when importing data. It can be an environment variable.
 slack_handle_to_ping = ""  # slack handle to ping in the channel in case of errors. For example: @some_user or @here
+raw_headers_include = []  # If the first row of the sheet is not the headers row, you can use this list to define a subset of raw column names that can be used to find the row that has the headers. For example if there are a few rows with descriptions and then on row X which includes column names like FirstName and LastName, then you set this attribute to ["FirstName", "LastName"]
 
 [settings.max_int]
-32767 = "SmallInteger"  # An integer field with ALL numbers below this in your training csv will be marked as SmallInteger. If you don't want any SmallIntegerfields, then remove this line.
-2147483647 = "Integer"  # An integer field with ALL numbers below this but at least one above SmallInteger in your training csv will be marked as Integer
-9223372036854775807 = "BigInteger"  # An integer field with ALL numbers below this but at least one above Integer in your training csv will be marked as BigInteger
+SmallInteger = 32767  # An integer field with ALL numbers below this in your training csv will be marked as SmallInteger. If you don't want any SmallIntegerfields, then remove this line.
+Integer = 2147483647  # An integer field with ALL numbers below this but at least one above SmallInteger in your training csv will be marked as Integer
+BigInteger = 9223372036854775807  # An integer field with ALL numbers below this but at least one above Integer in your training csv will be marked as BigInteger

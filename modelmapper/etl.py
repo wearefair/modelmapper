@@ -5,7 +5,7 @@ import pickle
 import types
 
 from modelmapper.base import Base
-from modelmapper.cleaner import Cleaner
+from modelmapper.cleaner import Cleaner, CastingError
 from modelmapper.misc import generator_chunker, generator_updater
 from modelmapper.signature import get_hash_of_bytes
 from sqlalchemy import exc as core_exc
@@ -26,9 +26,6 @@ class ETL(Base):
     def __init__(self, *args, **kwargs):
         self.JOB_NAME = self.__class__.__name__
         self.DUMP_FILEPATH = f'/tmp/{self.JOB_NAME}_dump'
-
-        self._should_reprocess = kwargs.pop('should_reprocess', None)
-
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
@@ -75,7 +72,7 @@ class ETL(Base):
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
             data_compressed = self.encrypt_data(data_compressed)
-        self.logger.info(f'Backing up the data into s3 bucket: {key}')
+        self.logger.info(f'Backing up the data into s3 bucket: {self.BUCKET_NAME}/{key}')
         metadata = {'compression': 'gzip'}
         self.backup_data(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
@@ -102,7 +99,7 @@ class ETL(Base):
             session.rollback()
 
             # We are attempting to process an existing file.
-            if self._should_reprocess:
+            if self.settings.should_reprocess:
                 raw_key = session.query(
                     self.RAW_KEY_MODEL
                 ).filter(
@@ -154,7 +151,7 @@ class ETL(Base):
         self.logger.info(f'Starting the {self.JOB_NAME} ...')
 
         if use_client:
-            content = self.get_client_data(reprocess=self._should_reprocess)
+            content = self.get_client_data()
 
         # get_client_data may have returned a key for the raw_key value
         if isinstance(content, tuple):
@@ -211,14 +208,15 @@ class ETL(Base):
                 chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
                 row_count += chunk_rows_inserted
                 if chunk_rows_inserted:
-                    self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the database.')
+                    self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the {table}.')
         except Exception as e:
             try:
                 session.rollback()
             except Exception as e2:
                 self.logger.exception('Failed to rollback the transaction')
                 self.report_exception(e2)
-            raise ValueError(f'Error when inserting row into {table}: {e}') from e
+            self.logger.error(f'Error when inserting row into {table}: {e}')
+            raise
         else:
             if row_count:
                 msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
@@ -248,7 +246,10 @@ class ETL(Base):
                 self._load(session, data_gen)
         except Exception as e:
             self.report_exception(e)
-            self.logger.exception(str(e))
+            if isinstance(e, CastingError):
+                self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
+            else:
+                self.logger.exception(str(e))
             if ping_slack:
                 self.report_error_to_slack(e)
 
@@ -258,6 +259,12 @@ class ETL(Base):
         Meant for local usage only.
         """
         data = self._load_state_after_client_response()
-        with self.get_session() as session:
-            data_gen = self._transform(session, data)
-            self._load(session, data_gen)
+        try:
+            with self.get_session() as session:
+                data_gen = self._transform(session, data)
+                self._load(session, data_gen)
+        except Exception as e:
+            if isinstance(e, CastingError):
+                self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
+            else:
+                self.logger.exception(str(e))

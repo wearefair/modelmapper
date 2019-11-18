@@ -33,12 +33,15 @@ class CastingError(TypeError):
 
     def __init__(self, msg, field_name, item):
         super().__init__(msg)
+        self.msg = msg
         self.field_name = field_name
-        self.item = item
+        self.item = item[:200]
 
-    @property
-    def extra(self):
+    def get_extra(self):
         return {'field_name': self.field_name, 'item': self.item}
+
+    def get_logger_args(self):
+        return (f"{self.msg} field_name: %s, item: %s", self.field_name, self.item)
 
 
 def get_file_content_bytes(path):
@@ -179,11 +182,11 @@ class Cleaner(Base):
                 self.slack(error_msg)
                 self._publicized_missing_fields = True
 
-        if self._error_registry and self.publicized_errs:
+        if self._error_registry and not self.publicized_errs:
             error_msg = f'There were errors when casting types for fields in {self.settings.combined_file_name[:-3]}.\n'
             slack_msg = error_msg + self._error_registry.get_report_str()
             self.slack(slack_msg)
-            self.logger.error(error_msg, extra=self._error_registry.get_report_dict())
+            self.logger.error(slack_msg, extra=self._error_registry.get_report_dict())
             self.publicized_errs = True
 
         all_lines_cleaned = zip(*all_items.values())

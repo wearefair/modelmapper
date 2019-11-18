@@ -173,7 +173,7 @@ class Mapper(Base):
 
     def _get_integer_field(self, max_int):
         previous_key = 0
-        for key, field_db_type in self.settings.max_int.items():
+        for field_db_type, key in self.settings.max_int.items():
             if key < previous_key:
                 raise ValueError('max_int keys are not properly sorted.')
             previous_key = key

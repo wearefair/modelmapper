@@ -11,6 +11,7 @@ datetime_allowed_characters = "0123456789/:-t."
 datetime_formats = ["%m/%d/%y", "%m/%d/%Y", "%Y%m%d", "%Y-%m-%d"]
 field_name_full_conversion = [["carrot", "cheese"], ["BREAD", "salted butter"], ["Model Year", "Year"]]
 field_name_part_conversion = [["#", "num"], [" (e)", ""], ["(y/n)", ""], [" (s)", ""], [" (e,s)", ""], ["yyyymmdd", ""], [")", ""], ["(", ""], [": ", "_"], [" ", "_"], ["/", "_"], [".", "_"], ["-", "_"], ["%", "_percent"], ["?", ""], ["!", ""], [",", ""], ["'", ""], ["&", "_and_"], ["@", "_at_"], ["$", "_dollar_"], [">=", "_bigger_or_equal_"], [">", "_bigger_"], ["<=", "_less_or_equal_"], ["<", "_less_"], ["=", "_equal_"], ["___", "_"], ["__", "_"]]
+should_reprocess = false  # Whether to reprocess files that are already processed or not. The recommended value is false so we avoid reprocessing files that are already processed before.
 dollar_value_if_word_in_field_name = []
 non_string_fields_are_all_nullable = true
 string_fields_can_be_nullable = false
@@ -25,8 +26,9 @@ slack_username = ""
 slack_channel = ""
 slack_http_endpoint = ""
 slack_handle_to_ping = ""
+raw_headers_include = []
 
 [settings.max_int]
-32767 = "SmallInteger"
-2147483647 = "Integer"
-9223372036854775807 = "BigInteger"
+"SmallInteger" = 32767
+"Integer" = 2147483647
+"BigInteger" = 9223372036854775807

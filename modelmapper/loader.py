@@ -111,6 +111,7 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
         snapshot_table = self.SNAPSHOT_MODEL.__table__
         new_chunk = self.add_row_signature(chunk) if self.settings.ignore_duplicate_rows_when_importing else chunk  # NOQA
         count = 0
+        existing_count = 0
         if new_chunk:
             for row in new_chunk:
                 id_ = None
@@ -126,7 +127,9 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
                     snapshot_row = {'raw_key_id': row['raw_key_id'], 'record_id': id_}
                     ins = snapshot_table.insert().values(**snapshot_row)
                     result = session.execute(ins)
+                    existing_count += 1
             session.flush()
+        self.logger.info(f'{existing_count} existing records were already in {table}.')
         return count
 
 

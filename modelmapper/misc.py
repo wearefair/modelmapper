@@ -91,7 +91,6 @@ def write_settings(path, contents):
     template_setup_path = os.path.join(current_dir, 'templates/setup_template.toml')
     with open(template_setup_path, 'r') as the_file:
         lines = the_file.readlines()
-
     comments = {}
     for line in lines:
         if '=' in line:
@@ -200,6 +199,11 @@ def analyze_csv_format(iostream, **kwargs):
 
     return delimiter, has_header, raw_headers
 
+
+def do_nothing(x):
+    return x
+
+
 def find_header(iostream, **kwargs):
     """From an open csv file descriptor, locates header and returns iterable data from there.
 
@@ -212,22 +216,24 @@ def find_header(iostream, **kwargs):
     """
     delimiter, has_header, raw_headers = analyze_csv_format(iostream, **kwargs)
 
-    # no user provided headers but sniffer found some
-    if not raw_headers and has_header:
-        return csv.reader(iostream, delimiter=delimiter)
-
-    # no user provided headers and sniffer could not find any.
-    # we cannot locate the headers
     if not raw_headers:
-        raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
-                        'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
+        # user did not provide the headers but sniffer found some
+        if has_header:
+            return csv.reader(iostream, delimiter=delimiter)
+        # no user provided headers and sniffer could not find any.
+        # we cannot locate the headers
+        else:
+            raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
+                            'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
 
     records = csv.reader(iostream, delimiter=delimiter)
-
     # find headers
+    cleaning_func = kwargs.pop('cleaning_func', None) or do_nothing
     for record in records:
-        if any(map(lambda x: x in raw_headers, record)):
-            return chain([record], records)
+        if record and raw_headers <= set(map(cleaning_func, record)):  # finding if the raw headers are subset of the record
+            return chain([record], records)  # chaining the header line (record)
+    raise ValueError('Could not find the headers line. Please double check the raw_headers_include that were provided.')
+
 
 def read_csv_gen(path_or_stringio, **kwargs):
     """

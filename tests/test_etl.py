@@ -71,7 +71,8 @@ class TestETL:
 
         mock_session.query = Mock(return_value=filter_mock)
 
-        test_etl = ETL(setup_path=example_setup_path, should_reprocess=True)
+        test_etl = ETL(setup_path=example_setup_path)
+        test_etl.settings = test_etl.settings._replace(should_reprocess=True)  # creating a new settings namedtuple.
         test_etl.RAW_KEY_MODEL = Mock()
         actual_id = test_etl._create_raw_key(mock_session, "123", "123")
 

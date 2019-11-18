@@ -18,6 +18,10 @@ TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
+def dummy_cleaning_func(x):
+    return x.lower().strip()
+
+
 class TestMisc:
 
     @pytest.mark.parametrize("word, expected", [
@@ -151,7 +155,8 @@ class TestMisc:
 
     def test_read_csv_gen_offset_header(self):
         offset_io = io.StringIO(offset_header())
-        csv_gen = read_csv_gen(offset_io, raw_headers_include={'Account Number', 'Fees'})
+        raw_headers = {dummy_cleaning_func(i) for i in {'Account Number', 'Fees'}}
+        csv_gen = read_csv_gen(offset_io, raw_headers_include=raw_headers, cleaning_func=dummy_cleaning_func)
         for corrected, expected in zip(list(csv_gen), corrected_header().split('\n')):
             assert corrected == expected.split(',')
 
