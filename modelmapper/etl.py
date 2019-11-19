@@ -205,7 +205,8 @@ class ETL(Base):
             return
         try:
             for chunk in chunks:
-                chunk_rows_inserted, chunk_rows_already_existing = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
+                chunk_rows_inserted, chunk_rows_already_existing = self.insert_chunk_of_data_to_db(
+                    session, self.RECORDS_MODEL, chunk)
                 if chunk_rows_inserted:
                     row_count += chunk_rows_inserted
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the {table}.')
@@ -222,9 +223,11 @@ class ETL(Base):
             raise
         else:
             if row_count:
-                msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database. And there were {existing_row_count} existing rows that were not re-inserted.'
+                msg = (f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
+                       f'And there were {existing_row_count} existing rows that were not re-inserted.')
             else:
-                msg = f'{self.JOB_NAME}: Non New Records are added but a snapshot is added. And there were {existing_row_count} existing rows that were not re-inserted.'
+                msg = (f'{self.JOB_NAME}: Non New Records are added but a snapshot is added.'
+                       f'And there were {existing_row_count} existing rows that were not re-inserted.')
             self.logger.info(msg)
             session.commit()
 

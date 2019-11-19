@@ -76,7 +76,8 @@ class ErrorRegistry:
 
     def get_report_str(self):
         if not self.total_item_count_per_field:
-            raise ValueError('total_item_count_per_field is not set. We need the total number of items per field to be able to calculate the error percentage.')
+            raise ValueError('total_item_count_per_field is not set. We need the total number of items '
+                             'per field to be able to calculate the error percentage.')
         result = {'field_name': [], 'error': [], 'count': [], 'err%': [], 'items': []}
         to_be_extended = set(result.keys()) - {'items'}
         for field_name in self._stats:
@@ -108,7 +109,8 @@ class ErrorRegistry:
         }
         """
         if not self.total_item_count_per_field:
-            raise ValueError('total_item_count_per_field is not set. We need the total number of items per field to be able to calculate the error percentage.')
+            raise ValueError('total_item_count_per_field is not set. We need the total number of items '
+                             'per field to be able to calculate the error percentage.')
         result = {}
         for i, field_name in enumerate(self._stats):
             for j, msg in enumerate(self._stats[field_name]):
@@ -277,7 +279,8 @@ class Cleaner(Base):
                     if is_datetime:
                         item_chars = set(item)
                         if not item_chars <= self.settings.datetime_allowed_characters:
-                            raise CastingError('Invalid Datetime with characters that are NOT defined in datetime_allowed_characters', field_name=field_name, item=item)
+                            raise CastingError('Invalid Datetime with characters that are NOT defined '
+                                               'in datetime_allowed_characters', field_name=field_name, item=item)
                         try:
                             _format = datetime_formats[-1]
                             strptime(item, _format)
@@ -285,13 +288,15 @@ class Cleaner(Base):
                             if is_excel and item_chars <= FLOAT_ACCEPTABLE:
                                 pass
                             else:
-                                msg = f"Invalid Datetime format that is not defined in {field_info.get('datetime_formats')}"
+                                msg = ("Invalid Datetime format that is not defined in "
+                                       f"{field_info.get('datetime_formats')}")
                                 raise CastingError(msg, field_name=field_name, item=item) from None
                         except ValueError:
                             if datetime_formats:
                                 datetime_formats.pop()
                             else:
-                                msg = f"Invalid Datetime format that is not defined in {field_info.get('datetime_formats')}"
+                                msg = ("Invalid Datetime format that is not defined in "
+                                       f"{field_info.get('datetime_formats')}")
                                 raise CastingError(msg, field_name=field_name, item=item) from None
                     if is_string:
                         item = original_item
@@ -373,7 +378,8 @@ class Cleaner(Base):
                         'content_str': [lambda x: x.encode('utf-8'), escape_xls_xml_item, xls_xml_contents_cleaned],
                         'content_bytes': [escape_xls_xml_item, xls_xml_contents_cleaned],
                         'content_bytesio': [lambda x: x.getvalue(), escape_xls_xml_item, xls_xml_contents_cleaned],
-                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'), escape_xls_xml_item, xls_xml_contents_cleaned],
+                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'),
+                                             escape_xls_xml_item, xls_xml_contents_cleaned],
                         },
             'xlsx': {'path': [get_file_content_bytes, xls_contents_cleaned],
                      'content_str': [lambda x: x.encode('utf-8'), xlsx_contents_cleaned],

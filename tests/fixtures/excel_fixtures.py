@@ -43,7 +43,8 @@ def csv_contents1_reformatted():
 
 @pytest.fixture(scope='session')
 def csv_contents1_other_sheet():
-    with open(os.path.join(current_dir, 'training_fixture1_with_2_sheets__Sheet1.csv'), 'r', encoding='utf-8-sig') as the_file:
+    with open(os.path.join(current_dir, 'training_fixture1_with_2_sheets__Sheet1.csv'),
+              'r', encoding='utf-8-sig') as the_file:
         return the_file.read()
 
 

@@ -1,5 +1,4 @@
 import os
-from types import GeneratorType
 from unittest import mock
 from unittest.mock import Mock
 from uuid import uuid4
@@ -21,9 +20,11 @@ with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
 def job():
     return ETL(setup_path=example_setup_path)
 
+
 @pytest.fixture(scope='module')
 def basic():
     return BasicETL(setup_path=example_setup_path)
+
 
 def content_generator():
     yield training_fixture1_content_str
