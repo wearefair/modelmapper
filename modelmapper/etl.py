@@ -231,6 +231,11 @@ class ETL(Base):
             self.logger.info(msg)
             session.commit()
 
+    def _handle_generic_exception(self, e, ping_slack):
+        self.report_exception(e)
+        if ping_slack:
+            self.report_error_to_slack(e)
+
     def run(self, ping_slack=False, path=None, content=None, content_type=None,
             sheet_names=None, use_client=True, backup_data=True,
             ignore_missing_fields=True):
@@ -250,14 +255,11 @@ class ETL(Base):
                                      sheet_names=sheet_names, use_client=use_client, backup_data=backup_data)
                 data_gen = self._transform(session, data)
                 self._load(session, data_gen)
+        except CastingError as e:
+            self._handle_generic_exception(e, ping_slack)
+            self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
         except Exception as e:
-            self.report_exception(e)
-            if isinstance(e, CastingError):
-                self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
-            else:
-                self.logger.exception(str(e))
-            if ping_slack:
-                self.report_error_to_slack(e)
+            self._handle_generic_exception(e, ping_slack)
 
     def reload(self):
         """
@@ -269,8 +271,8 @@ class ETL(Base):
             with self.get_session() as session:
                 data_gen = self._transform(session, data)
                 self._load(session, data_gen)
+        except CastingError as e:
+            self._handle_generic_exception(e, ping_slack=False)
+            self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
         except Exception as e:
-            if isinstance(e, CastingError):
-                self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
-            else:
-                self.logger.exception(str(e))
+            self._handle_generic_exception(e, ping_slack=False)
