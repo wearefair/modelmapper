@@ -196,7 +196,7 @@ class ETL(Base):
         self.logger.info(f"{self.JOB_NAME}: Inserting data into db")
         table = self.RECORDS_MODEL.__table__
 
-        row_count = 0
+        row_count = existing_row_count = 0
 
         self.all_recent_rows_signatures = set()
         chunks = generator_chunker(data_gen, chunk_size=self.SQL_CHUNK_ROWS)
@@ -205,10 +205,13 @@ class ETL(Base):
             return
         try:
             for chunk in chunks:
-                chunk_rows_inserted = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
-                row_count += chunk_rows_inserted
+                chunk_rows_inserted, chunk_rows_already_existing = self.insert_chunk_of_data_to_db(session, self.RECORDS_MODEL, chunk)
                 if chunk_rows_inserted:
+                    row_count += chunk_rows_inserted
                     self.logger.debug(f'{self.JOB_NAME}: Put {row_count} rows in the {table}.')
+                if chunk_rows_already_existing:
+                    existing_row_count += chunk_rows_already_existing
+                    self.logger.debug(f'{self.JOB_NAME}: Existing {existing_row_count} rows already in the {table}.')
         except Exception as e:
             try:
                 session.rollback()
@@ -219,9 +222,9 @@ class ETL(Base):
             raise
         else:
             if row_count:
-                msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database.'
+                msg = f'{self.JOB_NAME}: Finished putting {row_count} rows in the database. And there were {existing_row_count} existing rows that were not re-inserted.'
             else:
-                msg = f'{self.JOB_NAME}: Non New Records are added but a snapshot is added.'
+                msg = f'{self.JOB_NAME}: Non New Records are added but a snapshot is added. And there were {existing_row_count} existing rows that were not re-inserted.'
             self.logger.info(msg)
             session.commit()
 

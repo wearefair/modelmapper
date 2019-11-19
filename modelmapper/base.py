@@ -30,14 +30,14 @@ class Base:
         self.debug = debug
         self.setup_dir = os.path.dirname(self.setup_path)
         sys.path.append(self.setup_dir)
-        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation', 'raw_headers_include']
+        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation', 'identify_header_by_column_names']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
-                          'ignore_fields_in_signature_calculation', 'raw_headers_include']
+                          'ignore_fields_in_signature_calculation', 'identify_header_by_column_names']
         self._original_settings = load_toml(self.setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
-            self._clean_settings_item(item)
+            self._clean_settings_items(item)
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
         key = 'default_value_for_field_when_casting_error'
@@ -47,6 +47,7 @@ class Base:
         # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
         slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
         self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
+        self.settings['should_reprocess'] = self.settings.get('should_reprocess', False)
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
@@ -77,7 +78,12 @@ class Base:
             item = item.replace(source, to_replace)
         return item.strip('_')
 
-    def _clean_settings_item(self, item):
+    def _clean_settings_items(self, item):
+        """
+        Normalizes list or nested lists
+        """
+        if item not in self.settings:
+            self.settings[item] = []
         try:
             first_value = self.settings[item][0]
         except IndexError:
@@ -129,7 +135,7 @@ class Base:
     def _get_clean_names_and_csv_data_gen(self, path):
         delimiter = self.settings.csv_delimiter
         reader = read_csv_gen(path, delimiter=delimiter,
-                              raw_headers_include=self.settings.raw_headers_include,
+                              identify_header_by_column_names=self.settings.identify_header_by_column_names,
                               cleaning_func=self._clean_it)
         names = next(reader)
         self._verify_no_duplicate_names(names)

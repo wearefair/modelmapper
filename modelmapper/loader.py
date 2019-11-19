@@ -37,7 +37,7 @@ class BaseLoaderMixin():
                 inserted_row = self.insert_row_into_db(row, session, model)
                 self.post_row_insert(inserted_row, session, model)
                 count += 1
-        return count
+        return count, None
 
 
 class SqlalchemyLoaderMixin(BaseLoaderMixin):
@@ -129,8 +129,7 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
                     result = session.execute(ins)
                     existing_count += 1
             session.flush()
-        self.logger.info(f'{existing_count} existing records were already in {table}.')
-        return count
+        return count, existing_count
 
 
 class SqlalchemyBulkLoaderMixin():
@@ -155,6 +154,6 @@ class SqlalchemyBulkLoaderMixin():
             insrt_stmnt = insert(table).values(new_chunk)
             do_nothing_stmt = insrt_stmnt.on_conflict_do_nothing()
             results = session.execute(do_nothing_stmt)
-            return results.rowcount
+            return results.rowcount, None
         else:
-            return 0
+            return 0, None

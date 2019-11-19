@@ -150,13 +150,13 @@ class TestMisc:
     ])
     def test_read_csv_gen(self, contents, expected, raw_headers):  # NOQA
         item = io.StringIO(contents)
-        item = list(read_csv_gen(item, raw_headers_include=raw_headers))
+        item = list(read_csv_gen(item, identify_header_by_column_names=raw_headers))
         assert item == expected
 
     def test_read_csv_gen_offset_header(self):
         offset_io = io.StringIO(offset_header())
         raw_headers = {dummy_cleaning_func(i) for i in {'Account Number', 'Fees'}}
-        csv_gen = read_csv_gen(offset_io, raw_headers_include=raw_headers, cleaning_func=dummy_cleaning_func)
+        csv_gen = read_csv_gen(offset_io, identify_header_by_column_names=raw_headers, cleaning_func=dummy_cleaning_func)
         for corrected, expected in zip(list(csv_gen), corrected_header().split('\n')):
             assert corrected == expected.split(',')
 

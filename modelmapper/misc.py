@@ -173,7 +173,7 @@ def analyze_csv_format(iostream, **kwargs):
     Raises:        csv.Error : Malformed csv.
 
     """
-    raw_headers = kwargs.pop('raw_headers_include', None)
+    raw_headers = kwargs.pop('identify_header_by_column_names', None)
     delimiter = kwargs.pop('delimiter', None)
     sample = iostream.read(CHUNK_SIZE)
     sniffer = csv.Sniffer()
@@ -224,7 +224,7 @@ def find_header(iostream, **kwargs):
         # we cannot locate the headers
         else:
             raise csv.Error('csv.Sniffer() could not detect file headers and modelmapper was not provided the raw headers',
-                            'Please add a subset of the raw headers to the `raw_headers_include` key in your setup.toml.')
+                            'Please add a subset of the raw headers to the `identify_header_by_column_names` key in your setup.toml.')
 
     records = csv.reader(iostream, delimiter=delimiter)
     # find headers
@@ -232,7 +232,7 @@ def find_header(iostream, **kwargs):
     for record in records:
         if record and raw_headers <= set(map(cleaning_func, record)):  # finding if the raw headers are subset of the record
             return chain([record], records)  # chaining the header line (record)
-    raise ValueError('Could not find the headers line. Please double check the raw_headers_include that were provided.')
+    raise ValueError('Could not find the headers line. Please double check the identify_header_by_column_names that were provided.')
 
 
 def read_csv_gen(path_or_stringio, **kwargs):

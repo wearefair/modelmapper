@@ -26,7 +26,7 @@ slack_username = ""  # slack username for reporting errors when importing data.
 slack_channel = ""  # slack channel for reporting errors when importing data.
 slack_http_endpoint = ""  # slack http endpoint for reporting errors when importing data. It can be an environment variable.
 slack_handle_to_ping = ""  # slack handle to ping in the channel in case of errors. For example: @some_user or @here
-raw_headers_include = []  # If the first row of the sheet is not the headers row, you can use this list to define a subset of raw column names that can be used to find the row that has the headers. For example if there are a few rows with descriptions and then on row X which includes column names like FirstName and LastName, then you set this attribute to ["FirstName", "LastName"]
+identify_header_by_column_names = []  # If the first row of the sheet is not the headers row, you can use this list to define a subset of raw column names that can be used to find the row that has the headers. For example if there are a few rows with descriptions and then on row X which includes column names like FirstName and LastName, then you set this attribute to ["FirstName", "LastName"]
 
 [settings.max_int]
 SmallInteger = 32767  # An integer field with ALL numbers below this in your training csv will be marked as SmallInteger. If you don't want any SmallIntegerfields, then remove this line.
