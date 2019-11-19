@@ -145,6 +145,8 @@ class TestErrorRegistry:
             err_reg.add_err(msg=msg, field_name=field_name, item=item)
         result = err_reg.get_report_str()
         result_dict = err_reg.get_report_dict()
+        # TO DEBUG:
+        # Run this test with pdb and once it fails here, copy paste the following line into terminal:
         # from pprint import pprint; nn = list(map((lambda x: x + '\n'), result.split('\n'))); nn[-1]=nn[-1][:-1]; pprint(nn)  # NOQA
         assert expected_report_str == result
         assert expected_report_dict == result_dict
