@@ -3,11 +3,13 @@ Functionality for cleaning the data for importing into tables that mapper has cr
 """
 import io
 import datetime
-
+import textwrap
+from collections import defaultdict
 from itertools import chain
 from functools import partial
 from decimal import Decimal
 from string import digits
+from tabulate import tabulate
 from xlrd import xldate_as_datetime
 from modelmapper.base import Base
 from modelmapper.normalization import normalize_numberic_values
@@ -20,11 +22,26 @@ FLOAT_ACCEPTABLE = frozenset('.' + digits)
 
 FIELD_NAME_NOT_FOUND_MSG = ('{} is not found in the combined model file.'
                             'Either there are new columns that the model needs to be trained with'
-                            'or you are running the setup for another model.')
+                            'or you are running the cleaner for the wrong model.')
 
 
 class ParsingError(ValueError):
     pass
+
+
+class CastingError(TypeError):
+
+    def __init__(self, msg, field_name, item):
+        super().__init__(msg)
+        self.msg = msg
+        self.field_name = field_name
+        self.item = item[:200]
+
+    def get_extra(self):
+        return {'field_name': self.field_name, 'item': self.item}
+
+    def get_logger_args(self):
+        return (f"{self.msg} field_name: %s, item: %s", self.field_name, self.item)
 
 
 def get_file_content_bytes(path):
@@ -37,6 +54,87 @@ def get_file_content_string(path):
         return the_file.read()
 
 
+def escape_xls_xml_item(item):
+    return item.replace(b' & ', b' &amp; ')
+
+
+class ErrorRegistry:
+
+    MAX_ITEMS_TO_HOLD = 10
+    MAX_COLUMN_WIDTH_IN_REPORTING = 15
+    MAX_MSG_CHARS = MAX_COLUMN_WIDTH_IN_REPORTING * 4
+    MAX_ROWS_IN_DICT_REPORT = 3
+
+    def __init__(self, total_item_count_per_field=None):
+        self._stats = defaultdict(lambda: defaultdict(lambda: {'count': 0, 'items': {}}))
+        self.total_item_count_per_field = total_item_count_per_field
+
+    def add_err(self, msg, field_name, item):
+        self._stats[field_name][msg]['count'] += 1
+        if self._stats[field_name][msg]['count'] <= self.MAX_ITEMS_TO_HOLD:
+            self._stats[field_name][msg]['items'][item] = None
+
+    def get_report_str(self):
+        if not self.total_item_count_per_field:
+            raise ValueError('total_item_count_per_field is not set. We need the total number of items '
+                             'per field to be able to calculate the error percentage.')
+        result = {'field_name': [], 'error': [], 'count': [], 'err%': [], 'items': []}
+        to_be_extended = set(result.keys()) - {'items'}
+        for field_name in self._stats:
+            for msg in self._stats[field_name]:
+                result['field_name'].append(field_name)
+                msg_text = '\n'.join(textwrap.wrap(msg[:self.MAX_MSG_CHARS], width=self.MAX_COLUMN_WIDTH_IN_REPORTING))
+                result['error'].append(msg_text)
+                count = self._stats[field_name][msg]['count']
+                percentage = int((count / self.total_item_count_per_field) * 100)
+                result['count'].append(count)
+                result['err%'].append(f'{percentage}%')
+                for item in self._stats[field_name][msg]['items']:
+                    result['items'].append(item)
+                extend_by = [''] * (len(result['items']) - len(result['field_name']))
+                if extend_by:
+                    for key in to_be_extended:
+                        result[key] += extend_by
+        return tabulate(result, headers='keys')
+
+    def get_report_dict(self):
+        """
+        This is a separate format of report that can be used in logs as the "extra" dictionary.
+
+        The format is:
+        result = {
+            'field_name1': None, 'error1': None, 'count1': None, 'err%1': None, 'items1': [],
+            'field_name2': None, 'error2': None, 'count2': None, 'err%2': None, 'items2': [],
+            'field_name3': None, 'error3': None, 'count3': None, 'err%3': None, 'items3': [],
+        }
+        """
+        if not self.total_item_count_per_field:
+            raise ValueError('total_item_count_per_field is not set. We need the total number of items '
+                             'per field to be able to calculate the error percentage.')
+        result = {}
+        for i, field_name in enumerate(self._stats):
+            for j, msg in enumerate(self._stats[field_name]):
+                n = i + j + 1
+                if n > self.MAX_ROWS_IN_DICT_REPORT:
+                    break
+                result[f'field_name{n}'] = field_name
+                result[f'error{n}'] = msg
+                count = self._stats[field_name][msg]['count']
+                percentage = int((count / self.total_item_count_per_field) * 100)
+                result[f'count{n}'] = count
+                result[f'err%{n}'] = f'{percentage}%'
+                for item in self._stats[field_name][msg]['items']:
+                    key = f'items{n}'
+                    if key in result:
+                        result[key] = f"{result[key]}, {item[:self.MAX_MSG_CHARS]}"
+                    else:
+                        result[key] = item[:self.MAX_MSG_CHARS]
+        return result
+
+    def __bool__(self):
+        return bool(self._stats)
+
+
 class Cleaner(Base):
 
     def __init__(self, *args, **kwargs):
@@ -44,8 +142,7 @@ class Cleaner(Base):
         # https://github.com/python-excel/xlrd/blob/master/xlrd/xldate.py
         # 0: 1900-based, 1: 1904-based.
         self.xls_date_mode = kwargs.pop('xls_date_mode', 0)
-        self._missing_fields = set()
-        self.publicized = False
+        self.reset()
 
         super().__init__(*args, **kwargs)
 
@@ -77,7 +174,7 @@ class Cleaner(Base):
                 except KeyError:
                     pass
 
-            if not self.publicized:
+            if not self._publicized_missing_fields:
                 error_msg = (
                     f'There were fields found in the source data that were not defined in the given Model.\n'
                     f'Fields Missing: {self._missing_fields}\n'
@@ -85,7 +182,14 @@ class Cleaner(Base):
                 )
                 self.logger.error(error_msg)
                 self.slack(error_msg)
-                self.publicized = True
+                self._publicized_missing_fields = True
+
+        if self._error_registry and not self.publicized_errs:
+            error_msg = f'There were errors when casting types for fields in {self.settings.combined_file_name[:-3]}.\n'
+            slack_msg = error_msg + self._error_registry.get_report_str()
+            self.slack(slack_msg)
+            self.logger.error(slack_msg, extra=self._error_registry.get_report_dict())
+            self.publicized_errs = True
 
         all_lines_cleaned = zip(*all_items.values())
 
@@ -122,6 +226,13 @@ class Cleaner(Base):
         max_string_len = field_info.get('args', 255) if is_string else 0
         max_string_len_padded = min(max_string_len + self.settings.add_to_string_length, 255)
 
+        if field_name in self.settings.default_value_for_field_when_casting_error:
+            has_default_if_err = True
+            default_if_err = self.settings.default_value_for_field_when_casting_error[field_name]
+        else:
+            has_default_if_err = False
+            default_if_err = None
+
         def _mark_nulls(item):
             return None if item in self.settings.null_values else item
 
@@ -131,64 +242,72 @@ class Cleaner(Base):
             elif item in self.settings.boolean_false:
                 result = False
             else:
-                raise ValueError(f"There is a value of {item} in {field_name} "
-                                 "which is not a recognized Boolean or Null value.")
+                raise CastingError("Invalid Boolean or Null value.", field_name=field_name, item=item)
             return result
 
         for i, item in enumerate(field_values):
-            original_item = item
-            item = item.strip().lower()
-            if is_string:
-                if len(item) > max_string_len_padded:
-                    msg = f'There is a value that is longer than {max_string_len_padded} for {field_name}: {item}'
-                    raise ValueError(msg)
-
-            if is_integer or is_decimal:
-                item = normalize_numberic_values(item)
-
-            if is_nullable:
-                item = _mark_nulls(item)
-
-            if item is not None:
-                if is_boolean:
-                    item = _mark_booleans(item)
-
-                if is_integer or is_decimal or is_dollar or is_percent:
-                    try:
-                        item = Decimal(item)
-                    except Exception as e:
-                        raise TypeError(f'Unable to convert {item} into decimal: {e}') from None
-
-                if is_dollar:
-                    item = item * ONE_HUNDRED
-                if is_percent and not is_excel:  # xls already has it divided by 100
-                    item = item / ONE_HUNDRED
-                if is_integer:
-                    item = int(item)
-                if is_datetime:
-                    item_chars = set(item)
-                    if not item_chars <= self.settings.datetime_allowed_characters:
-                        raise ValueError(f"Datetime value of {item} in {field_name} has characters "
-                                         "that are NOT defined in datetime_allowed_characters")
-                    msg = (f"{field_name} has invalid datetime format for {item} "
-                           f"that is not in {field_info.get('datetime_formats')}")
-                    try:
-                        _format = datetime_formats[-1]
-                        strptime(item, _format)
-                    except IndexError:
-                        if is_excel and item_chars <= FLOAT_ACCEPTABLE:
-                            pass
-                        else:
-                            raise ValueError(msg) from None
-                    except ValueError:
-                        if datetime_formats:
-                            datetime_formats.pop()
-                        else:
-                            raise ValueError(msg) from None
+            try:
+                original_item = item
+                item = item.strip().lower()
                 if is_string:
-                    item = original_item
+                    if len(item) > max_string_len_padded:
+                        msg = f'There is a value that is longer than {max_string_len_padded}.'
+                        raise CastingError(msg, field_name=field_name, item=item)
 
-            field_values[i] = item
+                if is_integer or is_decimal:
+                    item = normalize_numberic_values(item)
+
+                if is_nullable:
+                    item = _mark_nulls(item)
+
+                if item is not None:
+                    if is_boolean:
+                        item = _mark_booleans(item)
+
+                    if is_integer or is_decimal or is_dollar or is_percent:
+                        try:
+                            item = Decimal(item)
+                        except Exception as e:
+                            raise CastingError('Invalid Decimal', field_name=field_name, item=item) from None
+
+                    if is_dollar:
+                        item = item * ONE_HUNDRED
+                    if is_percent and not is_excel:  # xls already has it divided by 100
+                        item = item / ONE_HUNDRED
+                    if is_integer:
+                        item = int(item)
+                    if is_datetime:
+                        item_chars = set(item)
+                        if not item_chars <= self.settings.datetime_allowed_characters:
+                            raise CastingError('Invalid Datetime with characters that are NOT defined '
+                                               'in datetime_allowed_characters', field_name=field_name, item=item)
+                        try:
+                            _format = datetime_formats[-1]
+                            strptime(item, _format)
+                        except IndexError:
+                            if is_excel and item_chars <= FLOAT_ACCEPTABLE:
+                                pass
+                            else:
+                                msg = ("Invalid Datetime format that is not defined in "
+                                       f"{field_info.get('datetime_formats')}")
+                                raise CastingError(msg, field_name=field_name, item=item) from None
+                        except ValueError:
+                            if datetime_formats:
+                                datetime_formats.pop()
+                            else:
+                                msg = ("Invalid Datetime format that is not defined in "
+                                       f"{field_info.get('datetime_formats')}")
+                                raise CastingError(msg, field_name=field_name, item=item) from None
+                    if is_string:
+                        item = original_item
+            except CastingError as e:
+                if has_default_if_err:
+                    field_values[i] = default_if_err
+                    self._error_registry.add_err(msg=str(e), field_name=field_name, item=item)
+                else:
+                    raise
+            else:
+                field_values[i] = item
 
         if is_datetime:
             def convert_dates(x):
@@ -202,7 +321,15 @@ class Cleaner(Base):
 
             field_values[:] = map(convert_dates, field_values)
 
+        self._error_registry.total_item_count_per_field = len(field_values)
+
         return field_values
+
+    def reset(self):
+        # default dict with default value of another default dict that has the default of a set
+        self._error_registry = ErrorRegistry()
+        self._publicized_missing_fields = self.publicized_errs = False
+        self._missing_fields = set()
 
     def clean(self, content_type, path=None, content=None, sheet_names=None, ignore_missing_fields=True):
         """
@@ -247,11 +374,12 @@ class Cleaner(Base):
                     'content_bytesio': [lambda x: x.getvalue(), xls_contents_cleaned],
                     'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_contents_cleaned],
                     },
-            'xls_xml': {'path': [get_file_content_bytes, xls_xml_contents_cleaned],
-                        'content_str': [lambda x: x.encode('utf-8'), xls_xml_contents_cleaned],
-                        'content_bytes': [xls_xml_contents_cleaned],
-                        'content_bytesio': [lambda x: x.getvalue(), xls_xml_contents_cleaned],
-                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'), xls_xml_contents_cleaned],
+            'xls_xml': {'path': [get_file_content_bytes, escape_xls_xml_item, xls_xml_contents_cleaned],
+                        'content_str': [lambda x: x.encode('utf-8'), escape_xls_xml_item, xls_xml_contents_cleaned],
+                        'content_bytes': [escape_xls_xml_item, xls_xml_contents_cleaned],
+                        'content_bytesio': [lambda x: x.getvalue(), escape_xls_xml_item, xls_xml_contents_cleaned],
+                        'content_stringio': [lambda x: x.getvalue().encode('utf-8'),
+                                             escape_xls_xml_item, xls_xml_contents_cleaned],
                         },
             'xlsx': {'path': [get_file_content_bytes, xls_contents_cleaned],
                      'content_str': [lambda x: x.encode('utf-8'), xlsx_contents_cleaned],
@@ -262,8 +390,7 @@ class Cleaner(Base):
         }
         solutions['tsv'] = solutions['csv']
 
-        self.publicized = False
-        self._missing_fields = set()
+        self.reset()
 
         content_type = content_type.lower()
         try:

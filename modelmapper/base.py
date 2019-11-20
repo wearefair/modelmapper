@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import importlib
+from ast import literal_eval
 from copy import deepcopy
 from collections import defaultdict
 
@@ -29,21 +30,25 @@ class Base:
         self.debug = debug
         self.setup_dir = os.path.dirname(self.setup_path)
         sys.path.append(self.setup_dir)
-        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation']
+        clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation',
+                       'identify_header_by_column_names']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
-                          'ignore_fields_in_signature_calculation', ]
+                          'ignore_fields_in_signature_calculation', 'identify_header_by_column_names']
         self._original_settings = load_toml(self.setup_path)['settings']
         self.settings = deepcopy(self._original_settings)
         for item in clean_later:
-            self._clean_settings_item(item)
+            self._clean_settings_items(item)
         for item in convert_to_set:
             self.settings[item] = set(self.settings.get(item, []))
+        key = 'default_value_for_field_when_casting_error'
+        self.settings[key] = self.settings.get(key) or r'{}'
+        self.settings[key] = {self._clean_it(i): v for i, v in literal_eval(self.settings[key]).items()}
         slack_http_endpoint = self.settings['slack_http_endpoint']
         # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
         slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
-        self.settings['raw_headers_include'] = self.settings.get('raw_headers_include', {})
         self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
+        self.settings['should_reprocess'] = self.settings.get('should_reprocess', False)
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
         self.settings['overrides_file_name'] = OVERRIDES_FILE_NAME.format(identifier)
@@ -57,8 +62,8 @@ class Base:
         # Since we cleaning up the field_name_part_conversion, special characters
         # such as \n need to be added seperately.
         self.settings['field_name_part_conversion'].insert(0, ['\n', '_'])
-        _max_int = ((int(i), v) for i, v in self.settings['max_int'].items())
-        self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[0]))
+        _max_int = ((i, int(v)) for i, v in self.settings['max_int'].items())
+        self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[1]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
         self.settings = Settings(**self.settings)
         self.questionable_fields = {}
@@ -74,7 +79,12 @@ class Base:
             item = item.replace(source, to_replace)
         return item.strip('_')
 
-    def _clean_settings_item(self, item):
+    def _clean_settings_items(self, item):
+        """
+        Normalizes list or nested lists
+        """
+        if item not in self.settings:
+            self.settings[item] = []
         try:
             first_value = self.settings[item][0]
         except IndexError:
@@ -125,8 +135,9 @@ class Base:
 
     def _get_clean_names_and_csv_data_gen(self, path):
         delimiter = self.settings.csv_delimiter
-        raw_headers_include = self.settings.raw_headers_include
-        reader = read_csv_gen(path, delimiter=delimiter, raw_headers_include=raw_headers_include)
+        reader = read_csv_gen(path, delimiter=delimiter,
+                              identify_header_by_column_names=self.settings.identify_header_by_column_names,
+                              cleaning_func=self._clean_it)
         names = next(reader)
         self._verify_no_duplicate_names(names)
         name_mapping = self._get_all_clean_field_names_mapping(names)

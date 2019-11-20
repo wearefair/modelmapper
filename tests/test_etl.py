@@ -1,5 +1,4 @@
 import os
-from types import GeneratorType
 from unittest import mock
 from unittest.mock import Mock
 from uuid import uuid4
@@ -21,9 +20,11 @@ with open(training_fixture1_path, 'r', encoding='utf-8-sig') as the_file:
 def job():
     return ETL(setup_path=example_setup_path)
 
+
 @pytest.fixture(scope='module')
 def basic():
     return BasicETL(setup_path=example_setup_path)
+
 
 def content_generator():
     yield training_fixture1_content_str
@@ -71,7 +72,8 @@ class TestETL:
 
         mock_session.query = Mock(return_value=filter_mock)
 
-        test_etl = ETL(setup_path=example_setup_path, should_reprocess=True)
+        test_etl = ETL(setup_path=example_setup_path)
+        test_etl.settings = test_etl.settings._replace(should_reprocess=True)  # creating a new settings namedtuple.
         test_etl.RAW_KEY_MODEL = Mock()
         actual_id = test_etl._create_raw_key(mock_session, "123", "123")
 

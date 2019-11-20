@@ -18,6 +18,10 @@ TOML_KEYS_THAT_ARE_SET = 'datetime_formats'
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
+def dummy_cleaning_func(x):
+    return x.lower().strip()
+
+
 class TestMisc:
 
     @pytest.mark.parametrize("word, expected", [
@@ -42,7 +46,7 @@ class TestMisc:
         result = get_combined_dict(comparison_func, *items)
         assert expected == result
 
-    def test_load_toml(self, analysis_fixture_c_in_dict):
+    def test_load_toml(self, analysis_fixture_c_in_dict):  # NOQA
         path = os.path.join(current_dir, 'fixtures/analysis_fixture_c.toml')
         result = load_toml(path, keys_to_convert_to_set=TOML_KEYS_THAT_ARE_SET)
         diff = DeepDiff(analysis_fixture_c_in_dict, result)
@@ -146,12 +150,14 @@ class TestMisc:
     ])
     def test_read_csv_gen(self, contents, expected, raw_headers):  # NOQA
         item = io.StringIO(contents)
-        item = list(read_csv_gen(item, raw_headers_include=raw_headers))
+        item = list(read_csv_gen(item, identify_header_by_column_names=raw_headers))
         assert item == expected
 
     def test_read_csv_gen_offset_header(self):
         offset_io = io.StringIO(offset_header())
-        csv_gen = read_csv_gen(offset_io, raw_headers_include={'Account Number', 'Fees'})
+        raw_headers = {dummy_cleaning_func(i) for i in {'Account Number', 'Fees'}}
+        csv_gen = read_csv_gen(offset_io, identify_header_by_column_names=raw_headers,
+                               cleaning_func=dummy_cleaning_func)
         for corrected, expected in zip(list(csv_gen), corrected_header().split('\n')):
             assert corrected == expected.split(',')
 

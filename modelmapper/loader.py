@@ -37,7 +37,7 @@ class BaseLoaderMixin():
                 inserted_row = self.insert_row_into_db(row, session, model)
                 self.post_row_insert(inserted_row, session, model)
                 count += 1
-        return count
+        return count, None
 
 
 class SqlalchemyLoaderMixin(BaseLoaderMixin):
@@ -111,6 +111,7 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
         snapshot_table = self.SNAPSHOT_MODEL.__table__
         new_chunk = self.add_row_signature(chunk) if self.settings.ignore_duplicate_rows_when_importing else chunk  # NOQA
         count = 0
+        existing_count = 0
         if new_chunk:
             for row in new_chunk:
                 id_ = None
@@ -126,8 +127,9 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
                     snapshot_row = {'raw_key_id': row['raw_key_id'], 'record_id': id_}
                     ins = snapshot_table.insert().values(**snapshot_row)
                     result = session.execute(ins)
+                    existing_count += 1
             session.flush()
-        return count
+        return count, existing_count
 
 
 class SqlalchemyBulkLoaderMixin():
@@ -152,6 +154,6 @@ class SqlalchemyBulkLoaderMixin():
             insrt_stmnt = insert(table).values(new_chunk)
             do_nothing_stmt = insrt_stmnt.on_conflict_do_nothing()
             results = session.execute(do_nothing_stmt)
-            return results.rowcount
+            return results.rowcount, None
         else:
-            return 0
+            return 0, None
