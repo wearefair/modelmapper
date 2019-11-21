@@ -260,6 +260,7 @@ class ETL(Base):
             self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
         except Exception as e:
             self._handle_generic_exception(e, ping_slack)
+            self.logger.exception(str(e))
 
     def reload(self):
         """
