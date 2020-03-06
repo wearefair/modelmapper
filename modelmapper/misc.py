@@ -188,7 +188,6 @@ def analyze_csv_format(iostream, **kwargs):
                             'Please specify the csv_delimiter in your setup.toml.',
                             str(e)) from None
 
-    import ipdb; ipdb.set_trace()
     if not raw_headers:
         try:
             has_header = sniffer.has_header(sample)
