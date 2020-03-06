@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
-CHUNK_SIZE = 1024
+CHUNK_SIZE = 2048  # The chunk needs to be big enough that covers a couple of rows of data.
 
 
 class FileNotFound(ValueError):
@@ -188,6 +188,7 @@ def analyze_csv_format(iostream, **kwargs):
                             'Please specify the csv_delimiter in your setup.toml.',
                             str(e)) from None
 
+    import ipdb; ipdb.set_trace()
     if not raw_headers:
         try:
             has_header = sniffer.has_header(sample)
