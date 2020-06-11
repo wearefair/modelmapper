@@ -37,8 +37,9 @@ TOML_KEYS_THAT_ARE_SET = {'datetime_formats'}
 
 
 INVALID_DATETIME_USER_OPTIONS = {
-    'y': {'help': 'to define the date format', 'func': lambda x: True},
-    'n': {'help': 'to abort', 'func': lambda x: sys.exit()}
+    'y': {'help': 'to define the datetime format', 'func': lambda x: True},
+    'n': {'help': 'to confirm that this is not a datetime field', 'func': lambda x: x},
+    'x': {'help': 'to abort', 'func': lambda x: sys.exit()}
 }
 
 
@@ -123,11 +124,15 @@ class SqlalchemyFieldType(enum.Enum):
         return SqlalchemyFieldTypeToHas[self._name_]
 
 
-FIELD_RESULT_COMPARISON_NUMBERS = {
+# Higher value means it gets precedent
+FIELD_RESULT_COMPARISON = {
+    SqlalchemyFieldType.String: 12,
     SqlalchemyFieldType.Decimal: 10,
     SqlalchemyFieldType.BigInteger: 8,
     SqlalchemyFieldType.Integer: 6,
     SqlalchemyFieldType.SmallInteger: 4,
+    SqlalchemyFieldType.DateTime: 3,
+    SqlalchemyFieldType.Boolean: 2,
 }
 
 INTEGER_SQLALCHEMY_TYPES = {
@@ -150,26 +155,32 @@ def _is_valid_dateformat(user_input, item):
 
 class Mapper(Base):
 
-    def _get_stats(self, field_name, items):
+    def _get_stats(self, field_name, items, ignore_matchers=None):
         try:
-            collector = StatsCollector(matchers=matchers_from_settings(self.settings))
+            collector = StatsCollector(matchers=matchers_from_settings(self.settings, ignore_matchers=ignore_matchers))
             for item in items:
                 collector.inspect_item(field_name, item)
             return collector.collect()
         except UserInferenceRequired as err:
             if err.value_type == HasDateTime:
                 msg = f'field {field_name} has inconsistent datetime data: {item}.'
-                get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
-                msg = f'Please enter the datetime format for {item}'
-                new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
-                if new_format in self.settings.datetime_formats:
-                    raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
-                                           f"{item}. {new_format} was already in your settings.")
-                print(f'Adding {new_format} to your settings.')
-                self.settings.datetime_formats.add(new_format)
-                self._original_settings['datetime_formats'].append(new_format)
-                write_settings(self.setup_path, self._original_settings)
-                return self._get_stats(field_name, items)
+                choice = get_user_choice(msg, choices=INVALID_DATETIME_USER_OPTIONS)
+                if choice == 'n':
+                    if ignore_matchers:
+                        ignore_matchers.add('DateTimeMatcher')
+                    else:
+                        ignore_matchers = {'DateTimeMatcher'}
+                else:
+                    msg = f'Please enter the datetime format for {item}'
+                    new_format = get_user_input(msg, validate_func=_is_valid_dateformat, item=item)
+                    if new_format in self.settings.datetime_formats:
+                        raise InconsistentData(f"field {field_name} has inconsistent datetime data: "
+                                               f"{item}. {new_format} was already in your settings.")
+                    print(f'Adding {new_format} to your settings.')
+                    self.settings.datetime_formats.add(new_format)
+                    self._original_settings['datetime_formats'].append(new_format)
+                    write_settings(self.setup_path, self._original_settings)
+                return self._get_stats(field_name, items, ignore_matchers)
 
     def _get_integer_field(self, max_int):
         previous_key = 0
@@ -410,9 +421,9 @@ class Mapper(Base):
                         else:
                             bigger_field_result_dict = get_combined_dict(None, old_field_result_dict, field_result_dict)
                     else:
-                        if {old_type, _type} <= set(FIELD_RESULT_COMPARISON_NUMBERS.keys()):
+                        if {old_type, _type} <= set(FIELD_RESULT_COMPARISON.keys()):
                             bigger_field_result_dict = get_combined_dict(
-                                lambda x: FIELD_RESULT_COMPARISON_NUMBERS[x['field_db_sqlalchemy_type']],
+                                lambda x: FIELD_RESULT_COMPARISON[x['field_db_sqlalchemy_type']],
                                 field_result_dict,
                                 old_field_result_dict)
                         else:
