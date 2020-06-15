@@ -2,6 +2,7 @@ import decimal
 import datetime
 from collections import Counter
 from typing import Any, NamedTuple
+from modelmapper.misc import MONTH_OR_DAY_REGEX, add_strings_and_integers_to_set, MAX_DATE_INTEGER, MIN_DATE_INTEGER
 
 from modelmapper.normalization import normalize_numberic_values
 from modelmapper.types import (
@@ -323,13 +324,28 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
     """
     value_type = HasDateTime
 
-    def __init__(self, datetime_formats=None):
+    def __init__(self, datetime_formats=None, datetime_allowed_characters=None):
         self.datetime_formats = datetime_formats
+        self.datetime_allowed_characters = datetime_allowed_characters
         self.reset()
 
     def reset(self):
         self.candidate_formats = self.datetime_formats.copy()
         self.has_matched_before = False
+
+    def _may_need_new_datetime_format(self, item):
+        item = item.lower()
+        item_chars = set(item)
+        if item_chars <= self.datetime_allowed_characters:
+            try:
+                item_int = int(item)
+                if MIN_DATE_INTEGER <= item_int <= MAX_DATE_INTEGER:
+                    return True
+            except ValueError:
+                pass
+            if ':' in item_chars or MONTH_OR_DAY_REGEX.search(item):
+                return True
+        return False
 
     def _match(self, item):
         for _format in self.datetime_formats:
@@ -340,7 +356,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
             except ValueError:
                 continue
 
-        if self.has_matched_before:
+        if self.has_matched_before and self._may_need_new_datetime_format(item):
             raise UserInferenceRequired(
                 self.value_type,
                 "Item contained invalid datetime, prompting the user for a valid format."
@@ -413,6 +429,8 @@ def matchers_from_settings(settings=None, ignore_matchers=None):
     Creates a default set of matchers from the settings object
     """
     datetime_formats = settings.datetime_formats if settings else {"%m/%d/%y", "%m/%d/%Y", "%Y%m%d", "%Y-%m-%d"}
+    datetime_allowed_characters = settings.datetime_allowed_characters if settings else {'-', ':', '_', '/'}
+    datetime_allowed_characters = add_strings_and_integers_to_set(datetime_allowed_characters)
     null_values = settings.null_values if settings else ["\\n", "", "na", "unk", "null", "none", "nan", "1/0/00", "1/0/1900", "-"]  # NOQA
     boolean_values = settings.booleans if settings else ["true", "t", "yes", "y", "1", "false", "f", "no", "n", "0"]
     matchers = {
@@ -422,7 +440,7 @@ def matchers_from_settings(settings=None, ignore_matchers=None):
         'PercentMatcher': PercentMatcher(),
         'PositiveIntMatcher': PositiveIntMatcher(),
         'PositiveDecimalMatcher': PositiveDecimalMatcher(),
-        'DateTimeMatcher': DateTimeMatcher(datetime_formats=datetime_formats),
+        'DateTimeMatcher': DateTimeMatcher(datetime_formats=datetime_formats, datetime_allowed_characters=datetime_allowed_characters),
         'StringMatcher': StringMatcher(),
     }
     if ignore_matchers:
