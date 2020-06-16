@@ -333,7 +333,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
         self.candidate_formats = self.datetime_formats.copy()
         self.has_matched_before = False
 
-    def _may_need_new_datetime_format(self, item):
+    def _needs_new_datetime_format(self, item):
         item = item.lower()
         item_chars = set(item)
         if item_chars <= self.datetime_allowed_characters:
@@ -356,7 +356,7 @@ class DateTimeMatcher(TypeMatcher, TypeAccumulator):
             except ValueError:
                 continue
 
-        if self.has_matched_before and self._may_need_new_datetime_format(item):
+        if self.has_matched_before and self._needs_new_datetime_format(item):
             raise UserInferenceRequired(
                 self.value_type,
                 "Item contained invalid datetime, prompting the user for a valid format."
