@@ -12,6 +12,7 @@ from string import digits
 from tabulate import tabulate
 from xlrd import xldate_as_datetime
 from modelmapper.base import Base
+from modelmapper.misc import add_strings_and_integers_to_set
 from modelmapper.normalization import normalize_numberic_values
 from modelmapper.mapper import ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
 from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs, _xlsx_contents_to_csvs
@@ -233,6 +234,8 @@ class Cleaner(Base):
             has_default_if_err = False
             default_if_err = None
 
+        datetime_allowed_characters = add_strings_and_integers_to_set(self.settings.datetime_allowed_characters)
+
         def _mark_nulls(item):
             return None if item in self.settings.null_values else item
 
@@ -278,7 +281,7 @@ class Cleaner(Base):
                         item = int(item)
                     if is_datetime:
                         item_chars = set(item)
-                        if not item_chars <= self.settings.datetime_allowed_characters:
+                        if not item_chars <= datetime_allowed_characters:
                             raise CastingError('Invalid Datetime with characters that are NOT defined '
                                                'in datetime_allowed_characters', field_name=field_name, item=item)
                         try:

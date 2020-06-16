@@ -1,11 +1,13 @@
+import re
 import csv
 import io
-from itertools import chain
 import os
+import string
 import enum
 import logging
 import pprint
 import pytoml
+from itertools import chain
 from string import ascii_lowercase, digits
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,27 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 START_LINE = "    # --------- THE FOLLOWING FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 END_LINE = "    # --------- THE ABOVE FIELDS ARE AUTOMATICALLY GENERATED. DO NOT CHANGE THEM OR REMOVE THIS LINE. {} --------\n"
 CHUNK_SIZE = 2048  # The chunk needs to be big enough that covers a couple of rows of data.
+
+
+valid_chars_for_string = set(string.ascii_letters.lower())
+valid_chars_for_integer = set(string.digits)
+
+MAX_DATE_INTEGER = 30001230125959  # year 3000, December 30 12:59:59
+MIN_DATE_INTEGER = 10101  # year 1, month 1, day 1
+
+_days = r"\b(?:mon(?:day)?|tue(?:sday)?|tues(?:day)?|wed(?:nesday)?|thu(?:rsday)?|thur(?:sday)?|fri(?:day)?|sat(?:urday)?|sun(?:day))"
+_months = r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|(?:nov|dec)(?:ember)?)"
+_either_space_or_nothing = r"(?!\S)"
+
+MONTH_OR_DAY_REGEX = re.compile(r"(" + _months + _either_space_or_nothing + r")|(" + _days + _either_space_or_nothing + r")")
+
+
+def add_strings_and_integers_to_set(item):
+    item = item.copy()
+    item |= valid_chars_for_string
+    item |= valid_chars_for_integer
+    item.add(' ')
+    return item
 
 
 class FileNotFound(ValueError):
