@@ -12,7 +12,7 @@ from string import digits
 from tabulate import tabulate
 from xlrd import xldate_as_datetime
 from modelmapper.base import Base
-from modelmapper.misc import add_strings_and_integers_to_set
+from modelmapper.misc import add_strings_and_integers_to_set, decode_bytes
 from modelmapper.normalization import normalize_numberic_values
 from modelmapper.mapper import ONE_HUNDRED, SqlalchemyFieldType, INTEGER_SQLALCHEMY_TYPES
 from modelmapper.excel import _xls_contents_to_csvs, _xls_xml_contents_to_csvs, _xlsx_contents_to_csvs
@@ -366,7 +366,7 @@ class Cleaner(Base):
         solutions = {
             'csv': {'path': [get_csv_data_cleaned],
                     'content_str': [io.StringIO, get_csv_data_cleaned],
-                    'content_bytes': [lambda x: x.decode('utf-8'), io.StringIO, get_csv_data_cleaned],
+                    'content_bytes': [decode_bytes, io.StringIO, get_csv_data_cleaned],
                     'content_stringio': [get_csv_data_cleaned],
                     'content_bytesio': [lambda x: x.getvalue().decode('utf-8'),
                                         io.StringIO, get_csv_data_cleaned],

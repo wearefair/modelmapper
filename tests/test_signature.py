@@ -29,9 +29,10 @@ class Model(Base):
 class TestSignatures:
 
     @pytest.mark.parametrize("value, hash_args, expected", [
-        (b'abc', {'x64arch': False}, -6723866935948359983),
-        (b'cba', {'bits': 32}, 1667313988),
-        (b'zzz', {'bits': 128, 'x64arch': True}, 2309314818388519944532015355285894875)
+        (b'abc', {'x64arch': False, 'bits': 64}, 'x5d4ff95a8a32392f'),
+        (b'abc', {'x64arch': True, 'bits': 64}, 'x4b69c0c0c0528799'),
+        (b'cba', {'bits': 32}, '63613144'),
+        (b'zzz', {'bits': 128, 'x64arch': True}, '1bcc202d964665860f1690f05fe76db')
     ])
     def test_get_hash(self, value, hash_args, expected):
         assert get_hash_of_bytes(value, **hash_args) == expected
@@ -67,7 +68,7 @@ class TestSignatures:
         assert normalize_decimal_columns(row) == expected
 
     @pytest.mark.parametrize("row, ignore_fields, expected", [
-        ({'field_id': 'test', 'field_decimal': Decimal('1.5000'), 'id': 1}, ['id'], -4349975579536021168)
+        ({'field_id': 'test', 'field_decimal': Decimal('1.5000'), 'id': 1}, ['id'], 'db5ab208f5b5c8bdc70ee2be1e72a37e')
     ])
     def test_generate_row_signature(self, row, ignore_fields, expected):
         assert generate_row_signature(row, Model, ignore_fields) == expected

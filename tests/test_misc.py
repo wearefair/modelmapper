@@ -7,7 +7,7 @@ from unittest import mock
 from deepdiff import DeepDiff
 from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
                               convert_dict_item_type, write_toml, write_settings, read_csv_gen,
-                              DefaultList, generator_chunker, generator_updater)
+                              DefaultList, generator_chunker, generator_updater, decode_bytes)
 from modelmapper.mapper import SqlalchemyFieldType
 from tests.fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
 from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2, offset_header, corrected_header
@@ -165,3 +165,16 @@ class TestMisc:
         offset_io = io.StringIO(offset_header())
         with pytest.raises(csv.Error):
             list(read_csv_gen(offset_io))
+
+    _content = 'blah'
+    _content_bytes = _content.encode('utf-8')
+    _content_bytes_utf8 = _content.encode('utf-8-sig')
+    _content_bytes_utf16_little_endian = b'\xff\xfe' + _content.encode('utf-16-le')
+    _content_bytes_utf16_big_endian = b'\xfe\xff' + _content.encode('utf-16-be')
+
+    @pytest.mark.parametrize('content', [
+        _content_bytes, _content_bytes_utf8, _content_bytes_utf16_little_endian, _content_bytes_utf16_big_endian
+    ])
+    def test_decode_bytes(self, content):
+        result = decode_bytes(content)
+        assert 'blah' == result

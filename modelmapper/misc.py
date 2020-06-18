@@ -425,3 +425,17 @@ def generator_updater(data_gen, **kwargs):
     for item in data_gen:
         item.update(**kwargs)
         yield item
+
+BIG_ENDIAN_HEADER = b'\xfe\xff'
+LITTLE_ENDIAN_HEADER = b'\xff\xfe'
+UTF8_HEADER = b'\xef\xbb\xbf'
+
+def decode_bytes(content):
+    if content.startswith(UTF8_HEADER):
+        return content.decode('utf-8-sig')
+    if content.startswith(BIG_ENDIAN_HEADER):
+        return content[len(BIG_ENDIAN_HEADER):].decode('utf-16-be')
+    if content.startswith(LITTLE_ENDIAN_HEADER):
+        return content[len(LITTLE_ENDIAN_HEADER):].decode('utf-16-le')
+    return content.decode('utf-8')
+

@@ -4,3 +4,4 @@ pytest_cov==2.5.1
 deepdiff==3.3.0
 flake8==3.5.0
 attrs==18.2.0
+python-gnupg==0.4.6
