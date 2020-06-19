@@ -117,17 +117,18 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
                 id_ = None
                 if row['signature']:
                     id_ = self.get_id_by_signature(session, model, row['signature'])
-                if not id_:
+                if id_:
+                    existing_count += 1
+                else:
                     ins = table.insert().values(**row)
                     result = session.execute(ins)
                     session.flush()
                     id_ = result.inserted_primary_key[0]
-                    count += 1
                 if id_:
+                    count += 1
                     snapshot_row = {'raw_key_id': row['raw_key_id'], 'record_id': id_}
                     ins = snapshot_table.insert().values(**snapshot_row)
                     result = session.execute(ins)
-                    existing_count += 1
             session.flush()
         return count, existing_count
 

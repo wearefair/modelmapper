@@ -57,7 +57,7 @@ class TestETL:
         # IntegrityError which triggers our reprocessing code if the
         # reprocessing feature is enabled.
         mock_session = Mock()
-        mock_session.commit = Mock(side_effect=core_exc.IntegrityError("test", "test", "test"))
+        mock_session.flush = Mock(side_effect=core_exc.IntegrityError("test", "test", "test"))
 
         mock_session.query.filter = Mock()
 
@@ -82,7 +82,7 @@ class TestETL:
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
         ('report_exception', 1),
-        ('encrypt_data', 1),
+        ('encrypt_raw_data', 1),
         ('backup_data', 3),
         ('get_session', 0),
         ('insert_chunk_of_data_to_db', 3),
@@ -98,7 +98,7 @@ class TestETL:
     @pytest.mark.parametrize('fn_name, arg_count', [
         ('get_client_data', 0),
         ('report_exception', 1),
-        ('encrypt_data', 1),
+        ('encrypt_raw_data', 1),
         ('backup_data', 3),
         ('get_session', 0),
         ('insert_chunk_of_data_to_db', 3),

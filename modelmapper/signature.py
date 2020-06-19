@@ -10,8 +10,8 @@ BITS_MAP = {
 }
 
 
-def generate_row_signature(row, model=None, ignore_fields=None, signature_size=64, x64arch=False):
-    """ Generates a 64 bit hash of the given row
+def generate_row_signature(row, model=None, ignore_fields=None, signature_size=128, x64arch=True):
+    """ Generates a hash of the given row
         Arguments:
             row: A dictionary or list of tuples
             model: Sqlalchemy model that coresponses to the given row
@@ -81,12 +81,12 @@ def get_byte_str_of_row(row, ignore_fields=[]):
     return row_bytes
 
 
-def get_hash_of_bytes(item, bits=64, **kwargs):
+def get_hash_of_bytes(item, bits=128, **kwargs):
     """Run selected  Murmur Hash function on given byte string"""
     hash_type = BITS_MAP.get(int(bits))
     if hash_type is None:
         raise ValueError(f'get_hash_of_bytes only accepts: 32, 64, or 128 as bits values. Given: {bits}')
     hash_value = getattr(mmh3, hash_type)(item, **kwargs)
     if isinstance(hash_value, tuple):
-        return hash_value[0]
-    return hash_value
+        return hex(hash_value[0])[2:]  # removing the 0x from the beginning of the hex
+    return hex(hash_value)[2:]

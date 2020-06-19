@@ -8,6 +8,7 @@ from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner, CastingError
 from modelmapper.misc import generator_chunker, generator_updater
 from modelmapper.signature import get_hash_of_bytes
+from modelmapper.exceptions import NothingToProcess, FileAlreadyProcessed
 from sqlalchemy import exc as core_exc
 
 
@@ -16,11 +17,11 @@ class ETL(Base):
     Subclass this for your data processing and define the BUCKET_NAME, RAW_KEY_MODEL and RECORDS_MODEL.
     """
 
-    BUCKET_NAME = None
     RAW_KEY_MODEL = None
     RECORDS_MODEL = None
     BACKUP_KEY_DATETIME_FORMAT = '%Y/%m/%Y_%m_%d__%H_%M_%S.gzip'
     SQL_CHUNK_ROWS = 300
+    SIGNATURE_BITS = 128
     logger = logging.getLogger(__name__)
 
     def __init__(self, *args, **kwargs):
@@ -29,6 +30,7 @@ class ETL(Base):
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
+        self.backup_key_name = None
 
     def get_client_data(self):
         """
@@ -36,13 +38,13 @@ class ETL(Base):
         """
         raise NotImplementedError('Please implement the get_client_data in your subclass.')
 
-    def report_exception(self, e):
+    def report_exception(self, e, extra=None):
         raise NotImplementedError('Please implement this method in your subclass.')
 
-    def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
+    def report_error_to_slack(self, e, msg='{} The {} failed: {} backup_key_name: {}'):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
-            msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e)
+            msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e, self.backup_key_name)
         except Exception:
             pass
         self.slack(msg)
@@ -59,20 +61,20 @@ class ETL(Base):
             raise TypeError(f'Data format of {data.JOB_NAME} failed to turn into bytes for compression')
         return data
 
-    def encrypt_data(self, data):
+    def encrypt_raw_data(self, data):
         raise NotImplementedError('Please implement encrypt_data method')
 
     def backup_data(self, content, key, metadata):
         raise NotImplementedError('Please implement backup_data method')
 
-    def _backup_data_and_get_raw_key(self, session, data_raw_bytes):
+    def _backup_data_and_get_raw_key(self, session, data_raw_bytes, signature):
         key = datetime.datetime.strftime(datetime.datetime.utcnow(), self.BACKUP_KEY_DATETIME_FORMAT)
-        signature = get_hash_of_bytes(data_raw_bytes, bits=32)
         raw_key_id = self._create_raw_key(session, key, signature)
         data_compressed = self._compress(data_raw_bytes)
         if self.settings.encrypt_raw_data_during_backup:
-            data_compressed = self.encrypt_data(data_compressed)
-        self.logger.info(f'Backing up the data into s3 bucket: {self.BUCKET_NAME}/{key}')
+            data_compressed = self.encrypt_raw_data(data_compressed)
+        self.logger.info(f'Backing up the data: {key}')
+        self.backup_key_name = key
         metadata = {'compression': 'gzip'}
         self.backup_data(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
@@ -94,10 +96,9 @@ class ETL(Base):
         try:
             raw_key = self.RAW_KEY_MODEL(key=key, signature=signature)
             session.add(raw_key)
-            session.commit()
-        except core_exc.IntegrityError:
+            session.flush()
+        except core_exc.IntegrityError as e:
             session.rollback()
-
             # We are attempting to process an existing file.
             if self.settings.should_reprocess:
                 raw_key = session.query(
@@ -110,6 +111,9 @@ class ETL(Base):
                                  f'[Signature: {self.RAW_KEY_MODEL.signature}]')
 
                 return raw_key.id
+            else:
+                msg = 'Duplicate File. Set should_reprocess to true in the settings to reprocess it: {e}'
+                raise FileAlreadyProcessed(msg)
 
         except Exception:
             session.rollback()
@@ -127,6 +131,9 @@ class ETL(Base):
 
     def verify_access_to_backup_source(self):
         raise NotImplementedError('Please implement verify_access_to_backup_source')
+
+    def decrypt_raw_data(self, content):
+        raise NotImplementedError('Please implement decrypt_raw_data')
 
     def _extract(self, session, path=None, content=None, content_type=None,
                  sheet_names=None, use_client=True, backup_data=True,
@@ -159,11 +166,32 @@ class ETL(Base):
         else:
             key = path if path else f'content.{content_type}'
 
-        if backup_data:
-            content = content.encode('utf-8') if isinstance(content, str) else content
-            raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=content)
+        if isinstance(content, types.GeneratorType):
+            content = '\n'.join(content)
+        if isinstance(content, str):
+            data_raw_bytes = content.encode('utf-8')
+        elif isinstance(content, bytes):
+            data_raw_bytes = content
         else:
-            raw_key_id = self._create_raw_key(session, key=key, signature=None)
+            raise TypeError('Unexpected type of content is received. '
+                            'Please make sure the content is either string, bytes or generator.')
+        signature = get_hash_of_bytes(data_raw_bytes, bits=self.SIGNATURE_BITS)
+        if backup_data:
+            try:
+                raw_key_id = self._backup_data_and_get_raw_key(
+                    session, data_raw_bytes=data_raw_bytes, signature=signature)
+            except FileAlreadyProcessed:
+                if hasattr(self, 'post_packup_cleanup'):
+                    self.post_packup_cleanup()
+                raise
+            else:
+                if hasattr(self, 'post_packup_cleanup'):
+                    self.post_packup_cleanup()
+        else:
+            raw_key_id = self._create_raw_key(session, key=key, signature=signature)
+
+        if self.settings.decrypt_raw_data:
+            content = self.decrypt_raw_data(content)
 
         data = {"content": content, "raw_key_id": raw_key_id, "content_type": content_type,
                 "path": path, "sheet_names": sheet_names}
@@ -217,8 +245,9 @@ class ETL(Base):
             try:
                 session.rollback()
             except Exception as e2:
-                self.logger.exception('Failed to rollback the transaction')
-                self.report_exception(e2)
+                self.report_exception(e2, extra={
+                    'msg': 'Failed to rollback the transaction',
+                    'backup_key_name': self.backup_key_name})
             self.logger.error(f'Error when inserting row into {table}: {e}')
             raise
         else:
@@ -232,7 +261,7 @@ class ETL(Base):
             session.commit()
 
     def _handle_generic_exception(self, e, ping_slack):
-        self.report_exception(e)
+        self.report_exception(e, extra={'backup_key_name': self.backup_key_name})
         if ping_slack:
             self.report_error_to_slack(e)
 
@@ -258,6 +287,8 @@ class ETL(Base):
         except CastingError as e:
             self._handle_generic_exception(e, ping_slack)
             self.logger.exception(*e.get_logger_args(), extra=e.get_extra())
+        except NothingToProcess:
+            self.logger.info('There is nothing new to process.')
         except Exception as e:
             self._handle_generic_exception(e, ping_slack)
             self.logger.exception(str(e))

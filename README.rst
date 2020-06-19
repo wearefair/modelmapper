@@ -1,4 +1,4 @@
-Model Mapper 1.2.1
+Model Mapper 1.3.0
 ==================
 
 |CircleCI|

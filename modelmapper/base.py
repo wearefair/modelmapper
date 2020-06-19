@@ -31,7 +31,7 @@ class Base:
         self.setup_dir = os.path.dirname(self.setup_path)
         sys.path.append(self.setup_dir)
         clean_later = ['field_name_full_conversion', 'ignore_fields_in_signature_calculation',
-                       'identify_header_by_column_names']
+                       'identify_header_by_column_names', 'fields_to_be_encrypted', 'fields_to_be_scrubbed']
         convert_to_set = ['null_values', 'boolean_true', 'boolean_false', 'datetime_formats',
                           'ignore_lines_that_include_only_subset_of',
                           'ignore_fields_in_signature_calculation', 'identify_header_by_column_names']
@@ -159,6 +159,9 @@ class Base:
                                          "Please fix that and try again.")
                     else:
                         result[field_name].append(v)
+
+        for field_name in self.settings.fields_to_be_scrubbed:
+            result[field_name] = [''] * len(result[field_name])
         return result
 
     def slack(self, text):

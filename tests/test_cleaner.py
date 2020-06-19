@@ -39,6 +39,11 @@ with open(training_fixture1_tab_path, 'r', encoding='utf-8-sig') as ostream:
     training_fixture1_tab_content_str = ostream.read()
 
 
+training_fixture1_content_bytes_utf8 = training_fixture1_content_str.encode('utf-8-sig')
+training_fixture1_content_bytes_utf16_little_endian = b'\xff\xfe' + training_fixture1_content_str.encode('utf-16-le')
+training_fixture1_content_bytes_utf16_big_endian = b'\xfe\xff' + training_fixture1_content_str.encode('utf-16-be')
+
+
 @pytest.fixture
 def cleaner():
     return Cleaner(example_setup_path)
@@ -69,6 +74,9 @@ class TestCleaner:
         ('csv', None, new_field_fixture_str, None, cleaner(), ['new_column']),
         ('csv', None, io.StringIO(training_fixture1_content_str), None, cleaner(), []),
         ('csv', None, training_fixture1_content_str, None, cleaner(), []),
+        ('csv', None, training_fixture1_content_bytes_utf8, None, cleaner(), []),
+        ('csv', None, training_fixture1_content_bytes_utf16_little_endian, None, cleaner(), []),
+        ('csv', None, training_fixture1_content_bytes_utf16_big_endian, None, cleaner(), []),
         ('csv', None, training_fixture1_content_str.encode('utf-8'), None, cleaner(), []),
         ('csv', None, io.BytesIO(training_fixture1_content_str.encode('utf-8')), None, cleaner(), []),
         ('csv', training_fixture1_path, None, None, cleaner(), []),
