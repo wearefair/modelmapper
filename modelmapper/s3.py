@@ -31,8 +31,21 @@ class S3Base:
         return boto3.client('s3', config=config)
 
     def get_list_of_files_on_s3(self, bucket, prefix='', max_keys=1000):
-        s3_list_response = self.s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=max_keys)
-        return {i['Key'] for i in s3_list_response.get('Contents', [])}
+        if max_keys > 1000:
+            # We need to paginate for max_keys above 1000
+            paginator = self.s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                try:
+                    contents = page["Contents"]
+                except KeyError:
+                    break
+
+                for obj in contents:
+                    yield obj["Key"]
+        else:
+            s3_list_response = self.s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=max_keys)
+            for obj in s3_list_response.get('Contents', []):
+                yield obj['Key']
 
     def get_file_from_s3(self, bucket, s3key):
         s3fileobj = self.s3_client.get_object(Bucket=bucket, Key=s3key)
@@ -70,14 +83,15 @@ class S3ClientMixin(S3Base):
         self._verify_access_to_s3_bucket(bucket=self.SOURCE_BUCKET_NAME)
 
     def post_packup_cleanup(self):
-        objects = [{'Key': i} for i in self._files_downloaded_from_s3]
-        self.s3_client.delete_objects(
-            Bucket=self.SOURCE_BUCKET_NAME,
-            Delete={
-                'Objects': objects,
-                'Quiet': False
-            },
-        )
+        if self.settings.delete_source_object_after_backup:
+            objects = [{'Key': i} for i in self._files_downloaded_from_s3]
+            self.s3_client.delete_objects(
+                Bucket=self.SOURCE_BUCKET_NAME,
+                Delete={
+                    'Objects': objects,
+                    'Quiet': False
+                },
+            )
 
     def get_client_data(self):
         try:

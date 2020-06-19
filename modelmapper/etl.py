@@ -30,6 +30,7 @@ class ETL(Base):
         super().__init__(*args, **kwargs)
         kwargs['setup_path'] = self.setup_path
         self.cleaner = Cleaner(*args, **kwargs)
+        self.backup_key_name = None
 
     def get_client_data(self):
         """
@@ -37,13 +38,13 @@ class ETL(Base):
         """
         raise NotImplementedError('Please implement the get_client_data in your subclass.')
 
-    def report_exception(self, e):
+    def report_exception(self, e, extra=None):
         raise NotImplementedError('Please implement this method in your subclass.')
 
-    def report_error_to_slack(self, e, msg='{} The {} failed: {}'):
+    def report_error_to_slack(self, e, msg='{} The {} failed: {} backup_key_name: {}'):
         slack_handle_to_ping = f'<{self.settings.slack_handle_to_ping}>' if self.settings.slack_handle_to_ping else''
         try:
-            msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e)
+            msg = msg.format(slack_handle_to_ping, self.JOB_NAME, e, self.backup_key_name)
         except Exception:
             pass
         self.slack(msg)
@@ -73,6 +74,7 @@ class ETL(Base):
         if self.settings.encrypt_raw_data_during_backup:
             data_compressed = self.encrypt_raw_data(data_compressed)
         self.logger.info(f'Backing up the data: {key}')
+        self.backup_key_name = key
         metadata = {'compression': 'gzip'}
         self.backup_data(content=data_compressed, key=key, metadata=metadata)
         return raw_key_id
@@ -241,8 +243,9 @@ class ETL(Base):
             try:
                 session.rollback()
             except Exception as e2:
-                self.logger.exception('Failed to rollback the transaction')
-                self.report_exception(e2)
+                self.report_exception(e2, extra={
+                    'msg': 'Failed to rollback the transaction',
+                    'backup_key_name': self.backup_key_name})
             self.logger.error(f'Error when inserting row into {table}: {e}')
             raise
         else:
@@ -256,7 +259,7 @@ class ETL(Base):
             session.commit()
 
     def _handle_generic_exception(self, e, ping_slack):
-        self.report_exception(e)
+        self.report_exception(e, extra={'backup_key_name': self.backup_key_name})
         if ping_slack:
             self.report_error_to_slack(e)
 

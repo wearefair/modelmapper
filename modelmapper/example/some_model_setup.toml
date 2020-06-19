@@ -21,6 +21,7 @@ ignore_fields_in_signature_calculation = ["id", "raw_key_id"]
 ignore_duplicate_rows_when_importing = true
 encrypt_raw_data_during_backup = true
 decrypt_raw_data = false
+delete_source_object_after_backup = false
 fields_to_be_encrypted = []
 fields_to_be_scrubbed = []
 slack_username = ""
