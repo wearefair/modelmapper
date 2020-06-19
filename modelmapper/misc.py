@@ -33,6 +33,17 @@ _either_space_or_nothing = r"(?!\S)"
 
 MONTH_OR_DAY_REGEX = re.compile(r"(" + _months + _either_space_or_nothing + r")|(" + _days + _either_space_or_nothing + r")")
 
+_camel_to_snake_regex1 = re.compile(r'(.)([A-Z][a-z]+)')
+_camel_to_snake_regex2 = re.compile(r'([a-z0-9])([A-Z])')
+
+def camel_to_snake(name):
+    """
+    Based on https://stackoverflow.com/a/1176023/1497443
+    """
+    name = _camel_to_snake_regex1.sub(r'\1_\2', name)
+    return _camel_to_snake_regex2.sub(r'\1_\2', name).lower().strip()
+
+
 
 def add_strings_and_integers_to_set(item):
     item = item.copy()

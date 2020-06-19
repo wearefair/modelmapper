@@ -7,7 +7,8 @@ from unittest import mock
 from deepdiff import DeepDiff
 from modelmapper.misc import (escape_word, get_combined_dict, load_toml, convert_dict_key,
                               convert_dict_item_type, write_toml, write_settings, read_csv_gen,
-                              DefaultList, generator_chunker, generator_updater, decode_bytes)
+                              DefaultList, generator_chunker, generator_updater, decode_bytes,
+                              camel_to_snake)
 from modelmapper.mapper import SqlalchemyFieldType
 from tests.fixtures.analysis_fixtures import analysis_fixture_c_in_dict  # NOQA
 from tests.fixtures.excel_fixtures import xls_xml_contents_in_json2, csv_contents2, offset_header, corrected_header
@@ -178,3 +179,12 @@ class TestMisc:
     def test_decode_bytes(self, content):
         result = decode_bytes(content)
         assert 'blah' == result
+
+    @pytest.mark.parametrize('name, expected', [
+        ('HelloJohny', 'hello_johny'),
+        ('More$$Please', 'more$$_please'),
+        ('whatAbout.Here', 'what_about._here'),
+    ])
+    def test_camel_to_snake(self, name, expected):
+        result = camel_to_snake(name)
+        assert expected == result
