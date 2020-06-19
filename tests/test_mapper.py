@@ -28,7 +28,6 @@ class TestMapper:
         expected = [['carrot', 'cheese'], ['bread', 'salted_butter'], ['model_year', 'year']]
         assert expected == mapper.settings.field_name_full_conversion
         assert isinstance(mapper.settings.field_name_part_conversion, list)
-        assert [['\n', '_'], ['#', 'num']] == mapper.settings.field_name_part_conversion[:2]
 
     @pytest.mark.parametrize("data, expected", [
         (("Burrito's CAN Fly!", "Really?", "keep it <= 99"),
@@ -41,7 +40,7 @@ class TestMapper:
         assert expected == result
 
     @pytest.mark.parametrize("name, expected", [
-        ('brEAD ', 'salted_butter')
+        ('BREAD ', 'salted_butter')
     ])
     def test_get_clean_field_name(self, name, expected, mapper):
         result = mapper._get_clean_field_name(name)
@@ -55,7 +54,6 @@ class TestMapper:
         with pytest.raises(ValueError) as exc_info:
             mapper._verify_no_duplicate_clean_names(names_mapping)
         assert str(exc_info.value).endswith("field has a collision with 'Name 1'. They both produce 'name_1'")
-
 
     @pytest.mark.parametrize("names, expected_duplicates", [
         (['this', 'or', 'this'], ['this']),

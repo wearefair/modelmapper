@@ -9,7 +9,7 @@ add_to_string_length = 32  # Padding for string fields. If the biggest string le
 datetime_allowed_characters = "/:-"  # Special characters that are allowed in a datetime field. These characters are used to evaluate then that string value can be a datetime value.
 datetime_formats = ["%m/%d/%y", "%m/%d/%Y", "%Y%m%d"]  # The list of any possible datetime formats in all your training csvs.
 field_name_full_conversion = []  # Use this to tell ModelMapper which field names should be considered to be the same field. This is useful if you have field names changing across different csvs. Example: [['field 1', 'field a'], ['field 2', 'field b']]
-field_name_part_conversion = [["#", "num"], [")", ""], ["(", ""], [": ", "_"], [" ", "_"], ["/", "_"], [".", "_"], ["-", "_"], ["%", "_percent"], ["?", ""], ["!", ""], [",", ""], ["'", ""], ["&", "_and_"], ["@", "_at_"], ["$", "_dollar_"], [">=", "_bigger_or_equal_"], [">", "_bigger_"], ["<=", "_less_or_equal_"], ["<", "_less_"], ["=", "_equal_"], ["___", "_"], ["__", "_"]]  # list of words in field name that should be replaced by another word.
+field_name_part_conversion = [["#", "num"], [")", ""], ["(", ""], [":", "_"], [" ", "_"], ["/", "_"], [".", "_"], ["-", "_"], ["%", "_percent"], ["?", ""], ["!", ""], [",", ""], ["'", ""], ["&", "_and_"], ["@", "_at_"], ["$", "_dollar_"], [">=", "_bigger_or_equal_"], [">", "_bigger_"], ["<=", "_less_or_equal_"], ["<", "_less_"], ["=", "_equal_"], ["___", "_"], ["__", "_"]]  # list of words in field name that should be replaced by another word.
 default_value_for_field_when_casting_error = ""  # Python dictionary of field names that have default values to be used when casting fails. This is only used during ETL cleaning jobs not during training phase. Example: "{'field_name':None}" will give the field_name value of Null if type casting fails during the cleaning phase. That way the job can continue running instead of crashing.
 dollar_value_if_word_in_field_name = []  # If the field name has any of these words, consider it as money field. It only matters if dollar_to_cent is True
 non_string_fields_are_all_nullable = true  # If yes, any non string field will be automatically nullable. Otherwise only if you have null values in your training csv, then it will be marked as nullable.
@@ -24,7 +24,7 @@ encrypt_raw_data_during_backup = true  # If true, encrypt the raw data received 
 decrypt_raw_data = false  # If true it will try to decrypt raw data.
 delete_source_object_after_backup = false  # If true and the client supports this parameter, the client will try to delete the source object once it is downloaded and backed up.
 fields_to_be_encrypted = []  # List of field names that need to be encrypted.
-fields_to_be_scrubbed = []  # List of field names that need to be scrubbed.
+fields_to_be_scrubbed = []  # List of field names that need to be scrubbed. Note that the field will be scrubbed before the type is inferred and thus it will be inferred as boolean field.
 slack_username = ""  # slack username for reporting errors when importing data.
 slack_channel = ""  # slack channel for reporting errors when importing data.
 slack_http_endpoint = ""  # slack http endpoint for reporting errors when importing data. It can be an environment variable.

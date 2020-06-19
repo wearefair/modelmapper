@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from collections import namedtuple, Counter
 
-from modelmapper.misc import read_csv_gen, load_toml
+from modelmapper.misc import read_csv_gen, load_toml, camel_to_snake
 from modelmapper.slack import slack
 
 OVERRIDES_FILE_NAME = "{}_overrides.toml"
@@ -61,7 +61,7 @@ class Base:
             self.settings[i] = os.path.join(self.setup_dir, self.settings[v])
         # Since we cleaning up the field_name_part_conversion, special characters
         # such as \n need to be added seperately.
-        self.settings['field_name_part_conversion'].insert(0, ['\n', '_'])
+        # self.settings['field_name_part_conversion'].insert(0, ['\n', '_']).insert(0, ['\r\n', '_'])
         _max_int = ((i, int(v)) for i, v in self.settings['max_int'].items())
         self.settings['max_int'] = dict(sorted(_max_int, key=lambda x: x[1]))
         Settings = namedtuple('Settings', ' '.join(self.settings.keys()))
@@ -71,10 +71,11 @@ class Base:
         self.failed_to_infer_fields = set()
         self.empty_fields = set()
 
-    def _clean_it(self, name):
+    def _clean_it(self, item):
         conv = (self.settings['field_name_part_conversion'] if isinstance(self.settings, dict)
                 else self.settings.field_name_part_conversion)
-        item = name.lower().strip()
+        item = item.replace('\r\n', '_').replace('\n', '_')
+        item = camel_to_snake(item)
         for source, to_replace in conv:
             item = item.replace(source, to_replace)
         return item.strip('_')
