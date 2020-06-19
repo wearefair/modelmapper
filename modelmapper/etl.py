@@ -173,11 +173,13 @@ class ETL(Base):
         elif isinstance(content, bytes):
             data_raw_bytes = content
         else:
-            raise TypeError('Unexpected type of content is received. Please make sure the content is either string, bytes or generator.')
+            raise TypeError('Unexpected type of content is received. '
+                            'Please make sure the content is either string, bytes or generator.')
         signature = get_hash_of_bytes(data_raw_bytes, bits=self.SIGNATURE_BITS)
         if backup_data:
             try:
-                raw_key_id = self._backup_data_and_get_raw_key(session, data_raw_bytes=data_raw_bytes, signature=signature)
+                raw_key_id = self._backup_data_and_get_raw_key(
+                    session, data_raw_bytes=data_raw_bytes, signature=signature)
             except FileAlreadyProcessed:
                 if hasattr(self, 'post_packup_cleanup'):
                     self.post_packup_cleanup()

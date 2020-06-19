@@ -440,7 +440,8 @@ def matchers_from_settings(settings=None, ignore_matchers=None):
         'PercentMatcher': PercentMatcher(),
         'PositiveIntMatcher': PositiveIntMatcher(),
         'PositiveDecimalMatcher': PositiveDecimalMatcher(),
-        'DateTimeMatcher': DateTimeMatcher(datetime_formats=datetime_formats, datetime_allowed_characters=datetime_allowed_characters),
+        'DateTimeMatcher': DateTimeMatcher(
+            datetime_formats=datetime_formats, datetime_allowed_characters=datetime_allowed_characters),
         'StringMatcher': StringMatcher(),
     }
     if ignore_matchers:
