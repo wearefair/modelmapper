@@ -1,3 +1,4 @@
+import uuid
 from modelmapper.signature import generate_row_signature
 try:
     from sqlalchemy.dialects.postgresql import insert
@@ -114,6 +115,8 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
         existing_count = 0
         if new_chunk:
             for row in new_chunk:
+                if isinstance(row['raw_key_id'], uuid.UUID):
+                    row['raw_key_id'] = str(row['raw_key_id'])
                 id_ = None
                 if row['signature']:
                     id_ = self.get_id_by_signature(session, model, row['signature'])
@@ -124,8 +127,12 @@ class SqlalchemySnapshotLoaderMixin(SignatureSqlalchemyMixin):
                     result = session.execute(ins)
                     session.flush()
                     id_ = result.inserted_primary_key[0]
+                    row['id'] = id_
+                    self.post_row_insert(row, session, model)
                 if id_:
                     count += 1
+                    if isinstance(id_, uuid.UUID):
+                        id_ = str(id_)
                     snapshot_row = {'raw_key_id': row['raw_key_id'], 'record_id': id_}
                     ins = snapshot_table.insert().values(**snapshot_row)
                     result = session.execute(ins)

@@ -1,5 +1,5 @@
 import re
-import csv
+import clevercsv as csv
 import io
 import os
 import string
