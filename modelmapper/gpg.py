@@ -27,6 +27,8 @@ class GPGMixin:
                 result = self.gpg.import_keys(key)
                 if 'fingerprint' not in result.results[0]:
                     raise GPGFail(f'Unable to import the key: {result.results[0]}')
+                else:
+                    self.gpg.trust_keys(result.results[0]['fingerprint'], 'TRUST_ULTIMATE')
 
     def gpg_encrypt_file(self, input_file, output_file, recipient=None):
         recipient = recipient if recipient else self.GPG_RECIPIENT
