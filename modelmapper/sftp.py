@@ -1,6 +1,7 @@
 import os
 import paramiko
 from contextlib import contextmanager
+from modelmapper.exceptions import NothingToProcess
 
 
 class SftpClient():
@@ -26,12 +27,12 @@ class SftpClient():
             finally:
                 transport.close()
 
+
 def _sftp_download_reporter(current, total):
     self.logger.info(f"sftp: {current} bytes uploaded out of {total}")
 
 
-
-class SftpClientMixin(S3Base):
+class SftpClientMixin:
 
     SFTP_HOST = None
     SFTP_PORT = None
@@ -43,6 +44,7 @@ class SftpClientMixin(S3Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._files_downloaded_from_sftp = set()
         self.sftp_client = SftpClient(
             host=self.SFTP_HOST, port=self.SFTP_PORT,
             user=self.SFTP_USER, password=self.SFTP_PASSWORD,
@@ -55,7 +57,7 @@ class SftpClientMixin(S3Base):
             for key in keys:
                 yield os.path.join(path, key)
 
-    def get_file_content_from_sftp(key=None, conn=None):
+    def get_file_content_from_sftp(self, key=None, conn=None):
         contents = None
         localpath = f"/tmp/{hash(key)}"
         self.logger.info(f"Sftp: Downloading {key}")
@@ -75,7 +77,7 @@ class SftpClientMixin(S3Base):
                 content = self.get_file_content_from_sftp(path=None, conn=None)
                 yield content, key
 
-    def post_packup_cleanup(self, conn=None):
+    def post_pickup_cleanup(self, conn=None):
         if self.settings.delete_source_object_after_backup:
             with self.sftp_client.get_connection(conn=conn) as conn:
                 for key in self._files_downloaded_from_sftp:

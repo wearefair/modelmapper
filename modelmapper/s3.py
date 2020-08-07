@@ -82,7 +82,7 @@ class S3ClientMixin(S3Base):
     def verify_access_to_backup_source(self):
         self._verify_access_to_s3_bucket(bucket=self.SOURCE_BUCKET_NAME)
 
-    def post_packup_cleanup(self):
+    def post_pickup_cleanup(self):
         if self.settings.delete_source_object_after_backup:
             objects = [{'Key': i} for i in self._files_downloaded_from_s3]
             self.s3_client.delete_objects(

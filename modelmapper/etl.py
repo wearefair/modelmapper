@@ -181,12 +181,12 @@ class ETL(Base):
                 raw_key_id = self._backup_data_and_get_raw_key(
                     session, data_raw_bytes=data_raw_bytes, signature=signature)
             except FileAlreadyProcessed:
-                if hasattr(self, 'post_packup_cleanup'):
-                    self.post_packup_cleanup()
+                if hasattr(self, 'post_pickup_cleanup'):
+                    self.post_pickup_cleanup()
                 raise
             else:
-                if hasattr(self, 'post_packup_cleanup'):
-                    self.post_packup_cleanup()
+                if hasattr(self, 'post_pickup_cleanup'):
+                    self.post_pickup_cleanup()
         else:
             raw_key_id = self._create_raw_key(session, key=key, signature=signature)
 
