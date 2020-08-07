@@ -1,5 +1,5 @@
 # flake8: noqa
-__version__ = '1.4.0'
+__version__ = '1.5.0'
 import sys
 pyversion = float(sys.version[:3])
 if pyversion < 3.6:

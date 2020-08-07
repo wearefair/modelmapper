@@ -47,7 +47,6 @@ class Base:
         slack_http_endpoint = self.settings['slack_http_endpoint']
         # attempt to get passed in value from ENV VAR, defaulting to passed in value if not present
         slack_http_endpoint = os.environ.get(slack_http_endpoint, slack_http_endpoint)
-        self.settings['csv_delimiter'] = self.settings.get('csv_delimiter', ',')
         self.settings['should_reprocess'] = self.settings.get('should_reprocess', False)
         self.settings['slack_http_endpoint'] = slack_http_endpoint
         self.settings['identifier'] = identifier = os.path.basename(self.setup_path).replace('_setup.toml', '')
@@ -135,8 +134,7 @@ class Base:
             raise ValueError(f'The following fields were repeated in the csv: {duplicates}')
 
     def _get_clean_names_and_csv_data_gen(self, path):
-        delimiter = self.settings.csv_delimiter
-        reader = read_csv_gen(path, delimiter=delimiter,
+        reader = read_csv_gen(path,
                               identify_header_by_column_names=self.settings.identify_header_by_column_names,
                               cleaning_func=self._clean_it)
         names = next(reader)
@@ -159,10 +157,8 @@ class Base:
                         raise ValueError("Your data might have new lines in the field names. "
                                          "Please fix that and try again.")
                     else:
-                        result[field_name].append(v)
-
-        for field_name in self.settings.fields_to_be_scrubbed:
-            result[field_name] = [''] * len(result[field_name])
+                        if field_name not in self.settings.fields_to_be_scrubbed:
+                            result[field_name].append(v)
         return result
 
     def slack(self, text):

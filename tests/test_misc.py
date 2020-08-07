@@ -172,6 +172,7 @@ class TestMisc:
     _content_bytes_utf8 = _content.encode('utf-8-sig')
     _content_bytes_utf16_little_endian = b'\xff\xfe' + _content.encode('utf-16-le')
     _content_bytes_utf16_big_endian = b'\xfe\xff' + _content.encode('utf-16-be')
+    _content2 = b'SARA\tO\x92DEA\t625 8TH'
 
     @pytest.mark.parametrize('content', [
         _content_bytes, _content_bytes_utf8, _content_bytes_utf16_little_endian, _content_bytes_utf16_big_endian
@@ -179,6 +180,11 @@ class TestMisc:
     def test_decode_bytes(self, content):
         result = decode_bytes(content)
         assert 'blah' == result
+
+    def test_decode_windows_bytes(self):
+        content = b'TOM O\x92DEA 62 1TH'
+        result = decode_bytes(content)
+        assert "TOM O’DEA 62 1TH" == result
 
     @pytest.mark.parametrize('name, expected', [
         ('HelloJohny', 'hello_johny'),
