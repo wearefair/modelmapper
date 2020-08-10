@@ -278,10 +278,6 @@ def read_csv_gen(path_or_stringio, **kwargs):
     if isinstance(path_or_stringio, (str, bytes)):
         _check_file_exists(path_or_stringio)
 
-        # with open(path_or_stringio, 'r', encoding='utf-8-sig') as csvfile:
-        #     for row in find_header(csvfile, **kwargs):
-        #         yield row
-
         with open(path_or_stringio, 'rb') as csvfile:
             content = csvfile.read()
             content = decode_bytes(content)

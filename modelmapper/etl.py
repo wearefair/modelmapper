@@ -3,6 +3,7 @@ import datetime
 import logging
 import pickle
 import types
+import json
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner, CastingError
@@ -207,7 +208,14 @@ class ETL(Base):
         """
         return data_gen
 
+    def transform_raw_content(self, data=None):
+        """
+        Transforms the data dictionary with raw content
+        """
+        pass
+
     def _transform(self, session, data):
+        self.transform_raw_content(data)
         data_gen = self.cleaner.clean(content_type=data['content_type'], path=data['path'],
                                       content=data['content'], sheet_names=data['sheet_names'])
 
