@@ -28,10 +28,6 @@ class SftpClient():
                 transport.close()
 
 
-def _sftp_download_reporter(current, total):
-    self.logger.info(f"sftp: {current} bytes uploaded out of {total}")
-
-
 class SftpClientMixin:
 
     SFTP_HOST = None
@@ -50,6 +46,9 @@ class SftpClientMixin:
             user=self.SFTP_USER, password=self.SFTP_PASSWORD,
             timeout=self.SFTP_TIMEOUT)
 
+    def _sftp_download_reporter(self, current, total):
+        self.logger.info(f"sftp: {current} bytes uploaded out of {total}")
+
     def get_list_of_files_on_sftp_gen(self, path=None, conn=None):
         path = path if path else self.SFTP_READ_FOLDER
         with self.sftp_client.get_connection(conn=conn) as conn:
@@ -63,7 +62,7 @@ class SftpClientMixin:
         self.logger.info(f"Sftp: Downloading {key}")
         with self.sftp_client.get_connection(conn=conn) as conn:
             conn.get(localpath=localpath, remotepath=key,
-                     callback=_sftp_download_reporter)
+                     callback=self._sftp_download_reporter)
         with open(localpath, 'rb') as the_file:
             contents = the_file.read()
         return contents
