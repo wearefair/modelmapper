@@ -3,6 +3,7 @@ import datetime
 import logging
 import pickle
 import types
+import json
 
 from modelmapper.base import Base
 from modelmapper.cleaner import Cleaner, CastingError
@@ -181,12 +182,12 @@ class ETL(Base):
                 raw_key_id = self._backup_data_and_get_raw_key(
                     session, data_raw_bytes=data_raw_bytes, signature=signature)
             except FileAlreadyProcessed:
-                if hasattr(self, 'post_packup_cleanup'):
-                    self.post_packup_cleanup()
+                if hasattr(self, 'post_pickup_cleanup'):
+                    self.post_pickup_cleanup()
                 raise
             else:
-                if hasattr(self, 'post_packup_cleanup'):
-                    self.post_packup_cleanup()
+                if hasattr(self, 'post_pickup_cleanup'):
+                    self.post_pickup_cleanup()
         else:
             raw_key_id = self._create_raw_key(session, key=key, signature=signature)
 
@@ -207,7 +208,14 @@ class ETL(Base):
         """
         return data_gen
 
+    def transform_raw_content(self, data=None):
+        """
+        Transforms the data dictionary with raw content
+        """
+        pass
+
     def _transform(self, session, data):
+        self.transform_raw_content(data)
         data_gen = self.cleaner.clean(content_type=data['content_type'], path=data['path'],
                                       content=data['content'], sheet_names=data['sheet_names'])
 

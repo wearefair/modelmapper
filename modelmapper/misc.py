@@ -7,6 +7,7 @@ import enum
 import logging
 import pprint
 import pytoml
+import cchardet
 from itertools import chain
 from string import ascii_lowercase, digits
 
@@ -225,7 +226,8 @@ def analyze_csv_format(iostream, **kwargs):
     if not raw_headers:
         try:
             has_header = sniffer.has_header(sample)
-        except csv.Error:
+        except csv.Error as e:
+            logger.exception(f"sniffing csv header failed: {e}")
             has_header = False
 
     # reset the file pointer to beginning
@@ -275,9 +277,14 @@ def read_csv_gen(path_or_stringio, **kwargs):
     """
     if isinstance(path_or_stringio, (str, bytes)):
         _check_file_exists(path_or_stringio)
-        encoding = kwargs.pop('encoding', 'utf-8-sig')
-        with open(path_or_stringio, 'r', encoding=encoding) as csvfile:
-            for row in find_header(csvfile, **kwargs):
+
+        with open(path_or_stringio, 'rb') as csvfile:
+            content = csvfile.read()
+            content = decode_bytes(content)
+            # the sniffer has problems when only \r is used for new line
+            content = content.replace('\r\n', '\n').replace('\r', '\n')
+            content_io = io.StringIO(content)
+            for row in find_header(content_io, **kwargs):
                 yield row
     elif isinstance(path_or_stringio, io.StringIO):
         for row in find_header(path_or_stringio, **kwargs):
@@ -442,11 +449,15 @@ LITTLE_ENDIAN_HEADER = b'\xff\xfe'
 UTF8_HEADER = b'\xef\xbb\xbf'
 
 def decode_bytes(content):
-    if content.startswith(UTF8_HEADER):
-        return content.decode('utf-8-sig')
-    if content.startswith(BIG_ENDIAN_HEADER):
-        return content[len(BIG_ENDIAN_HEADER):].decode('utf-16-be')
-    if content.startswith(LITTLE_ENDIAN_HEADER):
-        return content[len(LITTLE_ENDIAN_HEADER):].decode('utf-16-le')
-    return content.decode('utf-8')
-
+    try:
+        if content.startswith(UTF8_HEADER):
+            return content.decode('utf-8-sig')
+        if content.startswith(BIG_ENDIAN_HEADER):
+            return content[len(BIG_ENDIAN_HEADER):].decode('utf-16-be')
+        if content.startswith(LITTLE_ENDIAN_HEADER):
+            return content[len(LITTLE_ENDIAN_HEADER):].decode('utf-16-le')
+        return content.decode('utf-8')
+    except Exception:
+        encoding_info = cchardet.detect(content)
+        logger.info(f"Encoding detected to be {encoding_info['encoding']} with confidence of {encoding_info['confidence']}.")
+        return content.decode(encoding_info['encoding'])

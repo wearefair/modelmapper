@@ -61,6 +61,8 @@ class SqlalchemyLoaderMixin(BaseLoaderMixin):
             self.logger.debug(f"Row caused Integrity Error: {row}")
             if self._fail_on_integrity_error:
                 raise
+            else:
+                session.rollback()
         except Exception:
             self.logger.exception(f"Error on inserting row of data: {row}")
             raise
