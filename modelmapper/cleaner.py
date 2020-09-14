@@ -270,7 +270,7 @@ class Cleaner(Base):
                     if is_integer or is_decimal or is_dollar or is_percent:
                         try:
                             item = Decimal(item)
-                        except Exception as e:
+                        except Exception:
                             raise CastingError('Invalid Decimal', field_name=field_name, item=item) from None
 
                     if is_dollar:
@@ -294,8 +294,11 @@ class Cleaner(Base):
                                 msg = ("Invalid Datetime format that is not defined in "
                                        f"{field_info.get('datetime_formats')}")
                                 raise CastingError(msg, field_name=field_name, item=item) from None
-                        except ValueError:
-                            if datetime_formats:
+                        except ValueError as e:
+                            if str(e) == 'day is out of range for month':
+                                self.logger.error(f'{item} day is out of range for month for {_format} format. Setting it to null.')
+                                item = None
+                            elif datetime_formats:
                                 datetime_formats.pop()
                             else:
                                 msg = ("Invalid Datetime format that is not defined in "
