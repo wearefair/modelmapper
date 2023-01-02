@@ -107,4 +107,4 @@ venv.bak/
 
 temp[0-9]*
 
-.idea
+.idea.git/
